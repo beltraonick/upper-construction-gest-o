@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/ui/Avatar'
 import { logout } from '@/app/actions/auth'
 import type { SessionUser } from '@/lib/auth/types'
@@ -9,6 +9,7 @@ import type { SessionUser } from '@/lib/auth/types'
 const NAV = [
   {
     label: 'Dashboard',
+    mobileLabel: 'Home',
     href: '/admin/dashboard',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -18,6 +19,7 @@ const NAV = [
   },
   {
     label: 'Employees',
+    mobileLabel: 'Equipe',
     href: '/admin/employees',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -27,6 +29,7 @@ const NAV = [
   },
   {
     label: 'Projects',
+    mobileLabel: 'Obras',
     href: '/admin/projects',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -36,6 +39,7 @@ const NAV = [
   },
   {
     label: 'Time & Attendance',
+    mobileLabel: 'Ponto',
     href: '/admin/time',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -45,6 +49,7 @@ const NAV = [
   },
   {
     label: 'Payroll',
+    mobileLabel: 'Pagamento',
     href: '/admin/payroll',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -54,6 +59,7 @@ const NAV = [
   },
   {
     label: 'Photos',
+    mobileLabel: 'Fotos',
     href: '/admin/photos',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -63,6 +69,7 @@ const NAV = [
   },
   {
     label: 'Reports',
+    mobileLabel: 'Relatórios',
     href: '/admin/reports',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -72,6 +79,7 @@ const NAV = [
   },
   {
     label: 'Settings',
+    mobileLabel: 'Config',
     href: '/admin/settings',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -81,70 +89,119 @@ const NAV = [
   },
 ]
 
+// 5 items shown in the mobile bottom nav
+const BOTTOM_NAV = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4]]
+
 export function Sidebar({ user }: { user: SessionUser }) {
   const pathname = usePathname()
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-[240px] flex flex-col bg-surface border-r border-[rgba(255,255,255,0.07)] z-40">
-
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-[rgba(255,255,255,0.07)]">
-        <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center flex-shrink-0">
-          <svg viewBox="0 0 20 20" fill="white" className="w-4 h-4">
-            <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
-          </svg>
+    <>
+      {/* ── Desktop Sidebar (md+) ── */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-[240px] flex-col bg-surface border-r border-[rgba(255,255,255,0.07)] z-40">
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-[rgba(255,255,255,0.07)]">
+          <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center flex-shrink-0">
+            <svg viewBox="0 0 20 20" fill="white" className="w-4 h-4">
+              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-primary truncate leading-tight">Upper</p>
+            <p className="text-[11px] text-tertiary truncate">Construction</p>
+          </div>
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-primary truncate leading-tight">Upper</p>
-          <p className="text-[11px] text-tertiary truncate">Construction</p>
-        </div>
-      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        {NAV.map(item => {
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+          {NAV.map(item => {
+            const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={[
+                  'flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium transition-colors duration-150',
+                  active
+                    ? 'bg-brand text-white'
+                    : 'text-secondary hover:text-primary hover:bg-surface-elevated',
+                ].join(' ')}
+              >
+                <span className={active ? 'text-white' : 'text-tertiary'}>{item.icon}</span>
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* User + Logout */}
+        <div className="px-3 py-4 border-t border-[rgba(255,255,255,0.07)] space-y-1">
+          <div className="flex items-center gap-3 px-3 py-2">
+            <Avatar name={user.full_name} size="sm" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-primary truncate leading-tight">{user.full_name}</p>
+              <p className="text-[11px] text-tertiary truncate capitalize">{user.role}</p>
+            </div>
+          </div>
+          <form action={logout}>
+            <button
+              type="submit"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium text-secondary hover:text-danger hover:bg-danger/10 transition-colors duration-150"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px] flex-shrink-0">
+                <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+              </svg>
+              Sign Out
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      {/* ── Mobile Top Bar (< md) ── */}
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between px-4 h-14">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-brand flex items-center justify-center">
+            <svg viewBox="0 0 20 20" fill="white" className="w-3.5 h-3.5">
+              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
+          </div>
+          <span className="text-sm font-semibold text-primary">Upper Construction</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Avatar name={user.full_name} size="sm" />
+          <form action={logout}>
+            <button
+              type="submit"
+              className="p-2 rounded-button text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
+              title="Sign out"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      </header>
+
+      {/* ── Mobile Bottom Nav (< md) ── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-[rgba(255,255,255,0.07)] flex safe-bottom">
+        {BOTTOM_NAV.map(item => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link
               key={item.href}
               href={item.href}
               className={[
-                'flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium transition-colors duration-150',
-                active
-                  ? 'bg-brand text-white'
-                  : 'text-secondary hover:text-primary hover:bg-surface-elevated',
+                'flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium transition-colors duration-150',
+                active ? 'text-brand' : 'text-tertiary hover:text-secondary',
               ].join(' ')}
             >
-              <span className={active ? 'text-white' : 'text-tertiary'}>
-                {item.icon}
-              </span>
-              {item.label}
+              <span className={active ? 'text-brand' : 'text-tertiary'}>{item.icon}</span>
+              {item.mobileLabel}
             </Link>
           )
         })}
       </nav>
-
-      {/* User + Logout */}
-      <div className="px-3 py-4 border-t border-[rgba(255,255,255,0.07)] space-y-1">
-        <div className="flex items-center gap-3 px-3 py-2">
-          <Avatar name={user.full_name} size="sm" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-primary truncate leading-tight">{user.full_name}</p>
-            <p className="text-[11px] text-tertiary truncate capitalize">{user.role}</p>
-          </div>
-        </div>
-        <form action={logout}>
-          <button
-            type="submit"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium text-secondary hover:text-danger hover:bg-danger/10 transition-colors duration-150"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px] flex-shrink-0">
-              <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-            </svg>
-            Sign Out
-          </button>
-        </form>
-      </div>
-    </aside>
+    </>
   )
 }

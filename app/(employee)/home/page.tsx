@@ -1,7 +1,6 @@
 import { getCurrentUser } from '@/lib/auth/session'
 import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { logout } from '@/app/actions/auth'
 
@@ -18,7 +17,7 @@ export default async function EmployeeHomePage() {
   const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 18 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-8">
+    <div className="max-w-lg mx-auto px-4 py-6 md:py-8">
 
       {/* Greeting */}
       <div className="flex items-center gap-4 mb-8">

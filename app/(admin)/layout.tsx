@@ -12,7 +12,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar user={user} />
-      <main className="flex-1 ml-[240px] overflow-y-auto">
+      {/* pt-14 = mobile topbar height; pb-20 = mobile bottom nav; md resets both */}
+      <main className="flex-1 md:ml-[240px] overflow-y-auto pt-14 md:pt-0 pb-20 md:pb-0">
         {children}
       </main>
     </div>
