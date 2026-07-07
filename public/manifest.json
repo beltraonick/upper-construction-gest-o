@@ -1,0 +1,24 @@
+{
+  "name": "Upper Construction",
+  "short_name": "Upper",
+  "description": "Plataforma de gestão interna Upper Construction",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.jpg",
+      "sizes": "640x640",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}
