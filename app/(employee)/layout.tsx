@@ -1,11 +1,16 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 
-export default function RootPage() {
+export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
 
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
   if (user.role === 'admin') redirect('/admin/dashboard')
-  redirect('/employee/dashboard')
+
+  return (
+    <div className="min-h-screen bg-background">
+      {children}
+    </div>
+  )
 }
