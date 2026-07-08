@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { logout } from '@/app/actions/auth'
+import { ClockButtons } from './ClockButtons'
+import { createClient } from '@/lib/supabase/server'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -15,6 +17,57 @@ export default async function EmployeeHomePage() {
 
   const today = new Date()
   const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 18 ? 'Good afternoon' : 'Good evening'
+
+  let profileId: string | null = null
+  let openEntryId: string | null = null
+  let clockInTime: string | null = null
+
+  if (supabaseReady) {
+    try {
+      const supabase = createClient()
+
+      let { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle()
+
+      if (!profile) {
+        const { data: newProfile } = await supabase
+          .from('profiles')
+          .insert({
+            company_id: '00000000-0000-0000-0000-000000000001',
+            role: user.role,
+            full_name: user.full_name,
+            email: user.email,
+            status: 'active',
+          })
+          .select('id')
+          .single()
+        profile = newProfile
+      }
+
+      if (profile) {
+        profileId = profile.id
+
+        const { data: openEntry } = await supabase
+          .from('time_entries')
+          .select('id, clock_in')
+          .eq('employee_id', profile.id)
+          .is('clock_out', null)
+          .order('clock_in', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (openEntry) {
+          openEntryId = openEntry.id
+          clockInTime = openEntry.clock_in
+        }
+      }
+    } catch {
+      // silent fallback
+    }
+  }
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 md:py-8">
@@ -47,17 +100,25 @@ export default async function EmployeeHomePage() {
         </div>
       )}
 
-      {/* Clock In/Out placeholder */}
+      {/* Clock In/Out */}
       <Card className="mb-6">
-        <div className="flex flex-col items-center gap-4 py-2">
-          <p className="text-sm text-secondary">You are not clocked in</p>
-          <button
-            disabled={!supabaseReady}
-            className="inline-flex items-center justify-center gap-2 font-medium rounded-button transition-all duration-150 bg-brand hover:bg-brand-hover text-white h-12 px-6 text-base w-full disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Clock In
-          </button>
-        </div>
+        {profileId ? (
+          <ClockButtons
+            employeeId={profileId}
+            openEntryId={openEntryId}
+            clockInTime={clockInTime}
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-4 py-2">
+            <p className="text-sm text-secondary">You are not clocked in</p>
+            <button
+              disabled
+              className="inline-flex items-center justify-center gap-2 font-medium rounded-button transition-all duration-150 bg-brand text-white h-12 px-6 text-base w-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Clock In
+            </button>
+          </div>
+        )}
       </Card>
 
       {/* Week Summary */}
