@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
+import { EmployeeNav } from './EmployeeNav'
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
@@ -10,7 +11,10 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="min-h-screen bg-background">
-      {children}
+      <div className="pb-16">
+        {children}
+      </div>
+      <EmployeeNav />
     </div>
   )
 }

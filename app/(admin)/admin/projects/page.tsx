@@ -1,19 +1,294 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
+import { Badge } from '@/components/ui/Badge'
+
+const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
+
+const US_STATES = [
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
+  'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
+  'VA','WA','WV','WI','WY',
+]
+
+interface Project {
+  id: string
+  name: string
+  status: string
+  city: string | null
+  state: string | null
+  hotel_name: string | null
+  leader_id: string | null
+  budget: number | null
+  created_at: string
+}
+
+interface Profile {
+  id: string
+  full_name: string
+}
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on_hold', label: 'On Hold' },
+]
+
+const BLANK = {
+  name: '', status: 'active', city: '', state: '',
+  hotel_name: '', leader_id: '', budget: '',
+}
+
+function statusBadge(s: string) {
+  if (s === 'active') return <Badge variant="green">Active</Badge>
+  if (s === 'completed') return <Badge variant="blue">Completed</Badge>
+  return <Badge variant="amber">On Hold</Badge>
+}
 
 export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([])
+  const [employees, setEmployees] = useState<Profile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [editing, setEditing] = useState<Project | null>(null)
+  const [form, setForm] = useState({ ...BLANK })
+  const [search, setSearch] = useState('')
+
+  const load = useCallback(async () => {
+    const supabase = createClient()
+    const [{ data: projs }, { data: emps }] = await Promise.all([
+      supabase.from('projects').select('*').eq('company_id', COMPANY_ID).order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id, full_name').eq('company_id', COMPANY_ID).eq('status', 'active').order('full_name'),
+    ])
+    setProjects(projs ?? [])
+    setEmployees(emps ?? [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  function openAdd() {
+    setEditing(null)
+    setForm({ ...BLANK })
+    setShowModal(true)
+  }
+
+  function openEdit(p: Project) {
+    setEditing(p)
+    setForm({
+      name: p.name,
+      status: p.status,
+      city: p.city ?? '',
+      state: p.state ?? '',
+      hotel_name: p.hotel_name ?? '',
+      leader_id: p.leader_id ?? '',
+      budget: p.budget != null ? String(p.budget) : '',
+    })
+    setShowModal(true)
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const supabase = createClient()
+    const payload = {
+      name: form.name,
+      status: form.status,
+      city: form.city || null,
+      state: form.state || null,
+      hotel_name: form.hotel_name || null,
+      leader_id: form.leader_id || null,
+      budget: form.budget ? Number(form.budget) : null,
+    }
+    if (editing) {
+      await supabase.from('projects').update(payload).eq('id', editing.id)
+    } else {
+      await supabase.from('projects').insert({ ...payload, company_id: COMPANY_ID })
+    }
+    setSaving(false)
+    setShowModal(false)
+    load()
+  }
+
+  const stateOptions = [
+    { value: '', label: 'Select state…' },
+    ...US_STATES.map(s => ({ value: s, label: s })),
+  ]
+
+  const leaderOptions = [
+    { value: '', label: 'No leader assigned' },
+    ...employees.map(e => ({ value: e.id, label: e.full_name })),
+  ]
+
+  const filtered = projects.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    (p.city ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (p.state ?? '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  const active = projects.filter(p => p.status === 'active').length
+
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Projects</h1>
-        <p className="text-sm text-secondary mt-1">Track all construction projects</p>
+      <div className="mb-6 md:mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Projects</h1>
+          <p className="text-sm text-secondary mt-1">
+            {active} active · {projects.length} total
+          </p>
+        </div>
+        <Button onClick={openAdd}>+ Add Project</Button>
       </div>
-      <Card className="flex flex-col items-center justify-center py-16 gap-3">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-12 h-12 text-tertiary">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
-        </svg>
-        <p className="text-sm font-medium text-secondary">Project management coming soon</p>
-        <p className="text-xs text-tertiary">Connect Supabase to manage your projects</p>
+
+      <div className="mb-4">
+        <Input
+          placeholder="Search by name, city or state…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
+      <Card padding="none">
+        {loading ? (
+          <p className="px-5 py-10 text-sm text-secondary text-center">Loading…</p>
+        ) : filtered.length === 0 ? (
+          <p className="px-5 py-10 text-sm text-secondary text-center">
+            {projects.length === 0 ? 'No projects yet. Add your first project.' : 'No results.'}
+          </p>
+        ) : (
+          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+            {filtered.map(p => {
+              const leader = employees.find(e => e.id === p.leader_id)
+              return (
+                <div key={p.id} className="flex items-center gap-3 px-5 py-4">
+                  <div className="w-10 h-10 rounded-button bg-brand/10 flex items-center justify-center flex-shrink-0">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-brand">
+                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-primary truncate">{p.name}</p>
+                      {statusBadge(p.status)}
+                    </div>
+                    <p className="text-xs text-secondary truncate">
+                      {[p.city, p.state].filter(Boolean).join(', ') || 'No location'}
+                      {p.hotel_name ? ` · ${p.hotel_name}` : ''}
+                    </p>
+                    {leader && (
+                      <p className="text-xs text-tertiary truncate">Leader: {leader.full_name}</p>
+                    )}
+                  </div>
+                  <div className="hidden md:flex flex-col items-end flex-shrink-0 mr-4">
+                    {p.budget != null && (
+                      <p className="text-sm font-semibold text-primary">
+                        ${Number(p.budget).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => openEdit(p)}
+                    className="p-1.5 rounded-button text-secondary hover:text-primary hover:bg-surface-elevated transition-colors flex-shrink-0"
+                    title="Edit"
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </Card>
+
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h2 className="text-base font-semibold text-primary mb-5">
+                {editing ? 'Edit Project' : 'Add Project'}
+              </h2>
+              <form onSubmit={handleSave} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Input
+                      label="Project Name"
+                      required
+                      value={form.name}
+                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    />
+                  </div>
+                  <Input
+                    label="City"
+                    placeholder="e.g. Charleston"
+                    value={form.city}
+                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                  />
+                  <Select
+                    label="State"
+                    options={stateOptions}
+                    value={form.state}
+                    onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+                  />
+                  <div className="col-span-2">
+                    <Input
+                      label="Hotel / Accommodation"
+                      placeholder="Where is the team staying?"
+                      value={form.hotel_name}
+                      onChange={e => setForm(f => ({ ...f, hotel_name: e.target.value }))}
+                    />
+                  </div>
+                  <Select
+                    label="Leader"
+                    options={leaderOptions}
+                    value={form.leader_id}
+                    onChange={e => setForm(f => ({ ...f, leader_id: e.target.value }))}
+                  />
+                  <Select
+                    label="Status"
+                    options={STATUS_OPTIONS}
+                    value={form.status}
+                    onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                  />
+                  <div className="col-span-2">
+                    <Input
+                      label="Budget ($)"
+                      type="number"
+                      min="0"
+                      step="100"
+                      placeholder="Optional"
+                      value={form.budget}
+                      onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
+                    Cancel
+                  </Button>
+                  <Button type="submit" loading={saving} className="flex-1">
+                    {editing ? 'Save Changes' : 'Add Project'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,19 +1,298 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
+import { Avatar } from '@/components/ui/Avatar'
+import { Badge } from '@/components/ui/Badge'
+
+const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
+
+interface Employee {
+  id: string
+  full_name: string
+  email: string
+  role: string
+  position: string | null
+  company_name: string | null
+  hourly_rate: number
+  phone: string | null
+  status: string
+  created_at: string
+}
+
+const ROLE_OPTIONS = [
+  { value: 'employee', label: 'Employee' },
+  { value: 'admin', label: 'Admin' },
+]
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'archived', label: 'Archived' },
+]
+
+const BLANK: Omit<Employee, 'id' | 'created_at'> = {
+  full_name: '', email: '', role: 'employee', position: '',
+  company_name: '', hourly_rate: 0, phone: '', status: 'active',
+}
 
 export default function EmployeesPage() {
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [editing, setEditing] = useState<Employee | null>(null)
+  const [form, setForm] = useState({ ...BLANK })
+  const [search, setSearch] = useState('')
+
+  const load = useCallback(async () => {
+    const supabase = createClient()
+    const [{ data: emps }, { data: open }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('company_id', COMPANY_ID).order('full_name'),
+      supabase.from('time_entries').select('employee_id').is('clock_out', null),
+    ])
+    setEmployees(emps ?? [])
+    setOpenIds(new Set((open ?? []).map((e: { employee_id: string }) => e.employee_id)))
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  function openAdd() {
+    setEditing(null)
+    setForm({ ...BLANK })
+    setShowModal(true)
+  }
+
+  function openEdit(emp: Employee) {
+    setEditing(emp)
+    setForm({
+      full_name: emp.full_name,
+      email: emp.email,
+      role: emp.role,
+      position: emp.position ?? '',
+      company_name: emp.company_name ?? '',
+      hourly_rate: emp.hourly_rate,
+      phone: emp.phone ?? '',
+      status: emp.status,
+    })
+    setShowModal(true)
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const supabase = createClient()
+    const payload = {
+      full_name: form.full_name,
+      email: form.email,
+      role: form.role,
+      position: form.position || null,
+      company_name: form.company_name || null,
+      hourly_rate: Number(form.hourly_rate),
+      phone: form.phone || null,
+      status: form.status,
+    }
+    if (editing) {
+      await supabase.from('profiles').update(payload).eq('id', editing.id)
+    } else {
+      await supabase.from('profiles').insert({ ...payload, company_id: COMPANY_ID })
+    }
+    setSaving(false)
+    setShowModal(false)
+    load()
+  }
+
+  async function toggleStatus(emp: Employee) {
+    const supabase = createClient()
+    const next = emp.status === 'active' ? 'archived' : 'active'
+    await supabase.from('profiles').update({ status: next }).eq('id', emp.id)
+    load()
+  }
+
+  const filtered = employees.filter(e =>
+    e.full_name.toLowerCase().includes(search.toLowerCase()) ||
+    (e.email ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.position ?? '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  const active = employees.filter(e => e.status === 'active').length
+  const clockedIn = employees.filter(e => openIds.has(e.id)).length
+
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Employees</h1>
-        <p className="text-sm text-secondary mt-1">Manage your team members</p>
+      <div className="mb-6 md:mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Employees</h1>
+          <p className="text-sm text-secondary mt-1">
+            {active} active · {clockedIn} clocked in now
+          </p>
+        </div>
+        <Button onClick={openAdd}>+ Add Employee</Button>
       </div>
-      <Card className="flex flex-col items-center justify-center py-16 gap-3">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-12 h-12 text-tertiary">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-        </svg>
-        <p className="text-sm font-medium text-secondary">Employee management coming soon</p>
-        <p className="text-xs text-tertiary">Connect Supabase to manage your team</p>
+
+      {/* Search */}
+      <div className="mb-4">
+        <Input
+          placeholder="Search by name, email or position…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
+      <Card padding="none">
+        {loading ? (
+          <p className="px-5 py-10 text-sm text-secondary text-center">Loading…</p>
+        ) : filtered.length === 0 ? (
+          <p className="px-5 py-10 text-sm text-secondary text-center">
+            {employees.length === 0 ? 'No employees yet. Add your first team member.' : 'No results for that search.'}
+          </p>
+        ) : (
+          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+            {filtered.map(emp => (
+              <div key={emp.id} className="flex items-center gap-3 px-5 py-4">
+                <div className="relative flex-shrink-0">
+                  <Avatar name={emp.full_name} size="md" />
+                  {openIds.has(emp.id) && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green border-2 border-background" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-primary truncate">{emp.full_name}</p>
+                    {emp.role === 'admin' && <Badge variant="blue">Admin</Badge>}
+                    {emp.status === 'archived' && <Badge variant="gray">Archived</Badge>}
+                  </div>
+                  <p className="text-xs text-secondary truncate">
+                    {emp.position ?? 'No position'}
+                    {emp.company_name ? ` · ${emp.company_name}` : ''}
+                  </p>
+                  <p className="text-xs text-tertiary truncate">{emp.email}</p>
+                </div>
+                <div className="hidden md:block text-right flex-shrink-0 mr-4">
+                  <p className="text-sm font-semibold text-primary">
+                    ${Number(emp.hourly_rate).toFixed(2)}/hr
+                  </p>
+                  {emp.phone && <p className="text-xs text-secondary">{emp.phone}</p>}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => openEdit(emp)}
+                    className="p-1.5 rounded-button text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
+                    title="Edit"
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => toggleStatus(emp)}
+                    className="p-1.5 rounded-button text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
+                    title={emp.status === 'active' ? 'Archive' : 'Activate'}
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      {emp.status === 'active'
+                        ? <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524L13.476 14.89zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+                        : <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      }
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
+
+      {/* Modal */}
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h2 className="text-base font-semibold text-primary mb-5">
+                {editing ? 'Edit Employee' : 'Add Employee'}
+              </h2>
+              <form onSubmit={handleSave} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Input
+                      label="Full Name"
+                      required
+                      value={form.full_name}
+                      onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Input
+                      label="Email"
+                      type="email"
+                      required
+                      value={form.email}
+                      onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    />
+                  </div>
+                  <Select
+                    label="Role"
+                    options={ROLE_OPTIONS}
+                    value={form.role}
+                    onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
+                  />
+                  <Select
+                    label="Status"
+                    options={STATUS_OPTIONS}
+                    value={form.status}
+                    onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                  />
+                  <Input
+                    label="Position / Trade"
+                    placeholder="e.g. Painter, Electrician"
+                    value={form.position ?? ''}
+                    onChange={e => setForm(f => ({ ...f, position: e.target.value }))}
+                  />
+                  <Input
+                    label="Hourly Rate ($)"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.hourly_rate}
+                    onChange={e => setForm(f => ({ ...f, hourly_rate: Number(e.target.value) }))}
+                  />
+                  <Input
+                    label="Company (subcontractor)"
+                    placeholder="Leave blank if direct hire"
+                    value={form.company_name ?? ''}
+                    onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
+                  />
+                  <Input
+                    label="Phone"
+                    type="tel"
+                    value={form.phone ?? ''}
+                    onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
+                    Cancel
+                  </Button>
+                  <Button type="submit" loading={saving} className="flex-1">
+                    {editing ? 'Save Changes' : 'Add Employee'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
