@@ -2,12 +2,12 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Upper Construction',
-  description: 'Plataforma de gestão interna Upper Construction',
+  title: 'Orbit',
+  description: 'Orbit — Plataforma de gestão de equipes',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    title: 'Upper Construction',
+    title: 'Orbit',
     statusBarStyle: 'black-translucent',
   },
   icons: {
