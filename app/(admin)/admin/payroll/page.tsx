@@ -95,7 +95,6 @@ export default function PayrollPage() {
         .limit(20),
     ])
 
-    const empMap = new Map((profiles ?? []).map(p => [p.id, p]))
     const hoursMap = new Map<string, number>()
 
     for (const e of (entries ?? [])) {
