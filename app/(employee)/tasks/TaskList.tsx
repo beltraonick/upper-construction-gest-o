@@ -21,7 +21,7 @@ const PRIORITY_DOT: Record<string, string> = {
 
 export function TaskList({
   tasks: initial,
-  profileId,
+  profileId: _profileId, // kept for future use
   supabaseReady,
 }: {
   tasks: Task[]
