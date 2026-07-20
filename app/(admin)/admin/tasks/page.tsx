@@ -27,12 +27,14 @@ interface Task {
   created_at: string
   project_id: string | null
   assigned_employee_id: string | null
+  room_id: string | null
   project: { name: string } | null
   assigned_employee: { full_name: string } | null
 }
 
 interface Profile { id: string; full_name: string }
 interface Project { id: string; name: string }
+interface Room { id: string; project_id: string; floor: string | null; label: string }
 
 const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low' },
@@ -70,7 +72,7 @@ const STATUS_VARIANTS: Record<string, 'gray' | 'amber' | 'blue' | 'green'> = {
 const BLANK = {
   title: '', description: '', area: '', priority: 'medium',
   status: 'pending', estimated_hours: '', due_date: '',
-  project_id: '', assigned_employee_id: '', notes: '',
+  project_id: '', assigned_employee_id: '', notes: '', room_id: '',
   checklist: [] as ChecklistItem[],
 }
 
@@ -78,6 +80,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [employees, setEmployees] = useState<Profile[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [rooms, setRooms] = useState<Room[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -86,21 +89,24 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterProject, setFilterProject] = useState('')
   const [newCheckItem, setNewCheckItem] = useState('')
+  const [editPhotos, setEditPhotos] = useState<{ id: string; storage_path: string }[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
-    const [{ data: t }, { data: emps }, { data: projs }] = await Promise.all([
+    const [{ data: t }, { data: emps }, { data: projs }, { data: rms }] = await Promise.all([
       supabase
         .from('tasks')
         .select('*, project:project_id(name), assigned_employee:assigned_to(full_name)')
         .order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, full_name').eq('company_id', COMPANY_ID).eq('status', 'active').order('full_name'),
       supabase.from('projects').select('id, name').eq('company_id', COMPANY_ID).eq('status', 'active').order('name'),
+      supabase.from('project_rooms').select('id, project_id, floor, label').eq('company_id', COMPANY_ID),
     ])
     setTasks((t ?? []) as unknown as Task[])
     setEmployees(emps ?? [])
     setProjects(projs ?? [])
+    setRooms(rms ?? [])
     setLoading(false)
   }, [])
 
@@ -112,7 +118,7 @@ export default function TasksPage() {
     setShowModal(true)
   }
 
-  function openEdit(t: Task) {
+  async function openEdit(t: Task) {
     setEditing(t)
     setForm({
       title: t.title,
@@ -125,9 +131,23 @@ export default function TasksPage() {
       project_id: t.project_id ?? '',
       assigned_employee_id: t.assigned_employee_id ?? '',
       notes: t.notes ?? '',
+      room_id: t.room_id ?? '',
       checklist: t.checklist ?? [],
     })
+    setEditPhotos([])
     setShowModal(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('task_media')
+      .select('id, storage_path')
+      .eq('task_id', t.id)
+      .eq('media_type', 'photo')
+      .order('created_at', { ascending: false })
+    setEditPhotos(data ?? [])
+  }
+
+  function editPhotoUrl(path: string) {
+    return createClient().storage.from('project-photos').getPublicUrl(path).data.publicUrl
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -162,6 +182,7 @@ export default function TasksPage() {
         checklist: form.checklist,
         completed_at: form.status === 'completed' ? new Date().toISOString() : null,
         assigned_employee_id: form.assigned_employee_id || null,
+        room_id: form.room_id || null,
       }
       if (editing) {
         await supabase.from('tasks').update(extended).eq('id', editing.id)
@@ -238,6 +259,15 @@ export default function TasksPage() {
     { value: '', label: 'All projects' },
     ...projects.map(p => ({ value: p.id, label: p.name })),
   ]
+
+  function roomOptionsFor(pid: string) {
+    return [
+      { value: '', label: 'No room' },
+      ...rooms
+        .filter(r => r.project_id === pid)
+        .map(r => ({ value: r.id, label: [r.floor, r.label].filter(Boolean).join(' — ') })),
+    ]
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
@@ -428,12 +458,29 @@ export default function TasksPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
+                  <Select
+                    label="Room"
+                    options={roomOptionsFor(form.project_id)}
+                    value={form.room_id}
+                    onChange={e => {
+                      const roomId = e.target.value
+                      const room = rooms.find(r => r.id === roomId)
+                      setForm(f => ({
+                        ...f,
+                        room_id: roomId,
+                        area: room ? [room.floor, room.label].filter(Boolean).join(' — ') : f.area,
+                      }))
+                    }}
+                  />
                   <Input
                     label="Area / Location"
                     placeholder="e.g. Floor 3, Room 214"
                     value={form.area}
                     onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <Input
                     label="Due Date"
                     type="date"
@@ -452,6 +499,24 @@ export default function TasksPage() {
                     className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none transition-colors"
                   />
                 </div>
+
+                {/* Photos from the field — read only, added by the assigned employee */}
+                {editing && editPhotos.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-medium text-secondary mb-2">Photos from the field</label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {editPhotos.map(p => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={p.id}
+                          src={editPhotoUrl(p.storage_path)}
+                          alt="Task photo"
+                          className="aspect-square object-cover rounded-button bg-surface-elevated"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Checklist */}
                 <div>

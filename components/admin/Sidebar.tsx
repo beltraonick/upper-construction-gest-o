@@ -49,6 +49,16 @@ const NAV = [
     ),
   },
   {
+    label: 'Rooms',
+    mobileLabel: 'Rooms',
+    href: '/admin/rooms',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+        <path d="M2 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H3a1 1 0 01-1-1V4zM2 12a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H3a1 1 0 01-1-1v-4zM12 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zM12 12a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+      </svg>
+    ),
+  },
+  {
     label: 'Change Orders',
     mobileLabel: 'Extras',
     href: '/admin/change-orders',

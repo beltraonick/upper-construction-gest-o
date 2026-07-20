@@ -21,6 +21,14 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function roomDotColor(roomId: string, tasks: { room_id: string | null; status: string }[]) {
+  const linked = tasks.filter(t => t.room_id === roomId)
+  if (linked.length === 0) return 'bg-[rgba(255,255,255,0.15)]'
+  if (linked.every(t => t.status === 'completed')) return 'bg-green'
+  if (linked.some(t => t.status !== 'pending')) return 'bg-amber'
+  return 'bg-[rgba(255,255,255,0.15)]'
+}
+
 export default async function ClientPortalPage() {
   const user = getCurrentUser()
   if (!user) redirect('/login')
@@ -44,6 +52,9 @@ export default async function ClientPortalPage() {
     project_id: string | null
   }[] = []
 
+  let rooms: { id: string; project_id: string; floor: string | null; label: string }[] = []
+  let roomTasks: { room_id: string | null; status: string }[] = []
+
   let totalHoursThisWeek = 0
 
   if (supabaseReady) {
@@ -63,7 +74,7 @@ export default async function ClientPortalPage() {
       projects = (projs ?? []) as typeof projects
       const projectIds = projects.map(p => p.id)
 
-      const [{ data: photos }, { data: weekEntries }] = await Promise.all([
+      const [{ data: photos }, { data: weekEntries }, { data: roomRows }, { data: taskRows }] = await Promise.all([
         projectIds.length > 0
           ? supabase
               .from('project_photos')
@@ -80,9 +91,17 @@ export default async function ClientPortalPage() {
               .gte('clock_in', weekStart.toISOString())
               .not('clock_out', 'is', null)
           : Promise.resolve({ data: [] }),
+        projectIds.length > 0
+          ? supabase.from('project_rooms').select('id, project_id, floor, label').in('project_id', projectIds).order('floor').order('label')
+          : Promise.resolve({ data: [] }),
+        projectIds.length > 0
+          ? supabase.from('tasks').select('room_id, status').in('project_id', projectIds)
+          : Promise.resolve({ data: [] }),
       ])
 
       recentPhotos = (photos ?? []) as typeof recentPhotos
+      rooms = (roomRows ?? []) as typeof rooms
+      roomTasks = (taskRows ?? []) as typeof roomTasks
       totalHoursThisWeek = (weekEntries ?? []).reduce((sum, e) => {
         return sum + (new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) / 3600000
       }, 0)
@@ -176,6 +195,28 @@ export default async function ClientPortalPage() {
           ))}
         </div>
       </div>
+
+      {/* Room grid */}
+      {rooms.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-primary mb-3">Rooms</h2>
+          <Card>
+            <div className="flex items-center gap-4 mb-4 text-xs text-secondary">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green" /> Done</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber" /> In progress</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[rgba(255,255,255,0.15)]" /> Not started</span>
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {rooms.map(r => (
+                <div key={r.id} className="flex flex-col items-center gap-1 py-1.5 rounded-button bg-surface-elevated">
+                  <span className={`w-2 h-2 rounded-full ${roomDotColor(r.id, roomTasks)}`} />
+                  <span className="text-xs font-medium text-primary">{r.label}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Recent photos */}
       {recentPhotos.length > 0 && (

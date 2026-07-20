@@ -1,12 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 
+const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
+const PHOTO_BUCKET = 'project-photos'
+
 interface ChecklistItem { text: string; done: boolean }
+interface TaskPhoto { id: string; storage_path: string; created_at: string }
 
 // Accepts any task shape — works with both pre- and post-migration schema.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -21,7 +25,7 @@ const PRIORITY_DOT: Record<string, string> = {
 
 export function TaskList({
   tasks: initial,
-  profileId: _profileId, // kept for future use
+  profileId,
   supabaseReady,
 }: {
   tasks: Task[]
@@ -32,11 +36,62 @@ export function TaskList({
   const [selected, setSelected] = useState<Task | null>(null)
   const [saving, setSaving] = useState(false)
   const [notes, setNotes] = useState('')
+  const [photos, setPhotos] = useState<TaskPhoto[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
-  function openTask(t: Task) {
+  async function openTask(t: Task) {
     setSelected({ ...t })
     setNotes(t.notes ?? '')
+    setPhotos([])
+    if (supabaseReady) {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('task_media')
+        .select('id, storage_path, created_at')
+        .eq('task_id', t.id)
+        .eq('media_type', 'photo')
+        .order('created_at', { ascending: false })
+      setPhotos(data ?? [])
+    }
+  }
+
+  function photoUrl(path: string) {
+    const supabase = createClient()
+    return supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl
+  }
+
+  async function handlePhotoUpload(files: FileList | null) {
+    if (!files || files.length === 0 || !selected) return
+    setUploading(true)
+    const supabase = createClient()
+
+    for (const file of Array.from(files)) {
+      const ext = file.name.split('.').pop()
+      const path = `tasks/${selected.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadErr } = await supabase.storage.from(PHOTO_BUCKET).upload(path, file)
+      if (!uploadErr) {
+        await supabase.from('task_media').insert({
+          task_id: selected.id,
+          project_id: selected.project_id ?? null,
+          employee_id: profileId,
+          company_id: COMPANY_ID,
+          media_type: 'photo',
+          storage_path: path,
+        })
+      }
+    }
+
+    const { data } = await supabase
+      .from('task_media')
+      .select('id, storage_path, created_at')
+      .eq('task_id', selected.id)
+      .eq('media_type', 'photo')
+      .order('created_at', { ascending: false })
+    setPhotos(data ?? [])
+    setUploading(false)
+    if (fileRef.current) fileRef.current.value = ''
   }
 
   async function toggleCheck(taskId: string, index: number, done: boolean) {
@@ -222,6 +277,45 @@ export function TaskList({
                   </div>
                 </div>
               )}
+
+              {/* Photos */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide">Photos</p>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-1.5 text-xs font-medium text-brand hover:text-brand-hover transition-colors disabled:opacity-50"
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                    </svg>
+                    {uploading ? 'Uploading…' : 'Add Photo'}
+                  </button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    multiple
+                    className="hidden"
+                    onChange={e => handlePhotoUpload(e.target.files)}
+                  />
+                </div>
+                {photos.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {photos.map(p => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={p.id}
+                        src={photoUrl(p.storage_path)}
+                        alt="Task photo"
+                        className="aspect-square object-cover rounded-button bg-surface-elevated"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Notes */}
               <div className="mb-5">
