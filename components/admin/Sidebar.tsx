@@ -49,6 +49,16 @@ const NAV = [
     ),
   },
   {
+    label: 'Plans',
+    mobileLabel: 'Plans',
+    href: '/admin/plans',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+        <path fillRule="evenodd" d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5zM10 6a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1H8a1 1 0 110-2h1V7a1 1 0 011-1z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     label: 'Rooms',
     mobileLabel: 'Rooms',
     href: '/admin/rooms',

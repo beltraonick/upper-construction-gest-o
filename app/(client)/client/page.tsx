@@ -53,6 +53,9 @@ export default async function ClientPortalPage() {
   let rooms: { id: string; project_id: string; floor: string | null; label: string }[] = []
   let roomTasks: { room_id: string | null; status: string }[] = []
 
+  let plan: { id: string; label: string; storage_path: string } | null = null
+  let planPins: { id: string; title: string; status: string; pin_x: number; pin_y: number }[] = []
+
   let totalHoursThisWeek = 0
 
   if (supabaseReady) {
@@ -103,6 +106,24 @@ export default async function ClientPortalPage() {
       totalHoursThisWeek = (weekEntries ?? []).reduce((sum, e) => {
         return sum + (new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) / 3600000
       }, 0)
+
+      if (projectIds.length > 0) {
+        const { data: planRow } = await supabase
+          .from('project_plans')
+          .select('id, label, storage_path')
+          .in('project_id', projectIds)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        plan = planRow ?? null
+        if (plan) {
+          const { data: pinRows } = await supabase
+            .from('tasks')
+            .select('id, title, status, pin_x, pin_y')
+            .eq('plan_id', plan.id)
+          planPins = (pinRows ?? []) as typeof planPins
+        }
+      }
     } catch {
       // silent
     }
@@ -193,6 +214,29 @@ export default async function ClientPortalPage() {
           ))}
         </div>
       </div>
+
+      {/* Floor plan */}
+      {plan && (
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-primary mb-3">Floor Plan</h2>
+          <Card padding="none" className="overflow-hidden">
+            <div className="relative w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={getPhotoUrl(plan.storage_path)} alt={plan.label} className="w-full h-auto block" />
+              {planPins.map(p => (
+                <span
+                  key={p.id}
+                  title={p.title}
+                  className={`absolute w-4 h-4 -ml-2 -mt-2 rounded-full border-2 border-white shadow-lg ${
+                    p.status === 'completed' ? 'bg-green' : p.status === 'in_progress' ? 'bg-amber' : 'bg-[rgba(255,255,255,0.5)]'
+                  }`}
+                  style={{ left: `${p.pin_x * 100}%`, top: `${p.pin_y * 100}%` }}
+                />
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Room grid */}
       {rooms.length > 0 && (
