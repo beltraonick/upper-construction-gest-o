@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -36,6 +37,7 @@ function TypingDots() {
 }
 
 export function OrbitAI() {
+  const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -50,6 +52,9 @@ export function OrbitAI() {
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100)
   }, [open])
+
+  // Dashboard has its own embedded OrbitAIHub — no floating button needed there
+  if (pathname === '/admin/dashboard') return null
 
   async function send(question?: string) {
     const q = (question ?? input).trim()

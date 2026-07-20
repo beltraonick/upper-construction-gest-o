@@ -92,3 +92,73 @@ input:-webkit-autofill:focus {
   0%, 100% { box-shadow: 0 0 0 1px rgba(193,18,31,0.4), 0 0 16px rgba(193,18,31,0.15), 0 8px 24px rgba(0,0,0,0.5); }
   50%       { box-shadow: 0 0 0 1px rgba(193,18,31,0.6), 0 0 28px rgba(193,18,31,0.3),  0 8px 24px rgba(0,0,0,0.5); }
 }
+
+/* ── Orbit AI Hub (dashboard embedded sphere) ── */
+.orbit-hub-card {
+  background: var(--surface);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.orbit-hub-sphere {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #1c1218, #08060a);
+  box-shadow:
+    0 0 0 1px rgba(193,18,31,0.28),
+    0 0 24px rgba(193,18,31,0.14),
+    0 0 50px rgba(193,18,31,0.07),
+    0 8px 32px rgba(0,0,0,0.6);
+  animation: hub-breathe 4.5s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orbit-hub-pulsing {
+  animation: hub-breathe-fast 1.2s ease-in-out infinite !important;
+}
+
+@keyframes hub-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(193,18,31,0.28),
+      0 0 24px rgba(193,18,31,0.14),
+      0 0 50px rgba(193,18,31,0.07),
+      0 8px 32px rgba(0,0,0,0.6);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(193,18,31,0.52),
+      0 0 40px rgba(193,18,31,0.28),
+      0 0 80px rgba(193,18,31,0.12),
+      0 8px 32px rgba(0,0,0,0.6);
+  }
+}
+
+@keyframes hub-breathe-fast {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(193,18,31,0.45),
+      0 0 30px rgba(193,18,31,0.22),
+      0 0 60px rgba(193,18,31,0.1),
+      0 8px 32px rgba(0,0,0,0.6);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(193,18,31,0.7),
+      0 0 50px rgba(193,18,31,0.38),
+      0 0 90px rgba(193,18,31,0.18),
+      0 8px 32px rgba(0,0,0,0.6);
+  }
+}
+
+/* Ring spin animations — SVG elements need inline transform-origin */
+.hub-ring-cw  { animation: hub-spin-cw  14s linear infinite; }
+.hub-ring-ccw { animation: hub-spin-ccw  9s linear infinite; }
+.hub-ring-med { animation: hub-spin-cw   6s linear infinite; }
+
+@keyframes hub-spin-cw  { to { transform: rotate(360deg); } }
+@keyframes hub-spin-ccw { to { transform: rotate(-360deg); } }
