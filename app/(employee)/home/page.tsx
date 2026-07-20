@@ -85,8 +85,7 @@ export default async function EmployeeHomePage() {
           supabase
             .from('tasks')
             .select('id, title, priority, area, project:project_id(name)')
-            .eq('company_id', COMPANY_ID)
-            .eq('assigned_employee_id', profile.id)
+            .eq('assigned_to', profile.id)
             .neq('status', 'completed')
             .order('created_at', { ascending: false })
             .limit(3),

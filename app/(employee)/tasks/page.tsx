@@ -3,8 +3,6 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TaskList } from './TaskList'
 
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
-
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('your_')
@@ -14,19 +12,11 @@ export default async function EmployeeTasksPage() {
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
 
+  const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
+
   let profileId: string | null = null
-  let tasks: {
-    id: string
-    title: string
-    description: string | null
-    area: string | null
-    priority: string
-    status: string
-    due_date: string | null
-    checklist: { text: string; done: boolean }[]
-    notes: string | null
-    project: { name: string } | null
-  }[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let tasks: any[] = []
 
   if (supabaseReady) {
     try {
@@ -55,27 +45,37 @@ export default async function EmployeeTasksPage() {
 
       if (profile) {
         profileId = profile.id
+
+        // Use select('*') so it works with both pre- and post-migration schema.
+        // After migration 003, the extra columns (priority, area, checklist, notes…)
+        // appear automatically. The assigned_to column is the pre-migration FK;
+        // assigned_employee_id is added by migration 003.
+        const orFilter = profile
+          ? `assigned_to.eq.${profile.id},assigned_to.is.null`
+          : `assigned_to.is.null`
+
         const { data: t } = await supabase
           .from('tasks')
-          .select('id, title, description, area, priority, status, due_date, checklist, notes, project:project_id(name)')
-          .eq('company_id', COMPANY_ID)
-          .or(`assigned_employee_id.eq.${profile.id},assigned_employee_id.is.null`)
+          .select('*, project:project_id(name)')
+          .or(orFilter)
           .neq('status', 'completed')
           .order('created_at', { ascending: false })
 
-        tasks = (t ?? []) as unknown as typeof tasks
+        tasks = t ?? []
       }
     } catch {
       // silent
     }
   }
 
+  const taskCount = tasks.length
+
   return (
     <div className="max-w-lg mx-auto px-4 py-6">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-primary tracking-tight">My Tasks</h1>
         <p className="text-sm text-secondary mt-0.5">
-          {tasks.length === 0 ? 'No tasks assigned' : `${tasks.length} task${tasks.length !== 1 ? 's' : ''} to do`}
+          {taskCount === 0 ? 'No tasks assigned' : `${taskCount} task${taskCount !== 1 ? 's' : ''} to do`}
         </p>
       </div>
 

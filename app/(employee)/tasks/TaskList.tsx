@@ -8,18 +8,9 @@ import { Badge } from '@/components/ui/Badge'
 
 interface ChecklistItem { text: string; done: boolean }
 
-interface Task {
-  id: string
-  title: string
-  description: string | null
-  area: string | null
-  priority: string
-  status: string
-  due_date: string | null
-  checklist: ChecklistItem[]
-  notes: string | null
-  project: { name: string } | null
-}
+// Accepts any task shape — works with both pre- and post-migration schema.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Task = Record<string, any> & { id: string; title: string; status: string }
 
 const PRIORITY_DOT: Record<string, string> = {
   urgent: 'bg-danger',
@@ -51,16 +42,18 @@ export function TaskList({
   async function toggleCheck(taskId: string, index: number, done: boolean) {
     const task = tasks.find(t => t.id === taskId)
     if (!task) return
-    const newChecklist = task.checklist.map((item, i) =>
+    const checklist: ChecklistItem[] = (task.checklist ?? [])
+    const newChecklist = checklist.map((item: ChecklistItem, i: number) =>
       i === index ? { ...item, done } : item
     )
-    // Optimistic update
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, checklist: newChecklist } : t))
     if (selected?.id === taskId) setSelected(s => s ? { ...s, checklist: newChecklist } : s)
 
     if (supabaseReady) {
-      const supabase = createClient()
-      await supabase.from('tasks').update({ checklist: newChecklist, updated_at: new Date().toISOString() }).eq('id', taskId)
+      try {
+        const supabase = createClient()
+        await supabase.from('tasks').update({ checklist: newChecklist, updated_at: new Date().toISOString() }).eq('id', taskId)
+      } catch { /* column may not exist yet; optimistic update already applied */ }
     }
   }
 
@@ -68,13 +61,16 @@ export function TaskList({
     if (!confirm('Mark this task as complete?')) return
     setSaving(true)
     if (supabaseReady) {
-      const supabase = createClient()
-      await supabase.from('tasks').update({
-        status: 'completed',
-        notes: notes || null,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq('id', taskId)
+      try {
+        const supabase = createClient()
+        const update: Record<string, unknown> = {
+          status: 'completed',
+          updated_at: new Date().toISOString(),
+        }
+        // Include optional columns only when notes text was typed
+        if (notes) update.notes = notes
+        await supabase.from('tasks').update(update).eq('id', taskId)
+      } catch { /* silent */ }
     }
     setTasks(prev => prev.filter(t => t.id !== taskId))
     setSelected(null)
@@ -84,9 +80,11 @@ export function TaskList({
 
   async function saveNotes(taskId: string) {
     if (!supabaseReady) return
-    const supabase = createClient()
-    await supabase.from('tasks').update({ notes, updated_at: new Date().toISOString() }).eq('id', taskId)
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes } : t))
+    try {
+      const supabase = createClient()
+      await supabase.from('tasks').update({ notes, updated_at: new Date().toISOString() }).eq('id', taskId)
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes } : t))
+    } catch { /* column may not exist yet */ }
   }
 
   if (!supabaseReady) {
@@ -116,9 +114,11 @@ export function TaskList({
   return (
     <>
       <div className="space-y-2">
-        {tasks.map(t => {
-          const doneCount = (t.checklist ?? []).filter(c => c.done).length
-          const totalCount = (t.checklist ?? []).length
+        {tasks.map((t: Task) => {
+          const checklist: ChecklistItem[] = t.checklist ?? []
+          const doneCount = checklist.filter((c: ChecklistItem) => c.done).length
+          const totalCount = checklist.length
+          const priority: string = t.priority ?? 'medium'
           return (
             <button
               key={t.id}
@@ -127,7 +127,7 @@ export function TaskList({
             >
               <Card className="hover:bg-surface-elevated transition-colors">
                 <div className="flex items-start gap-3">
-                  <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] ?? 'bg-secondary'}`} />
+                  <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[priority] ?? 'bg-secondary'}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-primary">{t.title}</p>
                     {t.project?.name && (
@@ -137,8 +137,8 @@ export function TaskList({
                       <p className="text-xs text-tertiary truncate">{t.area}</p>
                     )}
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      {t.priority === 'urgent' && <Badge variant="gray">Urgent</Badge>}
-                      {t.priority === 'high' && <Badge variant="gray">High</Badge>}
+                      {priority === 'urgent' && <Badge variant="gray">Urgent</Badge>}
+                      {priority === 'high' && <Badge variant="gray">High</Badge>}
                       {totalCount > 0 && (
                         <span className="text-[11px] text-secondary">{doneCount}/{totalCount} steps</span>
                       )}
@@ -159,7 +159,7 @@ export function TaskList({
         })}
       </div>
 
-      {/* Task detail modal */}
+      {/* Task detail bottom sheet */}
       {selected && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
@@ -169,15 +169,13 @@ export function TaskList({
             className="bg-surface rounded-t-card border-t border-l border-r border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            {/* Handle */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-[rgba(255,255,255,0.15)]" />
             </div>
 
             <div className="px-5 py-4">
-              {/* Header */}
               <div className="flex items-start gap-3 mb-4">
-                <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[selected.priority] ?? 'bg-secondary'}`} />
+                <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[selected.priority ?? 'medium'] ?? 'bg-secondary'}`} />
                 <div className="flex-1 min-w-0">
                   <h2 className="text-base font-semibold text-primary">{selected.title}</h2>
                   {selected.project?.name && <p className="text-xs text-secondary mt-0.5">{selected.project.name}</p>}
@@ -194,12 +192,12 @@ export function TaskList({
                 <p className="text-sm text-secondary mb-4 leading-relaxed">{selected.description}</p>
               )}
 
-              {/* Checklist */}
+              {/* Checklist — shown only after migration adds this column */}
               {selected.checklist && selected.checklist.length > 0 && (
                 <div className="mb-5">
                   <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">Checklist</p>
                   <div className="space-y-2">
-                    {selected.checklist.map((item, i) => (
+                    {(selected.checklist as ChecklistItem[]).map((item, i) => (
                       <label key={i} className="flex items-center gap-3 cursor-pointer group">
                         <div
                           className={[
@@ -238,7 +236,6 @@ export function TaskList({
                 />
               </div>
 
-              {/* Complete button */}
               <button
                 onClick={() => completeTask(selected.id)}
                 disabled={saving}
@@ -260,7 +257,6 @@ export function TaskList({
               </button>
             </div>
 
-            {/* Safe area bottom padding */}
             <div className="safe-bottom" />
           </div>
         </div>

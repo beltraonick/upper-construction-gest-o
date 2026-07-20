@@ -35,9 +35,9 @@ export async function POST(req: Request) {
       { data: weekEntries },
       { data: pendingPayroll },
     ] = await Promise.all([
-      supabase.from('projects').select('name, status, progress, city, state, project_type').eq('company_id', COMPANY_ID).eq('status', 'active').limit(10),
+      supabase.from('projects').select('name, status, progress, address').eq('company_id', COMPANY_ID).eq('status', 'active').limit(10),
       supabase.from('time_entries').select('id, profiles:employee_id(full_name)').eq('company_id', COMPANY_ID).is('clock_out', null),
-      supabase.from('tasks').select('title, priority, status, assigned_employee:assigned_employee_id(full_name), project:project_id(name)').eq('company_id', COMPANY_ID).neq('status', 'completed').limit(15),
+      supabase.from('tasks').select('title, priority, status, assigned_employee:assigned_to(full_name), project:project_id(name)').neq('status', 'completed').limit(15),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('company_id', COMPANY_ID).eq('status', 'active'),
       supabase.from('time_entries').select('clock_in, clock_out').eq('company_id', COMPANY_ID).gte('clock_in', weekStart.toISOString()).not('clock_out', 'is', null),
       supabase.from('payroll_records').select('total_amount').eq('company_id', COMPANY_ID).eq('status', 'pending'),
@@ -63,7 +63,7 @@ WORKFORCE:
 - Hours logged this week: ${weekHours.toFixed(1)}h
 
 PROJECTS (${projects?.length ?? 0} active):
-${projects?.map(p => `• ${p.name} — ${p.progress ?? 0}% — ${p.city ?? ''}${p.state ? `, ${p.state}` : ''}`).join('\n') || 'No active projects'}
+${projects?.map(p => `• ${p.name} — ${p.progress ?? 0}%${p.address ? ` — ${p.address}` : ''}`).join('\n') || 'No active projects'}
 
 OPEN TASKS (${openTasks?.length ?? 0}):
 ${taskLines.join('\n') || 'No open tasks'}

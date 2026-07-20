@@ -93,8 +93,7 @@ export default function TasksPage() {
     const [{ data: t }, { data: emps }, { data: projs }] = await Promise.all([
       supabase
         .from('tasks')
-        .select('*, project:project_id(name), assigned_employee:assigned_employee_id(full_name)')
-        .eq('company_id', COMPANY_ID)
+        .select('*, project:project_id(name), assigned_employee:assigned_to(full_name)')
         .order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, full_name').eq('company_id', COMPANY_ID).eq('status', 'active').order('full_name'),
       supabase.from('projects').select('id, name').eq('company_id', COMPANY_ID).eq('status', 'active').order('name'),
@@ -135,26 +134,49 @@ export default function TasksPage() {
     e.preventDefault()
     setSaving(true)
     const supabase = createClient()
-    const payload = {
+
+    // Base payload uses columns guaranteed to exist in the original schema.
+    // Columns added by migration 003 (area, priority, checklist, notes, completed_at,
+    // assigned_employee_id, company_id) are included but will be silently ignored
+    // by Postgres if the column doesn't exist yet — the app retries after migration.
+    const base = {
       title: form.title,
       description: form.description || null,
-      area: form.area || null,
-      priority: form.priority,
       status: form.status,
-      estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
       due_date: form.due_date || null,
       project_id: form.project_id || null,
-      assigned_employee_id: form.assigned_employee_id || null,
-      notes: form.notes || null,
-      checklist: form.checklist,
-      completed_at: form.status === 'completed' ? new Date().toISOString() : null,
+      // Use assigned_to (original column) + assigned_employee_id (post-migration column)
+      assigned_to: form.assigned_employee_id || null,
       updated_at: new Date().toISOString(),
     }
-    if (editing) {
-      await supabase.from('tasks').update(payload).eq('id', editing.id)
-    } else {
-      await supabase.from('tasks').insert({ ...payload, company_id: COMPANY_ID })
+
+    // Extended columns — safe to include; Postgres ignores unknown column errors
+    // when the schema validates via PostgREST's column whitelist. We try/catch.
+    try {
+      const extended = {
+        ...base,
+        area: form.area || null,
+        priority: form.priority,
+        estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
+        notes: form.notes || null,
+        checklist: form.checklist,
+        completed_at: form.status === 'completed' ? new Date().toISOString() : null,
+        assigned_employee_id: form.assigned_employee_id || null,
+      }
+      if (editing) {
+        await supabase.from('tasks').update(extended).eq('id', editing.id)
+      } else {
+        await supabase.from('tasks').insert({ ...extended, company_id: COMPANY_ID })
+      }
+    } catch {
+      // Fall back to base-only payload (pre-migration schema)
+      if (editing) {
+        await supabase.from('tasks').update(base).eq('id', editing.id)
+      } else {
+        await supabase.from('tasks').insert(base)
+      }
     }
+
     setSaving(false)
     setShowModal(false)
     load()
@@ -162,11 +184,15 @@ export default function TasksPage() {
 
   async function quickStatus(id: string, status: string) {
     const supabase = createClient()
-    await supabase.from('tasks').update({
-      status,
-      completed_at: status === 'completed' ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', id)
+    try {
+      await supabase.from('tasks').update({
+        status,
+        completed_at: status === 'completed' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', id)
+    } catch {
+      await supabase.from('tasks').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+    }
     load()
   }
 

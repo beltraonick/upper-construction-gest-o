@@ -28,10 +28,9 @@ export default async function ClientPortalPage() {
     id: string
     name: string
     status: string
-    city: string | null
-    state: string | null
+    address: string | null
     progress: number | null
-    project_type: string | null
+    project_type?: string | null
     created_at: string
     client_name: string | null
   }[] = []
@@ -55,7 +54,7 @@ export default async function ClientPortalPage() {
       const [{ data: projs }, { data: photos }, { data: weekEntries }] = await Promise.all([
         supabase
           .from('projects')
-          .select('id, name, status, city, state, progress, project_type, created_at, client_name')
+          .select('id, name, status, address, progress, project_type, created_at, client_name')
           .eq('company_id', COMPANY_ID)
           .order('updated_at', { ascending: false }),
         supabase
@@ -141,7 +140,7 @@ export default async function ClientPortalPage() {
                       {statusBadge(p.status)}
                     </div>
                     <p className="text-sm text-secondary">
-                      {[p.city, p.state].filter(Boolean).join(', ') || 'Location TBD'}
+                      {p.address || 'Location TBD'}
                       {p.project_type && p.project_type !== 'other' && (
                         <span className="ml-2 text-tertiary capitalize">· {p.project_type}</span>
                       )}
