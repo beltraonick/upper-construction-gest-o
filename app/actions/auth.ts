@@ -15,7 +15,7 @@ export async function login(
     return { error: 'Email and password are required.' }
   }
 
-  const user = findUserByEmail(email.trim())
+  const user = await findUserByEmail(email.trim())
 
   if (!user) {
     return { error: 'Invalid email or password.' }
@@ -51,12 +51,12 @@ export async function register(data: {
     return { error: 'Password must be at least 8 characters.' }
   }
 
-  const existing = findUserByEmail(data.email.trim())
+  const existing = await findUserByEmail(data.email.trim())
   if (existing) {
     return { error: 'An account with this email already exists.' }
   }
 
-  createUser({
+  await createUser({
     email: data.email.trim(),
     full_name: data.full_name.trim(),
     phone: data.phone?.trim() || null,

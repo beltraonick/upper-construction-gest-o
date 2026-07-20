@@ -1,6 +1,16 @@
-import type { AuthUser, Language, SessionUser } from './types'
+import type { AuthUser, Language, SessionUser, UserRole, UserStatus } from './types'
 import { hashPassword, generateId } from './crypto'
+import { createClient } from '@/lib/supabase/server'
 
+const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
+
+const supabaseReady =
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('your_')
+
+// ─── Dev fallback accounts ──────────────────────────────────────────
+// Used when Supabase isn't configured, or as a safety net if a
+// Supabase call fails, so local dev and demos never get locked out.
 const SEED_USERS: AuthUser[] = [
   {
     id: 'seed-admin-001',
@@ -24,7 +34,6 @@ const SEED_USERS: AuthUser[] = [
     password_hash: hashPassword('Employee123!'),
     created_at: '2024-01-01T00:00:00.000Z',
   },
-  // Orbit test accounts
   {
     id: 'seed-admin-orbit',
     email: 'admin@orbit.test',
@@ -60,57 +69,116 @@ const SEED_USERS: AuthUser[] = [
   },
 ]
 
-const users = new Map<string, AuthUser>(SEED_USERS.map(u => [u.id, u]))
-const emailIndex = new Map<string, string>(SEED_USERS.map(u => [u.email.toLowerCase(), u.id]))
+const seedUsers = new Map<string, AuthUser>(SEED_USERS.map(u => [u.id, u]))
+const seedEmailIndex = new Map<string, string>(SEED_USERS.map(u => [u.email.toLowerCase(), u.id]))
 
-export function findUserByEmail(email: string): AuthUser | null {
-  const id = emailIndex.get(email.toLowerCase())
-  return id ? (users.get(id) ?? null) : null
+function findSeedByEmail(email: string): AuthUser | null {
+  const id = seedEmailIndex.get(email.toLowerCase())
+  return id ? (seedUsers.get(id) ?? null) : null
 }
 
-export function findUserById(id: string): AuthUser | null {
-  return users.get(id) ?? null
+// ─── Supabase-backed profiles ───────────────────────────────────────
+// profiles is the single source of truth for both business data
+// (name, role, position...) and login credentials (password_hash,
+// auth_status) — see migration 008. auth_status (pending/approved/
+// suspended) is separate from the pre-existing `status` column
+// (active/archived), which tracks employment status, not login access.
+
+interface ProfileAuthRow {
+  id: string
+  email: string
+  full_name: string
+  phone: string | null
+  role: UserRole
+  auth_status: UserStatus
+  language: Language | null
+  password_hash: string | null
+  created_at: string
 }
 
-export function getAllUsers(): AuthUser[] {
-  return Array.from(users.values())
+const PROFILE_AUTH_COLUMNS = 'id, email, full_name, phone, role, auth_status, language, password_hash, created_at'
+
+function rowToAuthUser(row: ProfileAuthRow): AuthUser {
+  return {
+    id: row.id,
+    email: row.email,
+    full_name: row.full_name,
+    phone: row.phone,
+    role: row.role,
+    status: row.auth_status,
+    language: row.language ?? 'en',
+    password_hash: row.password_hash ?? '',
+    created_at: row.created_at,
+  }
 }
 
-export function getPendingUsers(): AuthUser[] {
-  return Array.from(users.values()).filter(u => u.status === 'pending')
+export async function findUserByEmail(email: string): Promise<AuthUser | null> {
+  const normalized = email.trim().toLowerCase()
+
+  if (supabaseReady) {
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('profiles')
+        .select(PROFILE_AUTH_COLUMNS)
+        .eq('email', normalized)
+        .maybeSingle()
+      if (data?.password_hash) return rowToAuthUser(data as ProfileAuthRow)
+    } catch {
+      // Supabase unreachable/misconfigured — fall through to seed accounts
+    }
+  }
+
+  return findSeedByEmail(normalized)
 }
 
-export function createUser(data: {
+export async function createUser(data: {
   email: string
   full_name: string
   phone: string | null
   password_hash: string
   language: Language
-}): AuthUser {
+}): Promise<AuthUser> {
+  const email = data.email.trim().toLowerCase()
+
+  if (supabaseReady) {
+    try {
+      const supabase = createClient()
+      const { data: row, error } = await supabase
+        .from('profiles')
+        .insert({
+          company_id: COMPANY_ID,
+          role: 'employee',
+          status: 'active',
+          auth_status: 'pending',
+          full_name: data.full_name,
+          email,
+          phone: data.phone,
+          password_hash: data.password_hash,
+          language: data.language,
+        })
+        .select(PROFILE_AUTH_COLUMNS)
+        .single()
+      if (!error && row) return rowToAuthUser(row as ProfileAuthRow)
+    } catch {
+      // fall through to in-memory (e.g. Supabase unreachable)
+    }
+  }
+
   const user: AuthUser = {
     id: generateId(),
-    ...data,
+    email,
+    full_name: data.full_name,
+    phone: data.phone,
+    password_hash: data.password_hash,
+    language: data.language,
     role: 'employee',
     status: 'pending',
     created_at: new Date().toISOString(),
   }
-  users.set(user.id, user)
-  emailIndex.set(data.email.toLowerCase(), user.id)
+  seedUsers.set(user.id, user)
+  seedEmailIndex.set(email, user.id)
   return user
-}
-
-export function approveUser(id: string): boolean {
-  const user = users.get(id)
-  if (!user) return false
-  users.set(id, { ...user, status: 'approved' })
-  return true
-}
-
-export function suspendUser(id: string): boolean {
-  const user = users.get(id)
-  if (!user) return false
-  users.set(id, { ...user, status: 'suspended' })
-  return true
 }
 
 export function toSessionUser(user: AuthUser): SessionUser {

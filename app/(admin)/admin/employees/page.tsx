@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createProfileWithPassword } from '@/app/actions/admin-users'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -27,6 +28,7 @@ interface Employee {
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
   { value: 'admin', label: 'Admin' },
+  { value: 'client', label: 'Client (hotel)' },
 ]
 
 const STATUS_OPTIONS = [
@@ -34,9 +36,9 @@ const STATUS_OPTIONS = [
   { value: 'archived', label: 'Archived' },
 ]
 
-const BLANK: Omit<Employee, 'id' | 'created_at'> = {
+const BLANK: Omit<Employee, 'id' | 'created_at'> & { password: string } = {
   full_name: '', email: '', role: 'employee', position: '',
-  company_name: '', hourly_rate: 0, phone: '', status: 'active',
+  company_name: '', hourly_rate: 0, phone: '', status: 'active', password: '',
 }
 
 export default function EmployeesPage() {
@@ -48,6 +50,7 @@ export default function EmployeesPage() {
   const [editing, setEditing] = useState<Employee | null>(null)
   const [form, setForm] = useState({ ...BLANK })
   const [search, setSearch] = useState('')
+  const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -65,6 +68,7 @@ export default function EmployeesPage() {
   function openAdd() {
     setEditing(null)
     setForm({ ...BLANK })
+    setError('')
     setShowModal(true)
   }
 
@@ -79,29 +83,48 @@ export default function EmployeesPage() {
       hourly_rate: emp.hourly_rate,
       phone: emp.phone ?? '',
       status: emp.status,
+      password: '',
     })
+    setError('')
     setShowModal(true)
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    setError('')
     setSaving(true)
-    const supabase = createClient()
-    const payload = {
-      full_name: form.full_name,
-      email: form.email,
-      role: form.role,
-      position: form.position || null,
-      company_name: form.company_name || null,
-      hourly_rate: Number(form.hourly_rate),
-      phone: form.phone || null,
-      status: form.status,
-    }
+
     if (editing) {
-      await supabase.from('profiles').update(payload).eq('id', editing.id)
+      const supabase = createClient()
+      await supabase.from('profiles').update({
+        full_name: form.full_name,
+        email: form.email,
+        role: form.role,
+        position: form.position || null,
+        company_name: form.company_name || null,
+        hourly_rate: Number(form.hourly_rate),
+        phone: form.phone || null,
+        status: form.status,
+      }).eq('id', editing.id)
     } else {
-      await supabase.from('profiles').insert({ ...payload, company_id: COMPANY_ID })
+      // Creating a login needs the password hashed server-side.
+      const result = await createProfileWithPassword({
+        full_name: form.full_name,
+        email: form.email,
+        role: form.role,
+        position: form.position || null,
+        company_name: form.company_name || null,
+        hourly_rate: Number(form.hourly_rate),
+        phone: form.phone || null,
+        password: form.password,
+      })
+      if (result.error) {
+        setError(result.error)
+        setSaving(false)
+        return
+      }
     }
+
     setSaving(false)
     setShowModal(false)
     load()
@@ -241,6 +264,19 @@ export default function EmployeesPage() {
                       onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                     />
                   </div>
+                  {!editing && (
+                    <div className="col-span-2">
+                      <Input
+                        label="Password (for their login)"
+                        type="text"
+                        required
+                        placeholder="At least 8 characters"
+                        value={form.password}
+                        onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                      />
+                      <p className="text-xs text-tertiary mt-1">Share this with them directly — it won&apos;t be shown again.</p>
+                    </div>
+                  )}
                   <Select
                     label="Role"
                     options={ROLE_OPTIONS}
@@ -280,6 +316,12 @@ export default function EmployeesPage() {
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   />
                 </div>
+                {error && (
+                  <div className="bg-danger/10 border border-danger/20 rounded-input px-4 py-3 text-sm text-danger">
+                    {error}
+                  </div>
+                )}
+
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
                     Cancel
