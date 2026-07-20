@@ -193,6 +193,15 @@ export default function ProjectsPage() {
                       </p>
                     )}
                   </div>
+                  <a
+                    href={`/admin/projects/${p.id}`}
+                    className="p-1.5 rounded-button text-secondary hover:text-primary hover:bg-surface-elevated transition-colors flex-shrink-0"
+                    title="View detail"
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </a>
                   <button
                     onClick={() => openEdit(p)}
                     className="p-1.5 rounded-button text-secondary hover:text-primary hover:bg-surface-elevated transition-colors flex-shrink-0"

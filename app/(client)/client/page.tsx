@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -21,7 +22,8 @@ function fmtDate(iso: string) {
 }
 
 export default async function ClientPortalPage() {
-  const user = getCurrentUser()!
+  const user = getCurrentUser()
+  if (!user) redirect('/login')
   const today = new Date()
 
   let projects: {

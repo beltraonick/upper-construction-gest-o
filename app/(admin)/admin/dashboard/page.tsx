@@ -2,6 +2,7 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { ProgressBar } from '@/components/ui/ProgressBar'
+import { OrbitAIHub } from '@/components/OrbitAIHub'
 
 function StatCard({ label, value, sub, color = 'default' }: {
   label: string
@@ -99,6 +100,9 @@ export default async function AdminDashboardPage() {
         <StatCard label="Pending Payroll" value={stats ? `$${weeklyPayroll.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'} sub={stats ? 'awaiting payment' : 'Connect Supabase'} color="amber" />
         <StatCard label="Total Employees" value={stats?.totalEmployees ?? '—'} sub={stats ? 'active workers' : 'Connect Supabase'} />
       </div>
+
+      {/* Orbit AI Hub */}
+      <OrbitAIHub />
 
       {/* Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-6">
