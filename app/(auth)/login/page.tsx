@@ -7,11 +7,11 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
 
         {/* Logo */}
-        <div className="flex flex-col items-center mb-10">
+        <div className="flex flex-col items-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.png" alt="Orbit" className="w-14 h-14 rounded-2xl mb-4 shadow-lg object-cover" />
           <h1 className="text-2xl font-bold text-primary tracking-tight">Orbit</h1>
-          <p className="text-sm text-secondary mt-1">Sign in to your account</p>
+          <p className="text-sm text-secondary mt-1">Workforce Management</p>
         </div>
 
         {/* Card */}
@@ -19,7 +19,6 @@ export default function LoginPage() {
           <LoginForm />
         </div>
 
-        {/* Create Account */}
         <p className="text-center text-sm text-secondary mt-6">
           Don&apos;t have an account?{' '}
           <Link
@@ -29,15 +28,6 @@ export default function LoginPage() {
             Create account
           </Link>
         </p>
-
-        {/* Dev hint */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-8 bg-amber/5 border border-amber/20 rounded-card p-4">
-            <p className="text-xs font-semibold text-amber mb-2">Dev accounts</p>
-            <p className="text-xs text-secondary font-mono">admin@upperconstruction.com / Admin123!</p>
-            <p className="text-xs text-secondary font-mono mt-1">employee@upperconstruction.com / Employee123!</p>
-          </div>
-        )}
       </div>
     </div>
   )

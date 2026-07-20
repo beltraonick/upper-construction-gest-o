@@ -19,7 +19,7 @@ const NAV = [
   },
   {
     label: 'Employees',
-    mobileLabel: 'Equipe',
+    mobileLabel: 'Team',
     href: '/admin/employees',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -29,7 +29,7 @@ const NAV = [
   },
   {
     label: 'Projects',
-    mobileLabel: 'Obras',
+    mobileLabel: 'Projects',
     href: '/admin/projects',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -38,8 +38,19 @@ const NAV = [
     ),
   },
   {
-    label: 'Time & Attendance',
-    mobileLabel: 'Ponto',
+    label: 'Tasks',
+    mobileLabel: 'Tasks',
+    href: '/admin/tasks',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Time',
+    mobileLabel: 'Time',
     href: '/admin/time',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -49,7 +60,7 @@ const NAV = [
   },
   {
     label: 'Payroll',
-    mobileLabel: 'Pagamento',
+    mobileLabel: 'Pay',
     href: '/admin/payroll',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -59,7 +70,7 @@ const NAV = [
   },
   {
     label: 'Photos',
-    mobileLabel: 'Fotos',
+    mobileLabel: 'Photos',
     href: '/admin/photos',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -69,7 +80,7 @@ const NAV = [
   },
   {
     label: 'Reports',
-    mobileLabel: 'Relatórios',
+    mobileLabel: 'Reports',
     href: '/admin/reports',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -79,7 +90,7 @@ const NAV = [
   },
   {
     label: 'Settings',
-    mobileLabel: 'Config',
+    mobileLabel: 'More',
     href: '/admin/settings',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -89,7 +100,7 @@ const NAV = [
   },
 ]
 
-// 5 items shown in the mobile bottom nav
+// Mobile bottom nav: 5 items
 const BOTTOM_NAV = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4]]
 
 export function Sidebar({ user }: { user: SessionUser }) {
@@ -167,7 +178,6 @@ export function Sidebar({ user }: { user: SessionUser }) {
             <button
               type="submit"
               className="p-2 rounded-button text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
-              title="Sign out"
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                 <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />

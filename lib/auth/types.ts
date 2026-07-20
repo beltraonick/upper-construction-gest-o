@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'employee'
+export type UserRole = 'admin' | 'employee' | 'client'
 export type UserStatus = 'pending' | 'approved' | 'suspended'
 export type Language = 'en' | 'pt' | 'es'
 

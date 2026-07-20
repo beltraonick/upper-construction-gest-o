@@ -1,0 +1,270 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+
+interface ChecklistItem { text: string; done: boolean }
+
+interface Task {
+  id: string
+  title: string
+  description: string | null
+  area: string | null
+  priority: string
+  status: string
+  due_date: string | null
+  checklist: ChecklistItem[]
+  notes: string | null
+  project: { name: string } | null
+}
+
+const PRIORITY_DOT: Record<string, string> = {
+  urgent: 'bg-danger',
+  high: 'bg-danger/60',
+  medium: 'bg-amber',
+  low: 'bg-blue',
+}
+
+export function TaskList({
+  tasks: initial,
+  profileId,
+  supabaseReady,
+}: {
+  tasks: Task[]
+  profileId: string | null
+  supabaseReady: boolean
+}) {
+  const [tasks, setTasks] = useState(initial)
+  const [selected, setSelected] = useState<Task | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [notes, setNotes] = useState('')
+  const router = useRouter()
+
+  function openTask(t: Task) {
+    setSelected({ ...t })
+    setNotes(t.notes ?? '')
+  }
+
+  async function toggleCheck(taskId: string, index: number, done: boolean) {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+    const newChecklist = task.checklist.map((item, i) =>
+      i === index ? { ...item, done } : item
+    )
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, checklist: newChecklist } : t))
+    if (selected?.id === taskId) setSelected(s => s ? { ...s, checklist: newChecklist } : s)
+
+    if (supabaseReady) {
+      const supabase = createClient()
+      await supabase.from('tasks').update({ checklist: newChecklist, updated_at: new Date().toISOString() }).eq('id', taskId)
+    }
+  }
+
+  async function completeTask(taskId: string) {
+    if (!confirm('Mark this task as complete?')) return
+    setSaving(true)
+    if (supabaseReady) {
+      const supabase = createClient()
+      await supabase.from('tasks').update({
+        status: 'completed',
+        notes: notes || null,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq('id', taskId)
+    }
+    setTasks(prev => prev.filter(t => t.id !== taskId))
+    setSelected(null)
+    setSaving(false)
+    router.refresh()
+  }
+
+  async function saveNotes(taskId: string) {
+    if (!supabaseReady) return
+    const supabase = createClient()
+    await supabase.from('tasks').update({ notes, updated_at: new Date().toISOString() }).eq('id', taskId)
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes } : t))
+  }
+
+  if (!supabaseReady) {
+    return (
+      <Card>
+        <p className="text-sm text-secondary text-center py-6">Connect Supabase to view tasks.</p>
+      </Card>
+    )
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <Card>
+        <div className="py-12 text-center">
+          <div className="w-12 h-12 rounded-full bg-green/10 flex items-center justify-center mx-auto mb-3">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-green">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-primary">All done!</p>
+          <p className="text-xs text-secondary mt-1">No open tasks right now.</p>
+        </div>
+      </Card>
+    )
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        {tasks.map(t => {
+          const doneCount = (t.checklist ?? []).filter(c => c.done).length
+          const totalCount = (t.checklist ?? []).length
+          return (
+            <button
+              key={t.id}
+              onClick={() => openTask(t)}
+              className="w-full text-left"
+            >
+              <Card className="hover:bg-surface-elevated transition-colors">
+                <div className="flex items-start gap-3">
+                  <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] ?? 'bg-secondary'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-primary">{t.title}</p>
+                    {t.project?.name && (
+                      <p className="text-xs text-secondary mt-0.5 truncate">{t.project.name}</p>
+                    )}
+                    {t.area && (
+                      <p className="text-xs text-tertiary truncate">{t.area}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      {t.priority === 'urgent' && <Badge variant="gray">Urgent</Badge>}
+                      {t.priority === 'high' && <Badge variant="gray">High</Badge>}
+                      {totalCount > 0 && (
+                        <span className="text-[11px] text-secondary">{doneCount}/{totalCount} steps</span>
+                      )}
+                      {t.due_date && (
+                        <span className={`text-[11px] ${new Date(t.due_date) < new Date() ? 'text-danger' : 'text-tertiary'}`}>
+                          Due {new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0 mt-1">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </Card>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Task detail modal */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="bg-surface rounded-t-card border-t border-l border-r border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-[rgba(255,255,255,0.15)]" />
+            </div>
+
+            <div className="px-5 py-4">
+              {/* Header */}
+              <div className="flex items-start gap-3 mb-4">
+                <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[selected.priority] ?? 'bg-secondary'}`} />
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-base font-semibold text-primary">{selected.title}</h2>
+                  {selected.project?.name && <p className="text-xs text-secondary mt-0.5">{selected.project.name}</p>}
+                  {selected.area && <p className="text-xs text-tertiary">{selected.area}</p>}
+                </div>
+                <button onClick={() => setSelected(null)} className="p-1 text-tertiary hover:text-primary">
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+
+              {selected.description && (
+                <p className="text-sm text-secondary mb-4 leading-relaxed">{selected.description}</p>
+              )}
+
+              {/* Checklist */}
+              {selected.checklist && selected.checklist.length > 0 && (
+                <div className="mb-5">
+                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">Checklist</p>
+                  <div className="space-y-2">
+                    {selected.checklist.map((item, i) => (
+                      <label key={i} className="flex items-center gap-3 cursor-pointer group">
+                        <div
+                          className={[
+                            'w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all',
+                            item.done
+                              ? 'bg-green border-green'
+                              : 'border-[rgba(255,255,255,0.2)] group-hover:border-green/50',
+                          ].join(' ')}
+                          onClick={() => toggleCheck(selected.id, i, !item.done)}
+                        >
+                          {item.done && (
+                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className={`text-sm ${item.done ? 'text-tertiary line-through' : 'text-primary'}`}>
+                          {item.text}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div className="mb-5">
+                <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">Notes</p>
+                <textarea
+                  rows={3}
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  onBlur={() => saveNotes(selected.id)}
+                  placeholder="Add notes…"
+                  className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none transition-colors"
+                />
+              </div>
+
+              {/* Complete button */}
+              <button
+                onClick={() => completeTask(selected.id)}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 h-12 rounded-button bg-green text-white font-semibold text-base hover:bg-green/90 transition-colors disabled:opacity-60"
+              >
+                {saving ? (
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
+                  </svg>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Mark as Complete
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Safe area bottom padding */}
+            <div className="safe-bottom" />
+          </div>
+        </div>
+      )}
+    </>
+  )
+}

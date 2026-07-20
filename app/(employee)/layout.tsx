@@ -8,12 +8,11 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
   if (user.role === 'admin') redirect('/admin/dashboard')
+  if (user.role === 'client') redirect('/client')
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="pb-16">
-        {children}
-      </div>
+    <div className="min-h-screen bg-background pb-20">
+      {children}
       <EmployeeNav />
     </div>
   )

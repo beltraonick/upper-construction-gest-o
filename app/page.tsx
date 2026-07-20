@@ -7,5 +7,6 @@ export default function RootPage() {
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
   if (user.role === 'admin') redirect('/admin/dashboard')
-  redirect('/employee/dashboard')
+  if (user.role === 'client') redirect('/client')
+  redirect('/home')
 }

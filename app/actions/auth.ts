@@ -6,8 +6,6 @@ import { verifyPassword, hashPassword } from '@/lib/auth/crypto'
 import { setSessionCookie, clearSessionCookie } from '@/lib/auth/session'
 import type { Language, UserRole, UserStatus } from '@/lib/auth/types'
 
-// ─── Login ────────────────────────────────────────────────────────────────────
-
 export async function login(
   email: string,
   password: string
@@ -27,13 +25,10 @@ export async function login(
     return { error: 'Invalid email or password.' }
   }
 
-  // Stateless JWT cookie — survives HMR restarts
   setSessionCookie(toSessionUser(user))
 
   return { role: user.role, status: user.status }
 }
-
-// ─── Register ─────────────────────────────────────────────────────────────────
 
 export async function register(data: {
   email: string
@@ -71,8 +66,6 @@ export async function register(data: {
 
   return { success: true }
 }
-
-// ─── Logout ───────────────────────────────────────────────────────────────────
 
 export async function logout(): Promise<void> {
   clearSessionCookie()

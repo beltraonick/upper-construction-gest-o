@@ -1,13 +1,15 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 import { Sidebar } from '@/components/admin/Sidebar'
+import { OrbitAI } from '@/components/OrbitAI'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
 
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
-  if (user.role !== 'admin') redirect('/employee/dashboard')
+  if (user.role === 'client') redirect('/client')
+  if (user.role !== 'admin') redirect('/home')
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -16,6 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <main className="flex-1 md:ml-[240px] overflow-y-auto pt-14 md:pt-0 pb-20 md:pb-0">
         {children}
       </main>
+      <OrbitAI />
     </div>
   )
 }
