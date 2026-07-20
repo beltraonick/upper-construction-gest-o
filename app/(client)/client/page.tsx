@@ -242,7 +242,7 @@ export default async function ClientPortalPage() {
 
       {/* Footer note */}
       <p className="text-xs text-tertiary text-center mt-12">
-        Powered by Orbit Workforce · For questions contact your project manager
+        Powered by OrbitOps · For questions contact your project manager
       </p>
     </div>
   )

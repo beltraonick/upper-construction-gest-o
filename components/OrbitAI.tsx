@@ -97,7 +97,7 @@ export function OrbitAI() {
       {/* Floating sphere button */}
       <button
         onClick={() => setOpen(o => !o)}
-        aria-label="Open Orbit AI"
+        aria-label="Open OrbitOps AI"
         className="fixed z-50 w-14 h-14 rounded-full flex items-center justify-center orbit-ai-btn"
         style={{
           bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
@@ -129,7 +129,7 @@ export function OrbitAI() {
               <OrbitSphere active={false} size={20} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-primary">Orbit AI</p>
+              <p className="text-sm font-semibold text-primary">OrbitOps AI</p>
               <p className="text-[10px] text-green flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-green animate-pulse inline-block" />
                 Business copilot
@@ -190,7 +190,7 @@ export function OrbitAI() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-              placeholder="Ask Orbit AI…"
+              placeholder="Ask OrbitOps AI…"
               disabled={loading}
               className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none transition-colors disabled:opacity-60"
             />

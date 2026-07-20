@@ -3,13 +3,13 @@ import Script from 'next/script'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Orbit',
-  description: 'Orbit — Plataforma de gestão de equipes',
+  title: 'OrbitOps',
+  description: 'OrbitOps — Plataforma de gestão de equipes',
   manifest: '/manifest.json',
-  applicationName: 'Orbit',
+  applicationName: 'OrbitOps',
   appleWebApp: {
     capable: true,
-    title: 'Orbit',
+    title: 'OrbitOps',
     statusBarStyle: 'black-translucent',
   },
   icons: {
@@ -34,8 +34,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <head>
-        <meta name="apple-mobile-web-app-title" content="Orbit" />
-        <meta name="application-name" content="Orbit" />
+        <meta name="apple-mobile-web-app-title" content="OrbitOps" />
+        <meta name="application-name" content="OrbitOps" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         <link rel="icon" sizes="192x192" href="/icon-192.png" type="image/png" />
         <link rel="icon" sizes="512x512" href="/icon-512.png" type="image/png" />

@@ -48,7 +48,7 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-primary">Orbit Workforce</p>
+                <p className="text-sm font-medium text-primary">OrbitOps</p>
                 <p className="text-xs text-secondary">Construction team management</p>
               </div>
               <Badge variant="green">v{VERSION}</Badge>
@@ -63,7 +63,7 @@ export default function SettingsPage() {
                 <Badge variant="green">Enabled</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-secondary">Orbit AI</span>
+                <span className="text-xs text-secondary">OrbitOps AI</span>
                 <Badge variant={orbitAiKey ? 'green' : 'amber'}>
                   {orbitAiKey ? 'Active' : 'Add ANTHROPIC_API_KEY'}
                 </Badge>
@@ -73,8 +73,8 @@ export default function SettingsPage() {
         </Card>
       </Section>
 
-      {/* Orbit AI setup */}
-      <Section title="Orbit AI">
+      {/* OrbitOps AI setup */}
+      <Section title="OrbitOps AI">
         <Card>
           <div className="flex items-start gap-3 mb-4">
             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
@@ -87,15 +87,15 @@ export default function SettingsPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-semibold text-primary">Orbit AI Business Copilot</p>
+              <p className="text-sm font-semibold text-primary">OrbitOps AI Business Copilot</p>
               <p className="text-xs text-secondary mt-0.5">Ask about projects, workforce, tasks and payroll in natural language.</p>
             </div>
           </div>
           <div className="bg-surface-elevated rounded-input p-3 space-y-1">
-            <p className="text-xs font-medium text-secondary">To enable Orbit AI:</p>
+            <p className="text-xs font-medium text-secondary">To enable OrbitOps AI:</p>
             <p className="text-xs text-secondary">1. Get an API key from <span className="text-brand">console.anthropic.com</span></p>
             <p className="text-xs text-secondary">2. Add <code className="text-amber">ANTHROPIC_API_KEY</code> to your Vercel environment variables</p>
-            <p className="text-xs text-secondary">3. Redeploy — the Orbit AI sphere will activate automatically</p>
+            <p className="text-xs text-secondary">3. Redeploy — the OrbitOps AI sphere will activate automatically</p>
           </div>
         </Card>
       </Section>

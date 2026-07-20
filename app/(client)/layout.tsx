@@ -19,9 +19,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <header className="fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between px-4 h-14 safe-top">
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.png" alt="Orbit" className="w-7 h-7 rounded-lg object-cover" />
+          <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />
           <div>
-            <p className="text-sm font-semibold text-primary leading-tight">Orbit</p>
+            <p className="text-sm font-semibold text-primary leading-tight">OrbitOps</p>
             <p className="text-[10px] text-tertiary leading-tight">Client Portal</p>
           </div>
         </div>

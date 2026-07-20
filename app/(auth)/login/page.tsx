@@ -9,8 +9,8 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.png" alt="Orbit" className="w-14 h-14 rounded-2xl mb-4 shadow-lg object-cover" />
-          <h1 className="text-2xl font-bold text-primary tracking-tight">Orbit</h1>
+          <img src="/icon.png" alt="OrbitOps" className="w-14 h-14 rounded-2xl mb-4 shadow-lg object-cover" />
+          <h1 className="text-2xl font-bold text-primary tracking-tight">OrbitOps</h1>
           <p className="text-sm text-secondary mt-1">Workforce Management</p>
         </div>
 

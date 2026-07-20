@@ -1,7 +1,7 @@
 {
-  "name": "Orbit",
-  "short_name": "Orbit",
-  "description": "Orbit — Plataforma de gestão de equipes",
+  "name": "OrbitOps",
+  "short_name": "OrbitOps",
+  "description": "OrbitOps — Plataforma de gestão de equipes",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

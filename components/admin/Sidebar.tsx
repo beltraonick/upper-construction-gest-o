@@ -133,9 +133,9 @@ export function Sidebar({ user }: { user: SessionUser }) {
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-[rgba(255,255,255,0.07)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.png" alt="Orbit" className="w-8 h-8 rounded-lg flex-shrink-0 object-cover" />
+          <img src="/icon.png" alt="OrbitOps" className="w-8 h-8 rounded-lg flex-shrink-0 object-cover" />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-primary truncate leading-tight">Orbit</p>
+            <p className="text-sm font-semibold text-primary truncate leading-tight">OrbitOps</p>
             <p className="text-[11px] text-tertiary truncate">Workforce</p>
           </div>
         </div>
@@ -189,8 +189,8 @@ export function Sidebar({ user }: { user: SessionUser }) {
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between px-4 h-14">
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icon.png" alt="Orbit" className="w-7 h-7 rounded-lg object-cover" />
-          <span className="text-sm font-semibold text-primary">Orbit</span>
+          <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />
+          <span className="text-sm font-semibold text-primary">OrbitOps</span>
         </div>
         <div className="flex items-center gap-2">
           <Avatar name={user.full_name} size="sm" />

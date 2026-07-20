@@ -11,7 +11,7 @@ export async function POST(req: Request) {
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return new Response(
-      'Orbit AI requires an ANTHROPIC_API_KEY environment variable. Add it to your Vercel project settings.',
+      'OrbitOps AI requires an ANTHROPIC_API_KEY environment variable. Add it to your Vercel project settings.',
       { status: 200 }
     )
   }
@@ -82,7 +82,7 @@ PAYROLL:
   const stream = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 400,
-    system: `You are Orbit AI, the intelligent business copilot built into Orbit Workforce Management.
+    system: `You are OrbitOps AI, the intelligent business copilot built into OrbitOps.
 You help construction company administrators understand what's happening and act fast.
 
 LIVE COMPANY DATA:
