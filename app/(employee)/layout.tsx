@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 import { EmployeeNav } from './EmployeeNav'
 import { CompanyProvider } from '@/lib/company-context'
+import { OfflineBanner } from '@/components/OfflineBanner'
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
@@ -14,6 +15,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
   return (
     <CompanyProvider companyId={user.company_id}>
       <div className="min-h-screen bg-background pb-20">
+        <OfflineBanner />
         {children}
         <EmployeeNav />
       </div>

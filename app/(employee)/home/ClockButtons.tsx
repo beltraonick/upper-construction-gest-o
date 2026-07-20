@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { queueIfOffline } from '@/lib/offline-queue'
 import { Button } from '@/components/ui/Button'
 
 interface ClockButtonsProps {
   employeeId: string
+  companyId: string
   openEntryId: string | null
   clockInTime: string | null
 }
@@ -17,6 +19,12 @@ function formatElapsed(iso: string) {
   const m = Math.floor((diff % 3600) / 60)
   const s = diff % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function newId(): string {
+  return typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 async function getLocation() {
@@ -45,45 +53,60 @@ async function getLocation() {
   })
 }
 
-export function ClockButtons({ employeeId, openEntryId, clockInTime }: ClockButtonsProps) {
+export function ClockButtons({ employeeId, companyId, openEntryId, clockInTime }: ClockButtonsProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [elapsed, setElapsed] = useState('')
   const [locationInfo, setLocationInfo] = useState('')
 
+  // Optimistic local state — lets clock in/out work instantly even
+  // offline, without waiting on (or depending on) a server round-trip.
+  const [clockedIn, setClockedIn] = useState(!!clockInTime)
+  const [localClockInTime, setLocalClockInTime] = useState(clockInTime)
+  const [localEntryId, setLocalEntryId] = useState(openEntryId)
+
   useEffect(() => {
-    if (!clockInTime) return
-    const tick = () => setElapsed(formatElapsed(clockInTime))
+    if (!localClockInTime) return
+    const tick = () => setElapsed(formatElapsed(localClockInTime))
     tick()
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [clockInTime])
+  }, [localClockInTime])
 
   async function clockIn() {
     setLoading(true)
     setLocationInfo('Getting location…')
-    const supabase = createClient()
 
     const loc = await getLocation()
     setLocationInfo(loc?.city ? `${loc.city}, ${loc.state}` : '')
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('company_id')
-      .eq('id', employeeId)
-      .single()
-
-    await supabase.from('time_entries').insert({
+    const entryId = newId()
+    const clockInIso = new Date().toISOString()
+    const payload = {
+      id: entryId,
       employee_id: employeeId,
-      company_id: profile?.company_id,
-      clock_in: new Date().toISOString(),
+      company_id: companyId,
+      clock_in: clockInIso,
       ...(loc && {
         latitude: loc.latitude,
         longitude: loc.longitude,
         city: loc.city,
         state: loc.state,
       }),
-    })
+    }
+
+    // Optimistic: reflect clocked-in state immediately, regardless of network.
+    setClockedIn(true)
+    setLocalClockInTime(clockInIso)
+    setLocalEntryId(entryId)
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('time_entries').insert(payload)
+      if (error) throw error
+    } catch (err) {
+      await queueIfOffline({ table: 'time_entries', type: 'insert', payload }, err)
+    }
 
     router.refresh()
     setLoading(false)
@@ -91,17 +114,27 @@ export function ClockButtons({ employeeId, openEntryId, clockInTime }: ClockButt
   }
 
   async function clockOut() {
+    if (!localEntryId) return
     setLoading(true)
-    const supabase = createClient()
-    await supabase
-      .from('time_entries')
-      .update({ clock_out: new Date().toISOString() })
-      .eq('id', openEntryId)
+    const payload = { clock_out: new Date().toISOString() }
+
+    setClockedIn(false)
+    setLocalClockInTime(null)
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('time_entries').update(payload).eq('id', localEntryId)
+      if (error) throw error
+    } catch (err) {
+      await queueIfOffline({ table: 'time_entries', type: 'update', match: { id: localEntryId }, payload }, err)
+    }
+
+    setLocalEntryId(null)
     router.refresh()
     setLoading(false)
   }
 
-  if (clockInTime) {
+  if (clockedIn) {
     return (
       <div className="flex flex-col items-center gap-4 py-2">
         <div className="flex items-center gap-2">
@@ -109,9 +142,11 @@ export function ClockButtons({ employeeId, openEntryId, clockInTime }: ClockButt
           <span className="text-sm text-green font-medium">Clocked In</span>
         </div>
         <p className="text-4xl font-bold text-primary tracking-widest font-mono">{elapsed}</p>
-        <p className="text-xs text-secondary">
-          Since {new Date(clockInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-        </p>
+        {localClockInTime && (
+          <p className="text-xs text-secondary">
+            Since {new Date(localClockInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
         <Button variant="danger" size="lg" onClick={clockOut} loading={loading} className="w-full mt-1">
           Clock Out
         </Button>

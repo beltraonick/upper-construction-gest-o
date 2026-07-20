@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
+import { queueIfOffline } from '@/lib/offline-queue'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 
@@ -106,10 +107,16 @@ export function TaskList({
     if (selected?.id === taskId) setSelected(s => s ? { ...s, checklist: newChecklist } : s)
 
     if (supabaseReady) {
+      const payload = { checklist: newChecklist, updated_at: new Date().toISOString() }
       try {
         const supabase = createClient()
-        await supabase.from('tasks').update({ checklist: newChecklist, updated_at: new Date().toISOString() }).eq('id', taskId)
-      } catch { /* column may not exist yet; optimistic update already applied */ }
+        const { error } = await supabase.from('tasks').update(payload).eq('id', taskId)
+        if (error) throw error
+      } catch (err) {
+        // Real (non-network) errors — e.g. column not migrated yet — are
+        // dropped, same as before; only network failures get queued.
+        await queueIfOffline({ table: 'tasks', type: 'update', match: { id: taskId }, payload }, err)
+      }
     }
   }
 
@@ -117,16 +124,19 @@ export function TaskList({
     if (!confirm('Mark this task as complete?')) return
     setSaving(true)
     if (supabaseReady) {
+      const update: Record<string, unknown> = {
+        status: 'completed',
+        updated_at: new Date().toISOString(),
+      }
+      // Include optional columns only when notes text was typed
+      if (notes) update.notes = notes
       try {
         const supabase = createClient()
-        const update: Record<string, unknown> = {
-          status: 'completed',
-          updated_at: new Date().toISOString(),
-        }
-        // Include optional columns only when notes text was typed
-        if (notes) update.notes = notes
-        await supabase.from('tasks').update(update).eq('id', taskId)
-      } catch { /* silent */ }
+        const { error } = await supabase.from('tasks').update(update).eq('id', taskId)
+        if (error) throw error
+      } catch (err) {
+        await queueIfOffline({ table: 'tasks', type: 'update', match: { id: taskId }, payload: update }, err)
+      }
     }
     setTasks(prev => prev.filter(t => t.id !== taskId))
     setSelected(null)
@@ -136,11 +146,16 @@ export function TaskList({
 
   async function saveNotes(taskId: string) {
     if (!supabaseReady) return
+    const payload = { notes, updated_at: new Date().toISOString() }
     try {
       const supabase = createClient()
-      await supabase.from('tasks').update({ notes, updated_at: new Date().toISOString() }).eq('id', taskId)
+      const { error } = await supabase.from('tasks').update(payload).eq('id', taskId)
+      if (error) throw error
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes } : t))
-    } catch { /* column may not exist yet */ }
+    } catch (err) {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes } : t))
+      await queueIfOffline({ table: 'tasks', type: 'update', match: { id: taskId }, payload }, err)
+    }
   }
 
   if (!supabaseReady) {
