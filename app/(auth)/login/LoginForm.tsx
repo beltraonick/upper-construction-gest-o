@@ -76,6 +76,8 @@ export function LoginForm() {
         router.push('/admin/dashboard')
       } else if (result.role === 'client') {
         router.push('/client')
+      } else if (result.role === 'owner') {
+        router.push('/owner/dashboard')
       } else {
         router.push('/home')
       }

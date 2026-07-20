@@ -11,9 +11,10 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
   if (user.status === 'pending') redirect('/pending')
   if (user.role === 'admin') redirect('/admin/dashboard')
   if (user.role === 'client') redirect('/client')
+  if (user.role === 'owner') redirect('/owner/dashboard')
 
   return (
-    <CompanyProvider companyId={user.company_id}>
+    <CompanyProvider companyId={user.company_id as string}>
       <div className="min-h-screen bg-background pb-20">
         <OfflineBanner />
         {children}

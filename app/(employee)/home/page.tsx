@@ -148,7 +148,7 @@ export default async function EmployeeHomePage() {
         {profileId ? (
           <ClockButtons
             employeeId={profileId}
-            companyId={user.company_id}
+            companyId={user.company_id as string}
             openEntryId={openEntryId}
             clockInTime={clockInTime}
           />

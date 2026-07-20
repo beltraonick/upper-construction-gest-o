@@ -11,10 +11,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
   if (user.role === 'client') redirect('/client')
+  if (user.role === 'owner') redirect('/owner/dashboard')
   if (user.role !== 'admin') redirect('/home')
 
   return (
-    <CompanyProvider companyId={user.company_id}>
+    // Every non-owner profile always has a company_id — owner is the
+    // only role that isn't scoped to one, and it's redirected above.
+    <CompanyProvider companyId={user.company_id as string}>
       <div className="flex h-screen bg-background overflow-hidden">
         <OfflineBanner />
         <Sidebar user={user} />

@@ -98,7 +98,7 @@ interface ProfileAuthRow {
   auth_status: UserStatus
   language: Language | null
   password_hash: string | null
-  company_id: string
+  company_id: string | null
   created_at: string
 }
 

@@ -31,7 +31,7 @@ export async function createProfileWithPassword(data: {
 
   // Client-role logins are unlimited on every plan — only admin/employee count.
   if (data.role === 'admin' || data.role === 'employee') {
-    const { allowed, limit } = await checkRoleLimit(supabase, user.company_id, data.role)
+    const { allowed, limit } = await checkRoleLimit(supabase, user.company_id as string, data.role)
     if (!allowed) {
       return { error: `Your plan allows up to ${limit} ${data.role === 'admin' ? 'admins' : 'employees'}. Upgrade to add more.` }
     }

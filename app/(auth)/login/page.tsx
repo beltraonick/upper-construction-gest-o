@@ -20,12 +20,21 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-sm text-secondary mt-6">
-          Don&apos;t have an account?{' '}
+          Joining a team?{' '}
           <Link
             href="/register"
             className="text-brand hover:text-brand-hover font-medium transition-colors"
           >
             Create account
+          </Link>
+        </p>
+        <p className="text-center text-sm text-secondary mt-2">
+          New business?{' '}
+          <Link
+            href="/signup"
+            className="text-brand hover:text-brand-hover font-medium transition-colors"
+          >
+            Set up your company
           </Link>
         </p>
       </div>

@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'employee' | 'client'
+export type UserRole = 'admin' | 'employee' | 'client' | 'owner'
 export type UserStatus = 'pending' | 'approved' | 'suspended'
 export type Language = 'en' | 'pt' | 'es'
 
@@ -11,7 +11,7 @@ export interface AuthUser {
   status: UserStatus
   language: Language
   password_hash: string
-  company_id: string
+  company_id: string | null // null only for role: 'owner', which isn't scoped to a company
   created_at: string
 }
 
@@ -23,5 +23,5 @@ export interface SessionUser {
   role: UserRole
   status: UserStatus
   language: Language
-  company_id: string
+  company_id: string | null // null only for role: 'owner', which isn't scoped to a company
 }
