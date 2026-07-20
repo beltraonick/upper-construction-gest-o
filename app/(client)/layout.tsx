@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 import { logout } from '@/app/actions/auth'
+import { ClientNav } from './ClientNav'
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
@@ -43,7 +44,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </div>
       </header>
 
-      <main className="pt-14 pb-8 min-h-screen">
+      <div className="pt-14 sticky top-14 z-30">
+        <ClientNav />
+      </div>
+
+      <main className="pb-8 min-h-screen">
         {children}
       </main>
     </div>

@@ -26,6 +26,8 @@ interface Project {
   hotel_name: string | null
   leader_id: string | null
   budget: number | null
+  client_name: string | null
+  client_email: string | null
   created_at: string
 }
 
@@ -42,7 +44,7 @@ const STATUS_OPTIONS = [
 
 const BLANK = {
   name: '', status: 'active', city: '', state: '',
-  hotel_name: '', leader_id: '', budget: '',
+  hotel_name: '', leader_id: '', budget: '', client_name: '', client_email: '',
 }
 
 function statusBadge(s: string) {
@@ -64,7 +66,7 @@ export default function ProjectsPage() {
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: projs }, { data: emps }] = await Promise.all([
-      supabase.from('projects').select('*').eq('company_id', COMPANY_ID).order('created_at', { ascending: false }),
+      supabase.from('projects').select('id, name, status, city, state, hotel_name, leader_id, budget, client_name, client_email, created_at').eq('company_id', COMPANY_ID).order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, full_name').eq('company_id', COMPANY_ID).eq('status', 'active').order('full_name'),
     ])
     setProjects(projs ?? [])
@@ -90,6 +92,8 @@ export default function ProjectsPage() {
       hotel_name: p.hotel_name ?? '',
       leader_id: p.leader_id ?? '',
       budget: p.budget != null ? String(p.budget) : '',
+      client_name: p.client_name ?? '',
+      client_email: p.client_email ?? '',
     })
     setShowModal(true)
   }
@@ -106,6 +110,8 @@ export default function ProjectsPage() {
       hotel_name: form.hotel_name || null,
       leader_id: form.leader_id || null,
       budget: form.budget ? Number(form.budget) : null,
+      client_name: form.client_name || null,
+      client_email: form.client_email ? form.client_email.trim().toLowerCase() : null,
     }
     if (editing) {
       await supabase.from('projects').update(payload).eq('id', editing.id)
@@ -184,6 +190,11 @@ export default function ProjectsPage() {
                     </p>
                     {leader && (
                       <p className="text-xs text-tertiary truncate">Leader: {leader.full_name}</p>
+                    )}
+                    {p.client_email ? (
+                      <p className="text-xs text-tertiary truncate">Client: {p.client_name || p.client_email}</p>
+                    ) : (
+                      <p className="text-xs text-amber truncate">No client linked — hidden from client portal</p>
                     )}
                   </div>
                   <div className="hidden md:flex flex-col items-end flex-shrink-0 mr-4">
@@ -275,7 +286,26 @@ export default function ProjectsPage() {
                       onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
                     />
                   </div>
+                  <div className="col-span-2 pt-2 border-t border-[rgba(255,255,255,0.07)]">
+                    <p className="text-xs font-medium text-secondary mb-3">Client access</p>
+                  </div>
+                  <Input
+                    label="Client / Hotel Name"
+                    placeholder="e.g. Marriott Charleston"
+                    value={form.client_name}
+                    onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))}
+                  />
+                  <Input
+                    label="Client Login Email"
+                    type="email"
+                    placeholder="client@hotel.com"
+                    value={form.client_email}
+                    onChange={e => setForm(f => ({ ...f, client_email: e.target.value }))}
+                  />
                 </div>
+                <p className="text-xs text-tertiary -mt-2">
+                  Whoever logs into the client portal with this email will only see this project.
+                </p>
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
                     Cancel

@@ -53,27 +53,35 @@ export default async function ClientPortalPage() {
       weekStart.setDate(today.getDate() - today.getDay())
       weekStart.setHours(0, 0, 0, 0)
 
-      const [{ data: projs }, { data: photos }, { data: weekEntries }] = await Promise.all([
-        supabase
-          .from('projects')
-          .select('id, name, status, address, progress, project_type, created_at, client_name')
-          .eq('company_id', COMPANY_ID)
-          .order('updated_at', { ascending: false }),
-        supabase
-          .from('project_photos')
-          .select('id, storage_path, created_at, project_id')
-          .eq('company_id', COMPANY_ID)
-          .order('created_at', { ascending: false })
-          .limit(12),
-        supabase
-          .from('time_entries')
-          .select('clock_in, clock_out')
-          .eq('company_id', COMPANY_ID)
-          .gte('clock_in', weekStart.toISOString())
-          .not('clock_out', 'is', null),
-      ])
+      const { data: projs } = await supabase
+        .from('projects')
+        .select('id, name, status, address, progress, project_type, created_at, client_name')
+        .eq('company_id', COMPANY_ID)
+        .eq('client_email', user.email)
+        .order('updated_at', { ascending: false })
 
       projects = (projs ?? []) as typeof projects
+      const projectIds = projects.map(p => p.id)
+
+      const [{ data: photos }, { data: weekEntries }] = await Promise.all([
+        projectIds.length > 0
+          ? supabase
+              .from('project_photos')
+              .select('id, storage_path, created_at, project_id')
+              .in('project_id', projectIds)
+              .order('created_at', { ascending: false })
+              .limit(12)
+          : Promise.resolve({ data: [] }),
+        projectIds.length > 0
+          ? supabase
+              .from('time_entries')
+              .select('clock_in, clock_out')
+              .in('project_id', projectIds)
+              .gte('clock_in', weekStart.toISOString())
+              .not('clock_out', 'is', null)
+          : Promise.resolve({ data: [] }),
+      ])
+
       recentPhotos = (photos ?? []) as typeof recentPhotos
       totalHoursThisWeek = (weekEntries ?? []).reduce((sum, e) => {
         return sum + (new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) / 3600000
@@ -128,7 +136,9 @@ export default async function ClientPortalPage() {
         )}
         {supabaseReady && projects.length === 0 && (
           <Card>
-            <p className="text-sm text-secondary text-center py-6">No projects assigned yet.</p>
+            <p className="text-sm text-secondary text-center py-6">
+              No project linked to this account yet. Contact your project manager to get access.
+            </p>
           </Card>
         )}
         <div className="space-y-3">

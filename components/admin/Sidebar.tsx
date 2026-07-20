@@ -49,6 +49,16 @@ const NAV = [
     ),
   },
   {
+    label: 'Change Orders',
+    mobileLabel: 'Extras',
+    href: '/admin/change-orders',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm7 4a1 1 0 10-2 0v1H8a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V8z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     label: 'Time',
     mobileLabel: 'Time',
     href: '/admin/time',
