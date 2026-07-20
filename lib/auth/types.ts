@@ -11,6 +11,7 @@ export interface AuthUser {
   status: UserStatus
   language: Language
   password_hash: string
+  company_id: string
   created_at: string
 }
 
@@ -22,4 +23,5 @@ export interface SessionUser {
   role: UserRole
   status: UserStatus
   language: Language
+  company_id: string
 }

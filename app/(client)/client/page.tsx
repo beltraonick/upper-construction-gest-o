@@ -5,8 +5,6 @@ import { Badge } from '@/components/ui/Badge'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { getCurrentUser } from '@/lib/auth/session'
 
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
-
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('your_')
@@ -67,7 +65,7 @@ export default async function ClientPortalPage() {
       const { data: projs } = await supabase
         .from('projects')
         .select('id, name, status, address, progress, project_type, created_at, client_name')
-        .eq('company_id', COMPANY_ID)
+        .eq('company_id', user.company_id)
         .eq('client_email', user.email)
         .order('updated_at', { ascending: false })
 

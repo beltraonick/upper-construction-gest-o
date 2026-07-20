@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 
 interface ChangeOrder {
   id: string
@@ -39,6 +38,7 @@ function statusBadge(s: string) {
 }
 
 export default function ChangeOrdersPage() {
+  const companyId = useCompanyId()
   const [orders, setOrders] = useState<ChangeOrder[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,18 +53,18 @@ export default function ChangeOrdersPage() {
       supabase
         .from('change_orders')
         .select('*, project:project_id(name, client_name)')
-        .eq('company_id', COMPANY_ID)
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false }),
       supabase
         .from('projects')
         .select('id, name, client_name, client_email')
-        .eq('company_id', COMPANY_ID)
+        .eq('company_id', companyId)
         .order('name'),
     ])
     setOrders((cos ?? []) as unknown as ChangeOrder[])
     setProjects(projs ?? [])
     setLoading(false)
-  }, [])
+  }, [companyId])
 
   useEffect(() => { load() }, [load])
 
@@ -79,7 +79,7 @@ export default function ChangeOrdersPage() {
     setSaving(true)
     const supabase = createClient()
     await supabase.from('change_orders').insert({
-      company_id: COMPANY_ID,
+      company_id: companyId,
       project_id: form.project_id,
       title: form.title,
       description: form.description || null,

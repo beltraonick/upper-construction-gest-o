@@ -1,9 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 import { hashPassword } from '@/lib/auth/crypto'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
+import { checkRoleLimit } from '@/lib/plan-limits'
 
 export async function createProfileWithPassword(data: {
   full_name: string
@@ -22,9 +22,23 @@ export async function createProfileWithPassword(data: {
     return { error: 'Password must be at least 8 characters.' }
   }
 
+  const user = getCurrentUser()
+  if (!user || user.role !== 'admin') {
+    return { error: 'Not authorized.' }
+  }
+
   const supabase = createClient()
+
+  // Client-role logins are unlimited on every plan — only admin/employee count.
+  if (data.role === 'admin' || data.role === 'employee') {
+    const { allowed, limit } = await checkRoleLimit(supabase, user.company_id, data.role)
+    if (!allowed) {
+      return { error: `Your plan allows up to ${limit} ${data.role === 'admin' ? 'admins' : 'employees'}. Upgrade to add more.` }
+    }
+  }
+
   const { error } = await supabase.from('profiles').insert({
-    company_id: COMPANY_ID,
+    company_id: user.company_id,
     full_name: data.full_name.trim(),
     email: data.email.trim().toLowerCase(),
     role: data.role,

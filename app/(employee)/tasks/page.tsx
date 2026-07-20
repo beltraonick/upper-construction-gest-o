@@ -12,8 +12,6 @@ export default async function EmployeeTasksPage() {
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
 
-  const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
-
   let profileId: string | null = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let tasks: any[] = []
@@ -32,7 +30,7 @@ export default async function EmployeeTasksPage() {
         const { data: newProfile } = await supabase
           .from('profiles')
           .insert({
-            company_id: COMPANY_ID,
+            company_id: user.company_id,
             role: user.role,
             full_name: user.full_name,
             email: user.email,

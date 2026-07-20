@@ -1,13 +1,12 @@
 import { getCurrentUser } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
-
 export async function POST(req: Request) {
   const user = getCurrentUser()
   if (!user || user.role !== 'admin') {
     return new Response('Unauthorized', { status: 401 })
   }
+  const companyId = user.company_id
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return new Response(
@@ -35,12 +34,12 @@ export async function POST(req: Request) {
       { data: weekEntries },
       { data: pendingPayroll },
     ] = await Promise.all([
-      supabase.from('projects').select('name, status, progress, address').eq('company_id', COMPANY_ID).eq('status', 'active').limit(10),
-      supabase.from('time_entries').select('id, profiles:employee_id(full_name)').eq('company_id', COMPANY_ID).is('clock_out', null),
-      supabase.from('tasks').select('title, priority, status, assigned_employee:assigned_to(full_name), project:project_id(name)').neq('status', 'completed').limit(15),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('company_id', COMPANY_ID).eq('status', 'active'),
-      supabase.from('time_entries').select('clock_in, clock_out').eq('company_id', COMPANY_ID).gte('clock_in', weekStart.toISOString()).not('clock_out', 'is', null),
-      supabase.from('payroll_records').select('total_amount').eq('company_id', COMPANY_ID).eq('status', 'pending'),
+      supabase.from('projects').select('name, status, progress, address').eq('company_id', companyId).eq('status', 'active').limit(10),
+      supabase.from('time_entries').select('id, profiles:employee_id(full_name)').eq('company_id', companyId).is('clock_out', null),
+      supabase.from('tasks').select('title, priority, status, assigned_employee:assigned_to(full_name), project:project_id(name)').eq('company_id', companyId).neq('status', 'completed').limit(15),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'active'),
+      supabase.from('time_entries').select('clock_in, clock_out').eq('company_id', companyId).gte('clock_in', weekStart.toISOString()).not('clock_out', 'is', null),
+      supabase.from('payroll_records').select('total_amount').eq('company_id', companyId).eq('status', 'pending'),
     ])
 
     const weekHours = (weekEntries ?? []).reduce((sum, e) => {

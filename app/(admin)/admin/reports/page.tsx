@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 
 interface ReportRow {
   employee_id: string
@@ -70,6 +69,7 @@ function getPeriodEnd(p: string): Date | null {
 }
 
 export default function ReportsPage() {
+  const companyId = useCompanyId()
   const [rows, setRows] = useState<ReportRow[]>([])
   const [entries, setEntries] = useState<EntryRow[]>([])
   const [profiles, setProfiles] = useState<{ id: string; hourly_rate: number }[]>([])
@@ -86,7 +86,7 @@ export default function ReportsPage() {
     let query = supabase
       .from('time_entries')
       .select('id, employee_id, clock_in, clock_out, city, state, approval_status, project:project_id(name), profile:employee_id(full_name, email)')
-      .eq('company_id', COMPANY_ID)
+      .eq('company_id', companyId)
       .order('clock_in', { ascending: false })
       .limit(500)
 
@@ -95,7 +95,7 @@ export default function ReportsPage() {
 
     const [{ data: ents }, { data: profs }] = await Promise.all([
       query,
-      supabase.from('profiles').select('id, full_name, email, hourly_rate').eq('company_id', COMPANY_ID),
+      supabase.from('profiles').select('id, full_name, email, hourly_rate').eq('company_id', companyId),
     ])
 
     const fetchedEntries = (ents ?? []) as unknown as EntryRow[]
@@ -139,7 +139,7 @@ export default function ReportsPage() {
 
     setRows(allRows.sort((a, b) => b.totalHours - a.totalHours))
     setLoading(false)
-  }, [period])
+  }, [period, companyId])
 
   useEffect(() => { load() }, [load])
 

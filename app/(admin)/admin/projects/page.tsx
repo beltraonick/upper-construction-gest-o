@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
+import { checkProjectLimit } from '@/lib/plan-limits'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
@@ -54,6 +54,7 @@ function statusBadge(s: string) {
 }
 
 export default function ProjectsPage() {
+  const companyId = useCompanyId()
   const [projects, setProjects] = useState<Project[]>([])
   const [employees, setEmployees] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,23 +63,25 @@ export default function ProjectsPage() {
   const [editing, setEditing] = useState<Project | null>(null)
   const [form, setForm] = useState({ ...BLANK })
   const [search, setSearch] = useState('')
+  const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: projs }, { data: emps }] = await Promise.all([
-      supabase.from('projects').select('id, name, status, city, state, hotel_name, leader_id, budget, client_name, client_email, created_at').eq('company_id', COMPANY_ID).order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, full_name').eq('company_id', COMPANY_ID).eq('status', 'active').order('full_name'),
+      supabase.from('projects').select('id, name, status, city, state, hotel_name, leader_id, budget, client_name, client_email, created_at').eq('company_id', companyId).order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('status', 'active').order('full_name'),
     ])
     setProjects(projs ?? [])
     setEmployees(emps ?? [])
     setLoading(false)
-  }, [])
+  }, [companyId])
 
   useEffect(() => { load() }, [load])
 
   function openAdd() {
     setEditing(null)
     setForm({ ...BLANK })
+    setError('')
     setShowModal(true)
   }
 
@@ -100,6 +103,7 @@ export default function ProjectsPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    setError('')
     setSaving(true)
     const supabase = createClient()
     const payload = {
@@ -116,7 +120,13 @@ export default function ProjectsPage() {
     if (editing) {
       await supabase.from('projects').update(payload).eq('id', editing.id)
     } else {
-      await supabase.from('projects').insert({ ...payload, company_id: COMPANY_ID })
+      const { allowed, limit } = await checkProjectLimit(supabase, companyId)
+      if (!allowed) {
+        setError(`Your plan allows up to ${limit} active projects. Upgrade to add more.`)
+        setSaving(false)
+        return
+      }
+      await supabase.from('projects').insert({ ...payload, company_id: companyId })
     }
     setSaving(false)
     setShowModal(false)
@@ -306,6 +316,11 @@ export default function ProjectsPage() {
                 <p className="text-xs text-tertiary -mt-2">
                   Whoever logs into the client portal with this email will only see this project.
                 </p>
+                {error && (
+                  <div className="bg-danger/10 border border-danger/20 rounded-input px-4 py-3 text-sm text-danger">
+                    {error}
+                  </div>
+                )}
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
                     Cancel

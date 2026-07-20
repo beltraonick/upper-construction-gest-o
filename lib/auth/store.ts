@@ -21,6 +21,7 @@ const SEED_USERS: AuthUser[] = [
     status: 'approved',
     language: 'en',
     password_hash: hashPassword('Admin123!'),
+    company_id: COMPANY_ID,
     created_at: '2024-01-01T00:00:00.000Z',
   },
   {
@@ -32,6 +33,7 @@ const SEED_USERS: AuthUser[] = [
     status: 'approved',
     language: 'en',
     password_hash: hashPassword('Employee123!'),
+    company_id: COMPANY_ID,
     created_at: '2024-01-01T00:00:00.000Z',
   },
   {
@@ -43,6 +45,7 @@ const SEED_USERS: AuthUser[] = [
     status: 'approved',
     language: 'en',
     password_hash: hashPassword('Admin123!'),
+    company_id: COMPANY_ID,
     created_at: '2024-01-01T00:00:00.000Z',
   },
   {
@@ -54,6 +57,7 @@ const SEED_USERS: AuthUser[] = [
     status: 'approved',
     language: 'en',
     password_hash: hashPassword('Employee123!'),
+    company_id: COMPANY_ID,
     created_at: '2024-01-01T00:00:00.000Z',
   },
   {
@@ -65,6 +69,7 @@ const SEED_USERS: AuthUser[] = [
     status: 'approved',
     language: 'en',
     password_hash: hashPassword('Client123!'),
+    company_id: COMPANY_ID,
     created_at: '2024-01-01T00:00:00.000Z',
   },
 ]
@@ -93,10 +98,11 @@ interface ProfileAuthRow {
   auth_status: UserStatus
   language: Language | null
   password_hash: string | null
+  company_id: string
   created_at: string
 }
 
-const PROFILE_AUTH_COLUMNS = 'id, email, full_name, phone, role, auth_status, language, password_hash, created_at'
+const PROFILE_AUTH_COLUMNS = 'id, email, full_name, phone, role, auth_status, language, password_hash, company_id, created_at'
 
 function rowToAuthUser(row: ProfileAuthRow): AuthUser {
   return {
@@ -108,6 +114,7 @@ function rowToAuthUser(row: ProfileAuthRow): AuthUser {
     status: row.auth_status,
     language: row.language ?? 'en',
     password_hash: row.password_hash ?? '',
+    company_id: row.company_id,
     created_at: row.created_at,
   }
 }
@@ -144,6 +151,9 @@ export async function createUser(data: {
   if (supabaseReady) {
     try {
       const supabase = createClient()
+      // Public self-registration always joins the single seeded company —
+      // there's no multi-company signup flow yet (a new company would need
+      // its own onboarding, not covered here).
       const { data: row, error } = await supabase
         .from('profiles')
         .insert({
@@ -174,6 +184,7 @@ export async function createUser(data: {
     language: data.language,
     role: 'employee',
     status: 'pending',
+    company_id: COMPANY_ID,
     created_at: new Date().toISOString(),
   }
   seedUsers.set(user.id, user)
@@ -189,5 +200,6 @@ export function toSessionUser(user: AuthUser): SessionUser {
     role: user.role,
     status: user.status,
     language: user.language,
+    company_id: user.company_id,
   }
 }

@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 
 interface ChecklistItem { text: string; done: boolean }
 
@@ -77,6 +76,7 @@ const BLANK = {
 }
 
 export default function TasksPage() {
+  const companyId = useCompanyId()
   const [tasks, setTasks] = useState<Task[]>([])
   const [employees, setEmployees] = useState<Profile[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -98,17 +98,18 @@ export default function TasksPage() {
       supabase
         .from('tasks')
         .select('*, project:project_id(name), assigned_employee:assigned_to(full_name)')
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, full_name').eq('company_id', COMPANY_ID).eq('status', 'active').order('full_name'),
-      supabase.from('projects').select('id, name').eq('company_id', COMPANY_ID).eq('status', 'active').order('name'),
-      supabase.from('project_rooms').select('id, project_id, floor, label').eq('company_id', COMPANY_ID),
+      supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('status', 'active').order('full_name'),
+      supabase.from('projects').select('id, name').eq('company_id', companyId).eq('status', 'active').order('name'),
+      supabase.from('project_rooms').select('id, project_id, floor, label').eq('company_id', companyId),
     ])
     setTasks((t ?? []) as unknown as Task[])
     setEmployees(emps ?? [])
     setProjects(projs ?? [])
     setRooms(rms ?? [])
     setLoading(false)
-  }, [])
+  }, [companyId])
 
   useEffect(() => { load() }, [load])
 
@@ -187,7 +188,7 @@ export default function TasksPage() {
       if (editing) {
         await supabase.from('tasks').update(extended).eq('id', editing.id)
       } else {
-        await supabase.from('tasks').insert({ ...extended, company_id: COMPANY_ID })
+        await supabase.from('tasks').insert({ ...extended, company_id: companyId })
       }
     } catch {
       // Fall back to base-only payload (pre-migration schema)

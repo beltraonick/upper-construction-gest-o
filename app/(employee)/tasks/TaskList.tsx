@@ -3,10 +3,10 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 const PHOTO_BUCKET = 'project-photos'
 
 interface ChecklistItem { text: string; done: boolean }
@@ -32,6 +32,7 @@ export function TaskList({
   profileId: string | null
   supabaseReady: boolean
 }) {
+  const companyId = useCompanyId()
   const [tasks, setTasks] = useState(initial)
   const [selected, setSelected] = useState<Task | null>(null)
   const [saving, setSaving] = useState(false)
@@ -76,7 +77,7 @@ export function TaskList({
           task_id: selected.id,
           project_id: selected.project_id ?? null,
           employee_id: profileId,
-          company_id: COMPANY_ID,
+          company_id: companyId,
           media_type: 'photo',
           storage_path: path,
         })

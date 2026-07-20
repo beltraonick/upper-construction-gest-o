@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 
 interface EmployeeSummary {
   id: string
@@ -69,6 +68,7 @@ const PERIOD_OPTIONS = [
 ]
 
 export default function PayrollPage() {
+  const companyId = useCompanyId()
   const [summaries, setSummaries] = useState<EmployeeSummary[]>([])
   const [records, setRecords] = useState<PayrollRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -81,16 +81,16 @@ export default function PayrollPage() {
     const { start, end } = getPeriodDates(period)
 
     const [{ data: profiles }, { data: entries }, { data: histRecords }] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, email, hourly_rate').eq('company_id', COMPANY_ID).eq('status', 'active'),
+      supabase.from('profiles').select('id, full_name, email, hourly_rate').eq('company_id', companyId).eq('status', 'active'),
       supabase.from('time_entries')
         .select('employee_id, clock_in, clock_out')
-        .eq('company_id', COMPANY_ID)
+        .eq('company_id', companyId)
         .not('clock_out', 'is', null)
         .gte('clock_in', start.toISOString())
         .lte('clock_in', end.toISOString()),
       supabase.from('payroll_records')
         .select('*, profile:employee_id(full_name)')
-        .eq('company_id', COMPANY_ID)
+        .eq('company_id', companyId)
         .order('period_start', { ascending: false })
         .limit(20),
     ])
@@ -129,7 +129,7 @@ export default function PayrollPage() {
     setSummaries(result)
     setRecords((histRecords ?? []) as unknown as PayrollRecord[])
     setLoading(false)
-  }, [period])
+  }, [period, companyId])
 
   useEffect(() => { load() }, [load])
 
@@ -146,7 +146,7 @@ export default function PayrollPage() {
 
     await supabase.from('payroll_records').insert(
       summaries.map(s => ({
-        company_id: COMPANY_ID,
+        company_id: companyId,
         employee_id: s.id,
         period_start: startStr,
         period_end: endStr,

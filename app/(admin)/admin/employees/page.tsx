@@ -3,14 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { createProfileWithPassword } from '@/app/actions/admin-users'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 
 interface Employee {
   id: string
@@ -42,6 +41,7 @@ const BLANK: Omit<Employee, 'id' | 'created_at'> & { password: string } = {
 }
 
 export default function EmployeesPage() {
+  const companyId = useCompanyId()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [openIds, setOpenIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -55,13 +55,13 @@ export default function EmployeesPage() {
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: emps }, { data: open }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('company_id', COMPANY_ID).order('full_name'),
+      supabase.from('profiles').select('*').eq('company_id', companyId).order('full_name'),
       supabase.from('time_entries').select('employee_id').is('clock_out', null),
     ])
     setEmployees(emps ?? [])
     setOpenIds(new Set((open ?? []).map((e: { employee_id: string }) => e.employee_id)))
     setLoading(false)
-  }, [])
+  }, [companyId])
 
   useEffect(() => { load() }, [load])
 

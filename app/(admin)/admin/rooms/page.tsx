@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 
 interface Project { id: string; name: string }
 interface Room { id: string; floor: string | null; label: string; created_at: string }
@@ -24,6 +23,7 @@ function roomStatus(roomId: string, tasks: TaskLite[]): RoomStatus {
 }
 
 export default function RoomsPage() {
+  const companyId = useCompanyId()
   const [projects, setProjects] = useState<Project[]>([])
   const [projectId, setProjectId] = useState('')
   const [rooms, setRooms] = useState<Room[]>([])
@@ -36,12 +36,12 @@ export default function RoomsPage() {
 
   const loadProjects = useCallback(async () => {
     const supabase = createClient()
-    const { data } = await supabase.from('projects').select('id, name').eq('company_id', COMPANY_ID).order('name')
+    const { data } = await supabase.from('projects').select('id, name').eq('company_id', companyId).order('name')
     setProjects(data ?? [])
     if (data && data.length > 0 && !projectId) setProjectId(data[0].id)
     setLoading(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [companyId])
 
   const loadRooms = useCallback(async (pid: string) => {
     if (!pid) { setRooms([]); setTasks([]); return }
@@ -64,7 +64,7 @@ export default function RoomsPage() {
     const supabase = createClient()
     await supabase.from('project_rooms').insert({
       project_id: projectId,
-      company_id: COMPANY_ID,
+      company_id: companyId,
       floor: single.floor || null,
       label: single.label.trim(),
     })
@@ -82,7 +82,7 @@ export default function RoomsPage() {
     const supabase = createClient()
     const rows = []
     for (let n = from; n <= to; n++) {
-      rows.push({ project_id: projectId, company_id: COMPANY_ID, floor: bulk.floor || null, label: String(n) })
+      rows.push({ project_id: projectId, company_id: companyId, floor: bulk.floor || null, label: String(n) })
     }
     await supabase.from('project_rooms').insert(rows)
     setBulk({ floor: '', from: '', to: '' })

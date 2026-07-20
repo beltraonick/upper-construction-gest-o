@@ -8,8 +8,6 @@ import { ClockButtons } from './ClockButtons'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
-
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('your_')
@@ -49,7 +47,7 @@ export default async function EmployeeHomePage() {
         const { data: newProfile } = await supabase
           .from('profiles')
           .insert({
-            company_id: COMPANY_ID,
+            company_id: user.company_id,
             role: user.role,
             full_name: user.full_name,
             email: user.email,

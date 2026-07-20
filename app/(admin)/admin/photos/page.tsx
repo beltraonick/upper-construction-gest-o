@@ -2,11 +2,11 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 const BUCKET = 'project-photos'
 
 interface PhotoRecord {
@@ -24,6 +24,7 @@ interface PhotoRecord {
 interface Project { id: string; name: string }
 
 export default function PhotosPage() {
+  const companyId = useCompanyId()
   const [photos, setPhotos] = useState<PhotoRecord[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,11 +39,11 @@ export default function PhotosPage() {
     const supabase = createClient()
 
     const [{ data: projs }, { data: photoRows }] = await Promise.all([
-      supabase.from('projects').select('id, name').eq('company_id', COMPANY_ID).order('name'),
+      supabase.from('projects').select('id, name').eq('company_id', companyId).order('name'),
       supabase
         .from('project_photos')
         .select('id, project_id, employee_id, storage_path, caption, created_at, project:project_id(name), profile:employee_id(full_name)')
-        .eq('company_id', COMPANY_ID)
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false })
         .limit(100),
     ])
@@ -56,7 +57,7 @@ export default function PhotosPage() {
     })
     setPhotos(withUrls)
     setLoading(false)
-  }, [])
+  }, [companyId])
 
   useEffect(() => { load() }, [load])
 
@@ -67,11 +68,11 @@ export default function PhotosPage() {
 
     for (const file of Array.from(files)) {
       const ext = file.name.split('.').pop()
-      const path = `${COMPANY_ID}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const path = `${companyId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { error: uploadErr } = await supabase.storage.from(BUCKET).upload(path, file)
       if (!uploadErr) {
         await supabase.from('project_photos').insert({
-          company_id: COMPANY_ID,
+          company_id: companyId,
           project_id: selectedProject || null,
           storage_path: path,
         })

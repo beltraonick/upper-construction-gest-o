@@ -2,11 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
-
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 
 interface TimeEntry {
   id: string
@@ -55,6 +54,7 @@ function getRange(filter: string): Date | null {
 }
 
 export default function TimePage() {
+  const companyId = useCompanyId()
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [actionId, setActionId] = useState<string | null>(null)
@@ -70,7 +70,7 @@ export default function TimePage() {
     let query = supabase
       .from('time_entries')
       .select('id, employee_id, clock_in, clock_out, city, state, approval_status, project:project_id(name), profile:employee_id(full_name, email)')
-      .eq('company_id', COMPANY_ID)
+      .eq('company_id', companyId)
       .order('clock_in', { ascending: false })
       .limit(200)
 
@@ -79,13 +79,13 @@ export default function TimePage() {
 
     const [{ data }, { data: emps }] = await Promise.all([
       query,
-      supabase.from('profiles').select('id, full_name').eq('company_id', COMPANY_ID).eq('status', 'active').order('full_name'),
+      supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('status', 'active').order('full_name'),
     ])
 
     setEntries((data ?? []) as unknown as TimeEntry[])
     setEmployees(emps ?? [])
     setLoading(false)
-  }, [filter, empFilter])
+  }, [filter, empFilter, companyId])
 
   useEffect(() => { load() }, [load])
 
