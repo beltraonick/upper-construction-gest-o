@@ -83,11 +83,6 @@ function findSeedByEmail(email: string): AuthUser | null {
 }
 
 // ─── Supabase-backed profiles ───────────────────────────────────────
-// profiles is the single source of truth for both business data
-// (name, role, position...) and login credentials (password_hash,
-// auth_status) — see migration 008. auth_status (pending/approved/
-// suspended) is separate from the pre-existing `status` column
-// (active/archived), which tracks employment status, not login access.
 
 interface ProfileAuthRow {
   id: string
@@ -131,6 +126,8 @@ export async function findUserByEmail(email: string): Promise<AuthUser | null> {
         .eq('email', normalized)
         .maybeSingle()
       if (data?.password_hash) return rowToAuthUser(data as ProfileAuthRow)
+      // Return user without password_hash so login can give a targeted error.
+      if (data) return rowToAuthUser(data as ProfileAuthRow)
     } catch {
       // Supabase unreachable/misconfigured — fall through to seed accounts
     }
@@ -151,9 +148,6 @@ export async function createUser(data: {
   if (supabaseReady) {
     try {
       const supabase = createClient()
-      // Public self-registration always joins the single seeded company —
-      // there's no multi-company signup flow yet (a new company would need
-      // its own onboarding, not covered here).
       const { data: row, error } = await supabase
         .from('profiles')
         .insert({
@@ -171,7 +165,7 @@ export async function createUser(data: {
         .single()
       if (!error && row) return rowToAuthUser(row as ProfileAuthRow)
     } catch {
-      // fall through to in-memory (e.g. Supabase unreachable)
+      // fall through to in-memory
     }
   }
 
@@ -185,6 +179,97 @@ export async function createUser(data: {
     role: 'employee',
     status: 'pending',
     company_id: COMPANY_ID,
+    created_at: new Date().toISOString(),
+  }
+  seedUsers.set(user.id, user)
+  seedEmailIndex.set(email, user.id)
+  return user
+}
+
+// ─── Invite-code-based employee registration ───────────────────────
+
+export interface InviteCodeRow {
+  id: string
+  company_id: string
+  code: string
+  is_active: boolean
+}
+
+export async function findActiveInviteCode(code: string): Promise<InviteCodeRow | null> {
+  if (!supabaseReady) return null
+  try {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('invite_codes')
+      .select('id, company_id, code, is_active')
+      .eq('code', code.toUpperCase().trim())
+      .eq('is_active', true)
+      .maybeSingle()
+    return data ?? null
+  } catch {
+    return null
+  }
+}
+
+export async function createEmployeeWithInvite(
+  data: {
+    email: string
+    full_name: string
+    phone: string | null
+    password_hash: string
+    language: Language
+  },
+  company_id: string,
+  invite_code_id: string
+): Promise<AuthUser> {
+  const email = data.email.trim().toLowerCase()
+
+  if (supabaseReady) {
+    try {
+      const supabase = createClient()
+      const { data: row, error } = await supabase
+        .from('profiles')
+        .insert({
+          company_id,
+          role: 'employee',
+          status: 'active',
+          auth_status: 'pending',
+          full_name: data.full_name,
+          email,
+          phone: data.phone,
+          password_hash: data.password_hash,
+          language: data.language,
+        })
+        .select(PROFILE_AUTH_COLUMNS)
+        .single()
+
+      if (!error && row) {
+        const authUser = rowToAuthUser(row as ProfileAuthRow)
+        // Create membership request
+        await supabase.from('membership_requests').insert({
+          profile_id: authUser.id,
+          company_id,
+          invite_code_id,
+          status: 'pending',
+        })
+        return authUser
+      }
+    } catch {
+      // fall through to in-memory
+    }
+  }
+
+  // In-memory fallback (no actual membership_request stored)
+  const user: AuthUser = {
+    id: generateId(),
+    email,
+    full_name: data.full_name,
+    phone: data.phone,
+    password_hash: data.password_hash,
+    language: data.language,
+    role: 'employee',
+    status: 'pending',
+    company_id,
     created_at: new Date().toISOString(),
   }
   seedUsers.set(user.id, user)

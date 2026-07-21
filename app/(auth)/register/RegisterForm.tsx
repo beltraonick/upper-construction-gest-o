@@ -20,6 +20,7 @@ export function RegisterForm() {
 
     try {
       const result = await register({
+        invite_code: fd.get('invite_code') as string,
         email: fd.get('email') as string,
         full_name: fd.get('full_name') as string,
         phone: fd.get('phone') as string | null,
@@ -43,6 +44,22 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {/* Invite code — first and prominent */}
+      <div className="flex flex-col gap-1.5">
+        <Input
+          label="Invite Code"
+          name="invite_code"
+          type="text"
+          placeholder="e.g. ABCD-1234"
+          required
+          autoComplete="off"
+          autoCapitalize="characters"
+        />
+        <p className="text-xs text-secondary">Ask your administrator for your company invite code.</p>
+      </div>
+
+      <div className="border-t border-[rgba(255,255,255,0.07)] pt-1" />
+
       <Input label="Full Name" name="full_name" type="text" placeholder="John Smith" required autoComplete="name" />
       <Input label="Email" name="email" type="email" placeholder="you@example.com" required autoComplete="email" />
       <Input label="Phone Number" name="phone" type="tel" placeholder="+1 (555) 000-0000" autoComplete="tel" />

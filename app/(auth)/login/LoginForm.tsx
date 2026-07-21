@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { login } from '@/app/actions/auth'
 import { Input } from '@/components/ui/Input'
 
@@ -122,14 +123,24 @@ export function LoginForm() {
           required
           autoComplete="email"
         />
-        <Input
-          label="Password"
-          name="password"
-          type="password"
-          placeholder="••••••••"
-          required
-          autoComplete="current-password"
-        />
+        <div className="space-y-1">
+          <Input
+            label="Password"
+            name="password"
+            type="password"
+            placeholder="••••••••"
+            required
+            autoComplete="current-password"
+          />
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-xs text-secondary hover:text-brand transition-colors"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        </div>
 
         {error && (
           <div className="bg-danger/10 border border-danger/20 rounded-input px-4 py-3 text-sm text-danger">

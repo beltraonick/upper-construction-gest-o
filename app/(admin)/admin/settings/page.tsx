@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { getCompanyInviteCode, regenerateInviteCode } from '@/app/actions/invites'
 
 const VERSION = '1.0.0'
 
@@ -25,12 +26,29 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function SettingsPage() {
   const [copied, setCopied] = useState('')
+  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [inviteLoading, setInviteLoading] = useState(true)
+  const [inviteRegenerating, setInviteRegenerating] = useState(false)
+
+  useEffect(() => {
+    getCompanyInviteCode().then(res => {
+      setInviteCode(res.code ?? null)
+      setInviteLoading(false)
+    })
+  }, [])
 
   function copy(text: string, label: string) {
     navigator.clipboard.writeText(text).then(() => {
       setCopied(label)
       setTimeout(() => setCopied(''), 1500)
     })
+  }
+
+  async function handleRegenerate() {
+    setInviteRegenerating(true)
+    const res = await regenerateInviteCode()
+    if (res.code) setInviteCode(res.code)
+    setInviteRegenerating(false)
   }
 
   const orbitAiKey = process.env.NEXT_PUBLIC_HAS_AI === '1'
@@ -41,6 +59,46 @@ export default function SettingsPage() {
         <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Settings</h1>
         <p className="text-sm text-secondary mt-1">Platform configuration and accounts</p>
       </div>
+
+      {/* Employee Invite Code */}
+      <Section title="Employee Invite Code">
+        <Card>
+          <div className="space-y-3">
+            <p className="text-xs text-secondary">
+              Share this code with employees so they can register and join your company.
+              Only one code is active at a time — regenerating it immediately invalidates the previous one.
+            </p>
+            {inviteLoading ? (
+              <div className="h-11 bg-surface-elevated rounded-input animate-pulse" />
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-11 flex items-center px-4 bg-surface-elevated rounded-input border border-[rgba(255,255,255,0.08)]">
+                  <span className="text-base font-mono font-semibold text-primary tracking-widest">
+                    {inviteCode ?? '—'}
+                  </span>
+                </div>
+                {inviteCode && (
+                  <button
+                    onClick={() => copy(inviteCode, 'invite')}
+                    className="h-11 px-4 rounded-button bg-surface-elevated border border-[rgba(255,255,255,0.07)] text-xs text-secondary hover:text-primary transition-colors flex-shrink-0"
+                  >
+                    {copied === 'invite' ? 'Copied!' : 'Copy'}
+                  </button>
+                )}
+              </div>
+            )}
+            <Button
+              variant="secondary"
+              onClick={handleRegenerate}
+              loading={inviteRegenerating}
+              disabled={inviteLoading || inviteRegenerating}
+              className="w-full"
+            >
+              Regenerate Code
+            </Button>
+          </div>
+        </Card>
+      </Section>
 
       {/* Platform info */}
       <Section title="Platform">
