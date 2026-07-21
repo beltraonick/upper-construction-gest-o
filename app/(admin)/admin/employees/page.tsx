@@ -51,6 +51,8 @@ export default function EmployeesPage() {
   const [form, setForm] = useState({ ...BLANK })
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
+  const [activationUrl, setActivationUrl] = useState('')
+  const [copied, setCopied] = useState('')
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -69,6 +71,7 @@ export default function EmployeesPage() {
     setEditing(null)
     setForm({ ...BLANK })
     setError('')
+    setActivationUrl('')
     setShowModal(true)
   }
 
@@ -86,6 +89,7 @@ export default function EmployeesPage() {
       password: '',
     })
     setError('')
+    setActivationUrl('')
     setShowModal(true)
   }
 
@@ -121,6 +125,13 @@ export default function EmployeesPage() {
       if (result.error) {
         setError(result.error)
         setSaving(false)
+        return
+      }
+      // Client was created — show their activation link before closing.
+      if (result.activationUrl) {
+        setActivationUrl(result.activationUrl)
+        setSaving(false)
+        load()
         return
       }
     }
@@ -264,7 +275,7 @@ export default function EmployeesPage() {
                       onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                     />
                   </div>
-                  {!editing && (
+                  {!editing && form.role !== 'client' && (
                     <div className="col-span-2">
                       <Input
                         label="Password (for their login)"
@@ -275,6 +286,13 @@ export default function EmployeesPage() {
                         onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                       />
                       <p className="text-xs text-tertiary mt-1">Share this with them directly — it won&apos;t be shown again.</p>
+                    </div>
+                  )}
+                  {!editing && form.role === 'client' && (
+                    <div className="col-span-2 bg-brand/5 border border-brand/20 rounded-input p-3">
+                      <p className="text-xs text-secondary">
+                        Clients receive an activation link to set their own password. No password needed here.
+                      </p>
                     </div>
                   )}
                   <Select
@@ -316,6 +334,21 @@ export default function EmployeesPage() {
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   />
                 </div>
+                {activationUrl && (
+                  <div className="bg-green/5 border border-green/20 rounded-input p-3 space-y-2">
+                    <p className="text-xs font-semibold text-green">Client created! Share this activation link:</p>
+                    <p className="text-xs font-mono text-secondary break-all select-all">{activationUrl}</p>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(activationUrl); setCopied('act') }}
+                      className="text-xs text-brand hover:text-brand-hover font-medium transition-colors"
+                    >
+                      {copied === 'act' ? 'Copied!' : 'Copy link'}
+                    </button>
+                    <p className="text-xs text-tertiary">Link expires in 72 hours. You can regenerate it from the employee list.</p>
+                  </div>
+                )}
+
                 {error && (
                   <div className="bg-danger/10 border border-danger/20 rounded-input px-4 py-3 text-sm text-danger">
                     {error}
@@ -324,11 +357,13 @@ export default function EmployeesPage() {
 
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
-                    Cancel
+                    {activationUrl ? 'Done' : 'Cancel'}
                   </Button>
-                  <Button type="submit" loading={saving} className="flex-1">
-                    {editing ? 'Save Changes' : 'Add Employee'}
-                  </Button>
+                  {!activationUrl && (
+                    <Button type="submit" loading={saving} className="flex-1">
+                      {editing ? 'Save Changes' : 'Add Employee'}
+                    </Button>
+                  )}
                 </div>
               </form>
             </div>

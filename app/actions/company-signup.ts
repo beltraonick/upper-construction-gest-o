@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { hashPassword } from '@/lib/auth/crypto'
+import { hashPassword, generateInviteCode } from '@/lib/auth/crypto'
 import { setSessionCookie } from '@/lib/auth/session'
 import { toSessionUser } from '@/lib/auth/store'
 import type { AuthUser, Language } from '@/lib/auth/types'
@@ -70,6 +70,21 @@ export async function signupCompany(data: {
     // Roll back the orphaned company so a retry doesn't pile up dead rows.
     await supabase.from('companies').delete().eq('id', company.id)
     return { error: 'Could not create your account. Please try again.' }
+  }
+
+  // Auto-generate the first invite code for this company so the admin
+  // can immediately share it with employees to register.
+  let inviteAttempts = 0
+  while (inviteAttempts < 5) {
+    const code = generateInviteCode()
+    const { error: codeErr } = await supabase.from('invite_codes').insert({
+      company_id: company.id,
+      code,
+      created_by: profile.id,
+      is_active: true,
+    })
+    if (!codeErr) break
+    inviteAttempts++
   }
 
   const authUser: AuthUser = {
