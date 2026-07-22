@@ -11,8 +11,8 @@ import { Select } from '@/components/ui/Select'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { PlanViewer } from '@/components/admin/PlanViewer'
 import type { PlanMarker } from '@/components/admin/PlanViewer'
+import { useCompanyId } from '@/lib/company-context'
 
-const COMPANY_ID = '00000000-0000-0000-0000-000000000001'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
 const supabaseReady =
@@ -108,6 +108,7 @@ export default function ProjectDetailPage() {
   const params = useParams()
   const projectId = params.id as string
   const router = useRouter()
+  const companyId = useCompanyId()
 
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -279,7 +280,7 @@ export default function ProjectDetailPage() {
     // 1. Create plan record
     const { data: plan, error: planErr } = await supabase
       .from('project_plans')
-      .insert({ project_id: projectId, company_id: COMPANY_ID, name: file.name.replace(/\.[^.]+$/, '') })
+      .insert({ project_id: projectId, company_id: companyId, name: file.name.replace(/\.[^.]+$/, '') })
       .select()
       .single()
 
@@ -301,7 +302,7 @@ export default function ProjectDetailPage() {
     const fileType = ext === 'pdf' ? 'pdf' : 'image'
     const { data: sheet } = await supabase
       .from('plan_sheets')
-      .insert({ plan_id: plan.id, project_id: projectId, company_id: COMPANY_ID, storage_path: storagePath, file_type: fileType, page_number: 1 })
+      .insert({ plan_id: plan.id, project_id: projectId, company_id: companyId, storage_path: storagePath, file_type: fileType, page_number: 1 })
       .select()
       .single()
 
@@ -326,7 +327,7 @@ export default function ProjectDetailPage() {
       try {
         const payload: Record<string, unknown> = {
           project_id: projectId,
-          company_id: COMPANY_ID,
+          company_id: companyId,
           title: markerForm.title,
           description: markerForm.description || null,
           status: 'pending',
@@ -350,7 +351,7 @@ export default function ProjectDetailPage() {
         .insert({
           sheet_id: currentSheet.id,
           project_id: projectId,
-          company_id: COMPANY_ID,
+          company_id: companyId,
           marker_type: markerForm.type,
           title: markerForm.title,
           description: markerForm.description || null,
@@ -392,7 +393,7 @@ export default function ProjectDetailPage() {
     if (error) { alert('Upload failed. Check if "project-photos" bucket exists.'); setUploadingPhoto(false); return }
     const { data: row } = await supabase
       .from('project_photos')
-      .insert({ project_id: projectId, company_id: COMPANY_ID, storage_path: path, tag: 'progress' })
+      .insert({ project_id: projectId, company_id: companyId, storage_path: path, tag: 'progress' })
       .select().single()
     if (row) setPhotos(prev => [row as Photo, ...prev])
     setUploadingPhoto(false)
