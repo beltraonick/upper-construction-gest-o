@@ -217,6 +217,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
           <form action={logout}>
             <button
               type="submit"
+              aria-label="Sign Out"
               className="p-2 rounded-button text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">

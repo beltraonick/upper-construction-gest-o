@@ -80,3 +80,9 @@ CREATE POLICY anon_all ON client_activations FOR ALL USING (true) WITH CHECK (tr
 ALTER TABLE password_resets ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS anon_all ON password_resets;
 CREATE POLICY anon_all ON password_resets FOR ALL USING (true) WITH CHECK (true);
+
+-- ── Seed: dev company (used by in-memory test accounts) ───────────────
+-- Allows invite_codes to be created for admin@orbit.test during testing.
+INSERT INTO companies (id, name, language)
+VALUES ('00000000-0000-0000-0000-000000000001', 'Orbit Dev Company', 'en')
+ON CONFLICT (id) DO NOTHING;
