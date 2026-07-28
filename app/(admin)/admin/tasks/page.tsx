@@ -178,6 +178,7 @@ export default function TasksPage() {
 
     // Extended columns — safe to include; Postgres ignores unknown column errors
     // when the schema validates via PostgREST's column whitelist. We try/catch.
+    let savedTaskId: string | null = editing?.id ?? null
     try {
       const extended = {
         ...base,
@@ -193,48 +194,41 @@ export default function TasksPage() {
       if (editing) {
         await supabase.from('tasks').update(extended).eq('id', editing.id)
       } else {
-        await supabase.from('tasks').insert({ ...extended, company_id: companyId })
+        const { data: inserted } = await supabase
+          .from('tasks')
+          .insert({ ...extended, company_id: companyId })
+          .select('id')
+          .single()
+        savedTaskId = inserted?.id ?? null
       }
     } catch {
       // Fall back to base-only payload (pre-migration schema)
       if (editing) {
         await supabase.from('tasks').update(base).eq('id', editing.id)
       } else {
-        await supabase.from('tasks').insert(base)
+        const { data: inserted } = await supabase
+          .from('tasks')
+          .insert(base)
+          .select('id')
+          .single()
+        savedTaskId = inserted?.id ?? null
       }
     }
 
     // Upload any new photos
-    if (newPhotoFiles.length > 0) {
+    if (newPhotoFiles.length > 0 && savedTaskId) {
       setUploadingPhotos(true)
-      const taskId = editing?.id ?? null
-      // We need the task id — for new tasks, refetch the latest
-      let resolvedTaskId = taskId
-      if (!resolvedTaskId) {
-        const supabase2 = createClient()
-        const { data: latest } = await supabase2
-          .from('tasks')
-          .select('id')
-          .eq('company_id', companyId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        resolvedTaskId = latest?.id ?? null
-      }
-      if (resolvedTaskId) {
-        const supabase2 = createClient()
-        for (const file of newPhotoFiles) {
-          const ext = file.name.split('.').pop() ?? 'jpg'
-          const path = `tasks/${resolvedTaskId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-          const { error: upErr } = await supabase2.storage.from('project-photos').upload(path, file, { upsert: false })
-          if (!upErr) {
-            await supabase2.from('task_media').insert({
-              task_id: resolvedTaskId,
-              company_id: companyId,
-              storage_path: path,
-              media_type: 'photo',
-            })
-          }
+      for (const file of newPhotoFiles) {
+        const ext = file.name.split('.').pop() ?? 'jpg'
+        const path = `tasks/${savedTaskId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: upErr } = await supabase.storage.from('project-photos').upload(path, file, { upsert: false })
+        if (!upErr) {
+          await supabase.from('task_media').insert({
+            task_id: savedTaskId,
+            company_id: companyId,
+            storage_path: path,
+            media_type: 'photo',
+          })
         }
       }
       setUploadingPhotos(false)
