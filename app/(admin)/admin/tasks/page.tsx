@@ -153,7 +153,7 @@ export default function TasksPage() {
   }
 
   function editPhotoUrl(path: string) {
-    return createClient().storage.from('project-photos').getPublicUrl(path).data.publicUrl
+    return createClient().storage.from('task-photos').getPublicUrl(path).data.publicUrl
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -221,7 +221,7 @@ export default function TasksPage() {
       for (const file of newPhotoFiles) {
         const ext = file.name.split('.').pop() ?? 'jpg'
         const path = `tasks/${savedTaskId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-        const { error: upErr } = await supabase.storage.from('project-photos').upload(path, file, { upsert: false })
+        const { error: upErr } = await supabase.storage.from('task-photos').upload(path, file, { upsert: false })
         if (!upErr) {
           await supabase.from('task_media').insert({
             task_id: savedTaskId,
