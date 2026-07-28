@@ -7,6 +7,7 @@ import { logout } from '@/app/actions/auth'
 import { ClockButtons } from './ClockButtons'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { t } from '@/lib/i18n/translate'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -17,8 +18,9 @@ export default async function EmployeeHomePage() {
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
 
+  const locale = user.language
   const today = new Date()
-  const greeting = today.getHours() < 12 ? 'Good morning' : today.getHours() < 18 ? 'Good afternoon' : 'Good evening'
+  const greeting = today.getHours() < 12 ? t(locale, 'employee.home.goodMorning') : today.getHours() < 18 ? t(locale, 'employee.home.goodAfternoon') : t(locale, 'employee.home.goodEvening')
 
   let profileId: string | null = null
   let openEntryId: string | null = null
@@ -129,7 +131,7 @@ export default async function EmployeeHomePage() {
           <p className="text-sm text-secondary">{greeting},</p>
           <h1 className="text-2xl font-bold text-primary tracking-tight">{user.full_name}</h1>
           <p className="text-sm text-secondary">
-            {today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+            {today.toLocaleDateString(locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>
         </div>
         <form action={logout}>
@@ -157,13 +159,13 @@ export default async function EmployeeHomePage() {
         ) : (
           <div className="flex flex-col items-center gap-4 py-2">
             <p className="text-sm text-secondary">
-              {supabaseReady ? 'Setting up your profile…' : 'Supabase not connected'}
+              {supabaseReady ? t(locale, 'employee.home.settingUpProfile') : t(locale, 'employee.home.supabaseNotConnected')}
             </p>
             <button
               disabled
               className="inline-flex items-center justify-center gap-2 font-medium rounded-button bg-brand text-white h-12 px-6 text-base w-full disabled:opacity-40"
             >
-              Clock In
+              {t(locale, 'employee.home.clockIn')}
             </button>
           </div>
         )}
@@ -172,23 +174,23 @@ export default async function EmployeeHomePage() {
       {/* Week Summary */}
       <div className="grid grid-cols-2 gap-3 mb-5">
         <Card>
-          <p className="text-xs text-secondary uppercase tracking-wide mb-1">Hours This Week</p>
+          <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'employee.home.hoursThisWeek')}</p>
           <p className="text-2xl font-bold text-primary">
             {supabaseReady && profileId ? `${weekHours.toFixed(1)}h` : '—'}
           </p>
           {weekHours > 40 && (
-            <p className="text-xs text-amber mt-0.5">{(weekHours - 40).toFixed(1)}h overtime</p>
+            <p className="text-xs text-amber mt-0.5">{(weekHours - 40).toFixed(1)}h {t(locale, 'employee.home.overtimeSuffix')}</p>
           )}
         </Card>
         <Card>
-          <p className="text-xs text-secondary uppercase tracking-wide mb-1">Earnings This Week</p>
+          <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'employee.home.earningsThisWeek')}</p>
           <p className="text-2xl font-bold text-primary">
             {supabaseReady && profileId && weekEarnings > 0
               ? `$${weekEarnings.toFixed(0)}`
               : '—'}
           </p>
           {weekEarnings > 0 && (
-            <p className="text-xs text-secondary mt-0.5">projected</p>
+            <p className="text-xs text-secondary mt-0.5">{t(locale, 'employee.home.projected')}</p>
           )}
         </Card>
       </div>
@@ -196,14 +198,14 @@ export default async function EmployeeHomePage() {
       {/* My Tasks preview */}
       <Card padding="none">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-          <h2 className="text-sm font-semibold text-primary">My Tasks</h2>
+          <h2 className="text-sm font-semibold text-primary">{t(locale, 'employee.home.myTasks')}</h2>
           <Link href="/tasks" className="text-xs text-brand hover:text-brand-hover font-medium transition-colors">
-            View all →
+            {t(locale, 'employee.home.viewAll')}
           </Link>
         </div>
 
         {!supabaseReady && (
-          <p className="px-5 py-6 text-sm text-secondary text-center">Connect Supabase to see tasks.</p>
+          <p className="px-5 py-6 text-sm text-secondary text-center">{t(locale, 'employee.home.connectSupabase')}</p>
         )}
 
         {supabaseReady && tasks.length === 0 && (
@@ -213,7 +215,7 @@ export default async function EmployeeHomePage() {
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             </div>
-            <p className="text-sm text-secondary">No open tasks</p>
+            <p className="text-sm text-secondary">{t(locale, 'employee.home.noOpenTasks')}</p>
           </div>
         )}
 

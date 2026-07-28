@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 import { EmployeeNav } from './EmployeeNav'
 import { CompanyProvider } from '@/lib/company-context'
+import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { OfflineBanner } from '@/components/OfflineBanner'
 
 export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
@@ -14,12 +15,14 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
   if (user.role === 'owner') redirect('/owner/dashboard')
 
   return (
-    <CompanyProvider companyId={user.company_id as string}>
-      <div className="min-h-screen bg-background pb-20">
-        <OfflineBanner />
-        {children}
-        <EmployeeNav />
-      </div>
-    </CompanyProvider>
+    <LocaleProvider locale={user.language}>
+      <CompanyProvider companyId={user.company_id as string}>
+        <div className="min-h-screen bg-background pb-20">
+          <OfflineBanner />
+          {children}
+          <EmployeeNav />
+        </div>
+      </CompanyProvider>
+    </LocaleProvider>
   )
 }

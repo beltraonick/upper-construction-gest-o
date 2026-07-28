@@ -2,14 +2,17 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-
-const TABS = [
-  { label: 'Overview', href: '/client' },
-  { label: 'Change Orders', href: '/client/change-orders' },
-]
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 export function ClientNav() {
   const pathname = usePathname()
+  const { t } = useTranslation()
+
+  const TABS = [
+    { label: t('common.nav.overview'), href: '/client' },
+    { label: t('common.nav.changeOrders'), href: '/client/change-orders' },
+  ]
+
   return (
     <nav className="flex gap-1 px-4 border-b border-[rgba(255,255,255,0.07)] bg-surface">
       {TABS.map(tab => {

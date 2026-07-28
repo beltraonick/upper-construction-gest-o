@@ -4,12 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/ui/Avatar'
 import { logout } from '@/app/actions/auth'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 import type { SessionUser } from '@/lib/auth/types'
 
-const NAV = [
+function useNav() {
+  const { t } = useTranslation()
+  return [
   {
-    label: 'Dashboard',
-    mobileLabel: 'Home',
+    label: t('common.nav.dashboard'),
+    mobileLabel: t('common.nav.dashboardMobile'),
     href: '/admin/dashboard',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -18,8 +21,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Employees',
-    mobileLabel: 'Team',
+    label: t('common.nav.employees'),
+    mobileLabel: t('common.nav.employeesMobile'),
     href: '/admin/employees',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -28,8 +31,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Projects',
-    mobileLabel: 'Projects',
+    label: t('common.nav.projects'),
+    mobileLabel: t('common.nav.projects'),
     href: '/admin/projects',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -38,8 +41,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Tasks',
-    mobileLabel: 'Tasks',
+    label: t('common.nav.tasks'),
+    mobileLabel: t('common.nav.tasks'),
     href: '/admin/tasks',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -49,8 +52,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Members',
-    mobileLabel: 'Members',
+    label: t('common.nav.members'),
+    mobileLabel: t('common.nav.members'),
     href: '/admin/members',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -59,8 +62,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Rooms',
-    mobileLabel: 'Rooms',
+    label: t('common.nav.rooms'),
+    mobileLabel: t('common.nav.rooms'),
     href: '/admin/rooms',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -69,8 +72,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Change Orders',
-    mobileLabel: 'Extras',
+    label: t('common.nav.changeOrders'),
+    mobileLabel: t('common.nav.changeOrdersMobile'),
     href: '/admin/change-orders',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -79,8 +82,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Time',
-    mobileLabel: 'Time',
+    label: t('common.nav.time'),
+    mobileLabel: t('common.nav.time'),
     href: '/admin/time',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -89,8 +92,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Payroll',
-    mobileLabel: 'Pay',
+    label: t('common.nav.payroll'),
+    mobileLabel: t('common.nav.payrollMobile'),
     href: '/admin/payroll',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -99,8 +102,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Photos',
-    mobileLabel: 'Photos',
+    label: t('common.nav.photos'),
+    mobileLabel: t('common.nav.photos'),
     href: '/admin/photos',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -109,8 +112,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Reports',
-    mobileLabel: 'Reports',
+    label: t('common.nav.reports'),
+    mobileLabel: t('common.nav.reports'),
     href: '/admin/reports',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -119,8 +122,8 @@ const NAV = [
     ),
   },
   {
-    label: 'Settings',
-    mobileLabel: 'More',
+    label: t('common.nav.settings'),
+    mobileLabel: t('common.nav.settingsMobile'),
     href: '/admin/settings',
     icon: (
       <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
@@ -128,13 +131,15 @@ const NAV = [
       </svg>
     ),
   },
-]
-
-// Mobile bottom nav: 5 items
-const BOTTOM_NAV = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4]]
+  ]
+}
 
 export function Sidebar({ user }: { user: SessionUser }) {
   const pathname = usePathname()
+  const { t } = useTranslation()
+  const NAV = useNav()
+  // Mobile bottom nav: 5 items
+  const BOTTOM_NAV = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4]]
 
   return (
     <>
@@ -146,7 +151,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
           <img src="/icon.png" alt="OrbitOps" className="w-8 h-8 rounded-lg flex-shrink-0 object-cover" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-primary truncate leading-tight">OrbitOps</p>
-            <p className="text-[11px] text-tertiary truncate">Workforce</p>
+            <p className="text-[11px] text-tertiary truncate">{t('common.workforce')}</p>
           </div>
         </div>
 
@@ -189,7 +194,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px] flex-shrink-0">
                 <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
               </svg>
-              Sign Out
+              {t('common.signOut')}
             </button>
           </form>
         </div>
@@ -209,7 +214,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
           <form action={logout}>
             <button
               type="submit"
-              aria-label="Sign Out"
+              aria-label={t('common.signOut')}
               className="p-2 rounded-button text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
             >
               <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Avatar } from '@/components/ui/Avatar'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 import type { Language } from '@/lib/auth/types'
 
 interface Profile {
@@ -39,6 +40,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function ProfileForm({ initialProfile }: { initialProfile: Profile }) {
   const router = useRouter()
+  const { t } = useTranslation()
   const [form, setForm] = useState({
     full_name: initialProfile.full_name,
     phone: initialProfile.phone ?? '',
@@ -107,13 +109,13 @@ export function ProfileForm({ initialProfile }: { initialProfile: Profile }) {
 
   return (
     <div>
-      <Section title="Photo">
+      <Section title={t('profile.photo')}>
         <Card>
           <div className="flex items-center gap-4">
             <Avatar src={avatarUrl} name={form.full_name} size="xl" />
             <div>
               <Button type="button" variant="secondary" size="sm" onClick={() => fileRef.current?.click()} loading={uploadingAvatar}>
-                {avatarUrl ? 'Change Photo' : 'Upload Photo'}
+                {avatarUrl ? t('profile.changePhoto') : t('profile.uploadPhoto')}
               </Button>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => handleAvatarUpload(e.target.files)} />
             </div>
@@ -122,17 +124,17 @@ export function ProfileForm({ initialProfile }: { initialProfile: Profile }) {
       </Section>
 
       <form onSubmit={handleSave}>
-        <Section title="Your Information">
+        <Section title={t('profile.yourInfo')}>
           <Card className="space-y-4">
             <Input
-              label="Full Name"
+              label={t('profile.fullName')}
               required
               value={form.full_name}
               onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
             />
-            <Input label="Email" value={initialProfile.email} disabled />
+            <Input label={t('profile.email')} value={initialProfile.email} disabled />
             <Input
-              label="Phone"
+              label={t('profile.phone')}
               type="tel"
               value={form.phone}
               onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
@@ -140,27 +142,26 @@ export function ProfileForm({ initialProfile }: { initialProfile: Profile }) {
           </Card>
         </Section>
 
-        <Section title="Language">
+        <Section title={t('profile.language')}>
           <Card>
             <Select
-              label="App Language"
+              label={t('profile.appLanguage')}
               options={LANGUAGE_OPTIONS}
               value={form.language}
               onChange={e => setForm(f => ({ ...f, language: e.target.value as Language }))}
             />
             <p className="text-xs text-tertiary mt-2">
-              This saves your preference. The login screen is translated, but the rest of the app is still being
-              translated — today those screens stay in English regardless of this setting.
+              {t('profile.languageDisclaimer')}
             </p>
           </Card>
         </Section>
 
-        <Section title="Notifications">
+        <Section title={t('profile.notifications')}>
           <Card>
             <label className="flex items-center justify-between cursor-pointer">
               <div>
-                <p className="text-sm font-medium text-primary">Email notifications</p>
-                <p className="text-xs text-tertiary mt-0.5">Get emailed about task and project updates.</p>
+                <p className="text-sm font-medium text-primary">{t('profile.emailNotifications')}</p>
+                <p className="text-xs text-tertiary mt-0.5">{t('profile.emailNotificationsDesc')}</p>
               </div>
               <input
                 type="checkbox"
@@ -169,7 +170,7 @@ export function ProfileForm({ initialProfile }: { initialProfile: Profile }) {
                 className="w-5 h-5 rounded accent-brand"
               />
             </label>
-            <p className="text-xs text-tertiary mt-3">Saves your preference — actual email sending isn&apos;t wired up yet.</p>
+            <p className="text-xs text-tertiary mt-3">{t('profile.notificationsDisclaimer')}</p>
           </Card>
         </Section>
 
@@ -180,31 +181,31 @@ export function ProfileForm({ initialProfile }: { initialProfile: Profile }) {
         )}
 
         <Button type="submit" loading={saving} className="w-full">
-          {saved ? 'Saved!' : 'Save Changes'}
+          {saved ? t('profile.saved') : t('profile.saveChanges')}
         </Button>
       </form>
 
       <div className="mt-8">
-        <Section title="Change Password">
+        <Section title={t('profile.changePassword')}>
           <Card>
             <form onSubmit={handlePasswordChange} className="space-y-4">
               <Input
-                label="Current Password"
+                label={t('profile.currentPassword')}
                 type="password"
                 required
                 value={pw.current_password}
                 onChange={e => setPw(f => ({ ...f, current_password: e.target.value }))}
               />
               <Input
-                label="New Password"
+                label={t('profile.newPassword')}
                 type="password"
                 required
-                placeholder="Min. 8 characters"
+                placeholder={t('profile.newPasswordHint')}
                 value={pw.new_password}
                 onChange={e => setPw(f => ({ ...f, new_password: e.target.value }))}
               />
               <Input
-                label="Confirm New Password"
+                label={t('profile.confirmNewPassword')}
                 type="password"
                 required
                 value={pw.confirm_password}
@@ -216,7 +217,7 @@ export function ProfileForm({ initialProfile }: { initialProfile: Profile }) {
                 </div>
               )}
               <Button type="submit" variant="secondary" loading={pwSaving} className="w-full">
-                {pwSaved ? 'Password Changed!' : 'Change Password'}
+                {pwSaved ? t('profile.passwordChanged') : t('profile.changePassword')}
               </Button>
             </form>
           </Card>

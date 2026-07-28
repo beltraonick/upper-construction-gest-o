@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/auth/session'
 import { logout } from '@/app/actions/auth'
+import { LocaleProvider } from '@/lib/i18n/LocaleContext'
+import { t } from '@/lib/i18n/translate'
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
@@ -15,6 +17,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
   }
 
   return (
+    <LocaleProvider locale={user.language}>
     <div className="min-h-screen bg-background">
       <header className="fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between px-4 md:px-8 h-14">
         <div className="flex items-center gap-2.5">
@@ -22,7 +25,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />
           <div>
             <p className="text-sm font-semibold text-primary leading-tight">OrbitOps</p>
-            <p className="text-[10px] text-tertiary leading-tight">Platform Owner</p>
+            <p className="text-[10px] text-tertiary leading-tight">{t(user.language, 'owner.platformOwner')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -42,5 +45,6 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
       </header>
       <main className="pt-14">{children}</main>
     </div>
+    </LocaleProvider>
   )
 }

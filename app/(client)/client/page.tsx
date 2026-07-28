@@ -4,19 +4,21 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { getCurrentUser } from '@/lib/auth/session'
+import { t } from '@/lib/i18n/translate'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('your_')
 
-function statusBadge(s: string) {
-  if (s === 'active') return <Badge variant="green">Active</Badge>
-  if (s === 'completed') return <Badge variant="blue">Completed</Badge>
-  return <Badge variant="amber">On Hold</Badge>
+function statusBadge(s: string, locale: 'en' | 'pt' | 'es') {
+  if (s === 'active') return <Badge variant="green">{t(locale, 'client.overview.active')}</Badge>
+  if (s === 'completed') return <Badge variant="blue">{t(locale, 'client.overview.completed')}</Badge>
+  return <Badge variant="amber">{t(locale, 'client.overview.onHold')}</Badge>
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+function fmtDate(iso: string, locale: 'en' | 'pt' | 'es') {
+  const dateLocale = locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US'
+  return new Date(iso).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function roomDotColor(roomId: string, tasks: { room_id: string | null; status: string }[]) {
@@ -30,6 +32,7 @@ function roomDotColor(roomId: string, tasks: { room_id: string | null; status: s
 export default async function ClientPortalPage() {
   const user = getCurrentUser()
   if (!user) redirect('/login')
+  const locale = user.language
   const today = new Date()
 
   let projects: {
@@ -141,10 +144,10 @@ export default async function ClientPortalPage() {
 
       {/* Welcome */}
       <div className="mb-8">
-        <p className="text-sm text-secondary">Welcome back,</p>
+        <p className="text-sm text-secondary">{t(locale, 'client.overview.welcomeBack')}</p>
         <h1 className="text-2xl font-bold text-primary tracking-tight">{user.full_name}</h1>
         <p className="text-sm text-secondary mt-0.5">
-          {today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          {today.toLocaleDateString(locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </p>
       </div>
 
@@ -152,30 +155,30 @@ export default async function ClientPortalPage() {
       <div className="grid grid-cols-3 gap-3 mb-8">
         <Card className="text-center">
           <p className="text-2xl font-bold text-primary">{activeProjects.length}</p>
-          <p className="text-xs text-secondary mt-0.5">Active Projects</p>
+          <p className="text-xs text-secondary mt-0.5">{t(locale, 'client.overview.activeProjects')}</p>
         </Card>
         <Card className="text-center">
           <p className="text-2xl font-bold text-primary">{completedProjects.length}</p>
-          <p className="text-xs text-secondary mt-0.5">Completed</p>
+          <p className="text-xs text-secondary mt-0.5">{t(locale, 'client.overview.completed')}</p>
         </Card>
         <Card className="text-center">
           <p className="text-2xl font-bold text-primary">{totalHoursThisWeek.toFixed(0)}h</p>
-          <p className="text-xs text-secondary mt-0.5">This Week</p>
+          <p className="text-xs text-secondary mt-0.5">{t(locale, 'client.overview.thisWeek')}</p>
         </Card>
       </div>
 
       {/* Active projects */}
       <div className="mb-8">
-        <h2 className="text-sm font-semibold text-primary mb-3">Your Projects</h2>
+        <h2 className="text-sm font-semibold text-primary mb-3">{t(locale, 'client.overview.yourProjects')}</h2>
         {!supabaseReady && (
           <Card>
-            <p className="text-sm text-secondary text-center py-4">Connect Supabase to see your projects.</p>
+            <p className="text-sm text-secondary text-center py-4">{t(locale, 'client.overview.connectSupabase')}</p>
           </Card>
         )}
         {supabaseReady && projects.length === 0 && (
           <Card>
             <p className="text-sm text-secondary text-center py-6">
-              No project linked to this account yet. Contact your project manager to get access.
+              {t(locale, 'client.overview.noProjectLinked')}
             </p>
           </Card>
         )}
@@ -187,10 +190,10 @@ export default async function ClientPortalPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <h3 className="text-base font-semibold text-primary truncate">{p.name}</h3>
-                      {statusBadge(p.status)}
+                      {statusBadge(p.status, locale)}
                     </div>
                     <p className="text-sm text-secondary">
-                      {p.address || 'Location TBD'}
+                      {p.address || t(locale, 'client.overview.locationTbd')}
                       {p.project_type && p.project_type !== 'other' && (
                         <span className="ml-2 text-tertiary capitalize">· {p.project_type}</span>
                       )}
@@ -201,14 +204,14 @@ export default async function ClientPortalPage() {
                 {p.status === 'active' && (
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-secondary">Progress</span>
+                      <span className="text-xs text-secondary">{t(locale, 'client.overview.progress')}</span>
                       <span className="text-xs font-semibold text-primary">{p.progress ?? 0}%</span>
                     </div>
                     <ProgressBar value={p.progress ?? 0} />
                   </div>
                 )}
 
-                <p className="text-xs text-tertiary mt-3">Started {fmtDate(p.created_at)}</p>
+                <p className="text-xs text-tertiary mt-3">{t(locale, 'client.overview.started')} {fmtDate(p.created_at, locale)}</p>
               </div>
             </Card>
           ))}
@@ -218,7 +221,7 @@ export default async function ClientPortalPage() {
       {/* Floor plan */}
       {plan && (
         <div className="mb-8">
-          <h2 className="text-sm font-semibold text-primary mb-3">Floor Plan</h2>
+          <h2 className="text-sm font-semibold text-primary mb-3">{t(locale, 'client.overview.floorPlan')}</h2>
           <Card padding="none" className="overflow-hidden">
             <div className="relative w-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -241,12 +244,12 @@ export default async function ClientPortalPage() {
       {/* Room grid */}
       {rooms.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-sm font-semibold text-primary mb-3">Rooms</h2>
+          <h2 className="text-sm font-semibold text-primary mb-3">{t(locale, 'client.overview.rooms')}</h2>
           <Card>
             <div className="flex items-center gap-4 mb-4 text-xs text-secondary">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green" /> Done</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber" /> In progress</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[rgba(255,255,255,0.15)]" /> Not started</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green" /> {t(locale, 'client.overview.done')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber" /> {t(locale, 'client.overview.inProgress')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[rgba(255,255,255,0.15)]" /> {t(locale, 'client.overview.notStarted')}</span>
             </div>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
               {rooms.map(r => (
@@ -263,7 +266,7 @@ export default async function ClientPortalPage() {
       {/* Recent photos */}
       {recentPhotos.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-primary mb-3">Recent Photos</h2>
+          <h2 className="text-sm font-semibold text-primary mb-3">{t(locale, 'client.overview.recentPhotos')}</h2>
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {recentPhotos.map(photo => (
               <div
@@ -284,7 +287,7 @@ export default async function ClientPortalPage() {
 
       {/* Footer note */}
       <p className="text-xs text-tertiary text-center mt-12">
-        Powered by OrbitOps · For questions contact your project manager
+        {t(locale, 'client.overview.footer')}
       </p>
     </div>
   )

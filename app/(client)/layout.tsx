@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/auth/session'
 import { logout } from '@/app/actions/auth'
+import { LocaleProvider } from '@/lib/i18n/LocaleContext'
+import { t } from '@/lib/i18n/translate'
 import { ClientNav } from './ClientNav'
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +18,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }
 
   return (
+    <LocaleProvider locale={user.language}>
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between px-4 h-14 safe-top">
@@ -24,13 +27,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />
           <div>
             <p className="text-sm font-semibold text-primary leading-tight">OrbitOps</p>
-            <p className="text-[10px] text-tertiary leading-tight">Client Portal</p>
+            <p className="text-[10px] text-tertiary leading-tight">{t(user.language, 'client.portalLabel')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/profile" className="text-right hidden sm:block hover:opacity-80 transition-opacity">
             <p className="text-xs font-medium text-primary leading-tight">{user.full_name}</p>
-            <p className="text-[10px] text-tertiary">Client</p>
+            <p className="text-[10px] text-tertiary">{t(user.language, 'common.role.client')}</p>
           </Link>
           <form action={logout}>
             <button
@@ -54,5 +57,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         {children}
       </main>
     </div>
+    </LocaleProvider>
   )
 }

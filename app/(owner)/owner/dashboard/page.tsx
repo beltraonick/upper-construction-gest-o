@@ -1,10 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
+import { t } from '@/lib/i18n/translate'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('your_')
+
+const DATE_LOCALE: Record<string, string> = { en: 'en-US', pt: 'pt-BR', es: 'es-ES' }
 
 interface CompanyRow {
   id: string
@@ -14,14 +18,16 @@ interface CompanyRow {
   plan: { name: string; price_cents: number; project_limit: number | null } | null
 }
 
-function statusBadge(s: string) {
-  if (s === 'active') return <Badge variant="green">Active</Badge>
-  if (s === 'trialing') return <Badge variant="blue">Trialing</Badge>
+function statusBadge(s: string, locale: 'en' | 'pt' | 'es') {
+  if (s === 'active') return <Badge variant="green">{t(locale, 'common.active')}</Badge>
+  if (s === 'trialing') return <Badge variant="blue">{t(locale, 'owner.dashboard.trialing')}</Badge>
   if (s === 'past_due') return <Badge variant="amber">Past Due</Badge>
   return <Badge variant="red">Canceled</Badge>
 }
 
 export default async function OwnerDashboardPage() {
+  const user = getCurrentUser()
+  const locale = user?.language ?? 'en'
   let companies: CompanyRow[] = []
   let counts = new Map<string, { admins: number; employees: number; clients: number; projects: number }>()
   let mrrCents = 0
@@ -68,22 +74,22 @@ export default async function OwnerDashboardPage() {
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
       <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Companies</h1>
-        <p className="text-sm text-secondary mt-1">Every business running on OrbitOps</p>
+        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t(locale, 'owner.dashboard.title')}</h1>
+        <p className="text-sm text-secondary mt-1">{t(locale, 'owner.dashboard.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
-        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">Companies</p><p className="text-2xl font-bold text-primary">{companies.length}</p></Card>
-        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">Active</p><p className="text-2xl font-bold text-green">{activeCount}</p></Card>
-        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">Trialing</p><p className="text-2xl font-bold text-blue">{trialingCount}</p></Card>
-        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">MRR</p><p className="text-2xl font-bold text-primary">${(mrrCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p></Card>
+        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.companies')}</p><p className="text-2xl font-bold text-primary">{companies.length}</p></Card>
+        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.active')}</p><p className="text-2xl font-bold text-green">{activeCount}</p></Card>
+        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.trialing')}</p><p className="text-2xl font-bold text-blue">{trialingCount}</p></Card>
+        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.mrr')}</p><p className="text-2xl font-bold text-primary">${(mrrCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p></Card>
       </div>
 
       <Card padding="none">
         {!supabaseReady ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">Connect Supabase to see companies.</p>
+          <p className="px-5 py-10 text-sm text-secondary text-center">{t(locale, 'owner.dashboard.noSupabase')}</p>
         ) : companies.length === 0 ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">No companies yet.</p>
+          <p className="px-5 py-10 text-sm text-secondary text-center">{t(locale, 'owner.dashboard.noCompanies')}</p>
         ) : (
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
             {companies.map(c => {
@@ -93,23 +99,23 @@ export default async function OwnerDashboardPage() {
                   <div className="flex-1 min-w-[160px]">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-primary truncate">{c.name}</p>
-                      {statusBadge(c.subscription_status)}
+                      {statusBadge(c.subscription_status, locale)}
                     </div>
                     <p className="text-xs text-secondary mt-0.5">
-                      {c.plan ? `${c.plan.name} · $${(c.plan.price_cents / 100).toFixed(0)}/mo` : 'No plan assigned'}
+                      {c.plan ? `${c.plan.name} · $${(c.plan.price_cents / 100).toFixed(0)}/mo` : t(locale, 'owner.dashboard.noPlan')}
                     </p>
                   </div>
                   <div className="flex gap-4 text-xs text-secondary">
-                    <span>{bucket.admins} admin{bucket.admins !== 1 ? 's' : ''}</span>
-                    <span>{bucket.employees} employee{bucket.employees !== 1 ? 's' : ''}</span>
-                    <span>{bucket.clients} client{bucket.clients !== 1 ? 's' : ''}</span>
+                    <span>{bucket.admins} {bucket.admins !== 1 ? t(locale, 'owner.dashboard.adminPlural') : t(locale, 'owner.dashboard.adminSingular')}</span>
+                    <span>{bucket.employees} {bucket.employees !== 1 ? t(locale, 'owner.dashboard.employeePlural') : t(locale, 'owner.dashboard.employeeSingular')}</span>
+                    <span>{bucket.clients} {bucket.clients !== 1 ? t(locale, 'owner.dashboard.clientPlural') : t(locale, 'owner.dashboard.clientSingular')}</span>
                     <span>
-                      {bucket.projects} project{bucket.projects !== 1 ? 's' : ''}
+                      {bucket.projects} {bucket.projects !== 1 ? t(locale, 'owner.dashboard.projectPlural') : t(locale, 'owner.dashboard.projectSingular')}
                       {c.plan?.project_limit != null ? ` / ${c.plan.project_limit}` : ''}
                     </span>
                   </div>
                   <p className="text-xs text-tertiary w-full sm:w-auto">
-                    Since {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {t(locale, 'owner.dashboard.since')} {new Date(c.created_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
                 </div>
               )
