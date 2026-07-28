@@ -25,7 +25,7 @@ export async function getCompanyInviteCode(): Promise<{ code?: string; error?: s
   }
 
   const supabase = createClient()
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('invite_codes')
     .select('code')
     .eq('company_id', user.company_id)
