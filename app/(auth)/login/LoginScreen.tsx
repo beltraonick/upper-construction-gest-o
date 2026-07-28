@@ -6,7 +6,7 @@ import { LoginForm } from './LoginForm'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { getStoredLocale, storeLocale, t, type Locale } from '@/lib/i18n/login'
 
-export function LoginScreen() {
+export function LoginScreen({ showOwnerRole = false }: { showOwnerRole?: boolean }) {
   const [locale, setLocale] = useState<Locale>('en')
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function LoginScreen() {
 
         {/* Card */}
         <div className="bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-6">
-          <LoginForm locale={locale} />
+          <LoginForm locale={locale} showOwnerRole={showOwnerRole} />
         </div>
 
         <p className="text-center text-sm text-secondary mt-6">

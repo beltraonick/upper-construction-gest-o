@@ -7,31 +7,22 @@ import { login } from '@/app/actions/auth'
 import { Input } from '@/components/ui/Input'
 import { t, translateError, type Locale } from '@/lib/i18n/login'
 
-type RoleOption = 'employee' | 'admin' | 'client'
+type RoleOption = 'admin' | 'employee' | 'client' | 'owner'
 
 const DEMO_EMAILS: Record<RoleOption, string> = {
   admin: 'admin@orbit.test',
   employee: 'employee@orbit.test',
   client: 'client@orbit.test',
+  owner: 'you@company.com',
 }
 
-export function LoginForm({ locale }: { locale: Locale }) {
+export function LoginForm({ locale, showOwnerRole = false }: { locale: Locale; showOwnerRole?: boolean }) {
   const router = useRouter()
-  const [selectedRole, setSelectedRole] = useState<RoleOption>('employee')
+  const [selectedRole, setSelectedRole] = useState<RoleOption>('admin')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const ROLES: { id: RoleOption; label: string; sub: string; icon: React.ReactNode }[] = [
-    {
-      id: 'employee',
-      label: t(locale, 'roleEmployee'),
-      sub: t(locale, 'roleEmployeeSub'),
-      icon: (
-        <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-        </svg>
-      ),
-    },
     {
       id: 'admin',
       label: t(locale, 'roleAdmin'),
@@ -39,6 +30,16 @@ export function LoginForm({ locale }: { locale: Locale }) {
       icon: (
         <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
           <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'employee',
+      label: t(locale, 'roleEmployee'),
+      sub: t(locale, 'roleEmployeeSub'),
+      icon: (
+        <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
         </svg>
       ),
     },
@@ -52,6 +53,20 @@ export function LoginForm({ locale }: { locale: Locale }) {
         </svg>
       ),
     },
+    ...(showOwnerRole
+      ? [
+          {
+            id: 'owner' as RoleOption,
+            label: t(locale, 'roleOwner'),
+            sub: t(locale, 'roleOwnerSub'),
+            icon: (
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path fillRule="evenodd" d="M10 1a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 14a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 5.106v9.593l2.293 2.293a1 1 0 010 1.414L11.586 20H8.414l-1.707-1.707a1 1 0 010-1.414L9 14.699V5.106L6.237 6.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 14a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.616a1 1 0 01.894-1.79l1.599.8L9 3.323V2a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+            ),
+          },
+        ]
+      : []),
   ]
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -94,7 +109,7 @@ export function LoginForm({ locale }: { locale: Locale }) {
       {/* Role selector */}
       <div>
         <p className="text-xs font-medium text-secondary mb-2 uppercase tracking-wide">{t(locale, 'iAmA')}</p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className={showOwnerRole ? 'grid grid-cols-4 gap-1.5' : 'grid grid-cols-3 gap-2'}>
           {ROLES.map(r => (
             <button
               key={r.id}
