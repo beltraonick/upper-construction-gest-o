@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { OrbitAIHub } from '@/components/OrbitAIHub'
+import { getCurrentUser } from '@/lib/auth/session'
 
 function StatCard({ label, value, sub, color = 'default' }: {
   label: string
@@ -24,7 +25,7 @@ const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('your_')
 
-async function fetchStats() {
+async function fetchStats(companyId: string) {
   if (!supabaseReady) return null
   try {
     const { createClient } = await import('@/lib/supabase/server')
@@ -40,12 +41,12 @@ async function fetchStats() {
       { data: recentTimeEntries },
       { data: pendingPayroll },
     ] = await Promise.all([
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'employee').eq('status', 'active'),
-      supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('time_entries').select('id, employee_id, profiles(full_name, avatar_url, position)').is('clock_out', null),
-      supabase.from('projects').select('id, name, client_name, progress, status').eq('status', 'active').order('updated_at', { ascending: false }).limit(5),
-      supabase.from('time_entries').select('id, hours_worked, clock_in, profiles(full_name, avatar_url)').gte('clock_in', weekStart.toISOString()).order('clock_in', { ascending: false }).limit(6),
-      supabase.from('payroll_records').select('total_amount').eq('status', 'pending'),
+      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('role', 'employee').eq('status', 'active'),
+      supabase.from('projects').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'active'),
+      supabase.from('time_entries').select('id, employee_id, profiles(full_name, avatar_url, position)').eq('company_id', companyId).is('clock_out', null),
+      supabase.from('projects').select('id, name, client_name, progress, status').eq('company_id', companyId).eq('status', 'active').order('updated_at', { ascending: false }).limit(5),
+      supabase.from('time_entries').select('id, hours_worked, clock_in, profiles(full_name, avatar_url)').eq('company_id', companyId).gte('clock_in', weekStart.toISOString()).order('clock_in', { ascending: false }).limit(6),
+      supabase.from('payroll_records').select('total_amount').eq('company_id', companyId).eq('status', 'pending'),
     ])
     return { totalEmployees, activeProjects, todayClockedIn, recentProjects, recentTimeEntries, pendingPayroll }
   } catch {
@@ -54,7 +55,9 @@ async function fetchStats() {
 }
 
 export default async function AdminDashboardPage() {
-  const stats = await fetchStats()
+  const user = getCurrentUser()
+  const companyId = user?.company_id ?? ''
+  const stats = companyId ? await fetchStats(companyId) : null
   const today = new Date()
   const weeklyPayroll = stats?.pendingPayroll?.reduce((s, r) => s + Number(r.total_amount), 0) ?? 0
 
