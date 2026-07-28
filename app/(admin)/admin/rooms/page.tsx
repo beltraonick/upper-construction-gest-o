@@ -109,6 +109,7 @@ export default function RoomsPage() {
           <p className="text-sm text-secondary mt-1">
             {rooms.length > 0 ? `${doneCount} of ${rooms.length} rooms done` : 'A room grid — no blueprint needed'}
           </p>
+          <p className="text-xs text-tertiary mt-0.5">Track individual spaces (rooms, floors, units) within a project. For work orders, use <a href="/admin/tasks" className="text-brand hover:underline">Tasks</a>.</p>
         </div>
         <Button onClick={() => setShowModal(true)} disabled={!projectId}>+ Add Rooms</Button>
       </div>

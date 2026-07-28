@@ -90,6 +90,8 @@ export default function TasksPage() {
   const [filterProject, setFilterProject] = useState('')
   const [newCheckItem, setNewCheckItem] = useState('')
   const [editPhotos, setEditPhotos] = useState<{ id: string; storage_path: string }[]>([])
+  const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([])
+  const [uploadingPhotos, setUploadingPhotos] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -116,6 +118,8 @@ export default function TasksPage() {
   function openAdd() {
     setEditing(null)
     setForm({ ...BLANK })
+    setEditPhotos([])
+    setNewPhotoFiles([])
     setShowModal(true)
   }
 
@@ -136,6 +140,7 @@ export default function TasksPage() {
       checklist: t.checklist ?? [],
     })
     setEditPhotos([])
+    setNewPhotoFiles([])
     setShowModal(true)
     const supabase = createClient()
     const { data } = await supabase
@@ -197,6 +202,43 @@ export default function TasksPage() {
       } else {
         await supabase.from('tasks').insert(base)
       }
+    }
+
+    // Upload any new photos
+    if (newPhotoFiles.length > 0) {
+      setUploadingPhotos(true)
+      const taskId = editing?.id ?? null
+      // We need the task id — for new tasks, refetch the latest
+      let resolvedTaskId = taskId
+      if (!resolvedTaskId) {
+        const supabase2 = createClient()
+        const { data: latest } = await supabase2
+          .from('tasks')
+          .select('id')
+          .eq('company_id', companyId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        resolvedTaskId = latest?.id ?? null
+      }
+      if (resolvedTaskId) {
+        const supabase2 = createClient()
+        for (const file of newPhotoFiles) {
+          const ext = file.name.split('.').pop() ?? 'jpg'
+          const path = `tasks/${resolvedTaskId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+          const { error: upErr } = await supabase2.storage.from('project-photos').upload(path, file, { upsert: false })
+          if (!upErr) {
+            await supabase2.from('task_media').insert({
+              task_id: resolvedTaskId,
+              company_id: companyId,
+              storage_path: path,
+              media_type: 'photo',
+            })
+          }
+        }
+      }
+      setUploadingPhotos(false)
+      setNewPhotoFiles([])
     }
 
     setSaving(false)
@@ -278,6 +320,7 @@ export default function TasksPage() {
           <p className="text-sm text-secondary mt-1">
             {counts.pending} pending · {counts.in_progress} in progress · {counts.completed} completed
           </p>
+          <p className="text-xs text-tertiary mt-0.5">Work orders assigned to your team. Use <a href="/admin/rooms" className="text-brand hover:underline">Rooms</a> to track individual spaces within a project.</p>
         </div>
         <Button onClick={openAdd}>+ Add Task</Button>
       </div>
@@ -501,11 +544,11 @@ export default function TasksPage() {
                   />
                 </div>
 
-                {/* Photos from the field — read only, added by the assigned employee */}
-                {editing && editPhotos.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-medium text-secondary mb-2">Photos from the field</label>
-                    <div className="grid grid-cols-5 gap-2">
+                {/* Photos */}
+                <div>
+                  <label className="block text-xs font-medium text-secondary mb-2">Photos</label>
+                  {editPhotos.length > 0 && (
+                    <div className="grid grid-cols-5 gap-2 mb-2">
                       {editPhotos.map(p => (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -516,8 +559,43 @@ export default function TasksPage() {
                         />
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                  {newPhotoFiles.length > 0 && (
+                    <div className="grid grid-cols-5 gap-2 mb-2">
+                      {newPhotoFiles.map((f, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          key={i}
+                          src={URL.createObjectURL(f)}
+                          alt="New photo"
+                          className="aspect-square object-cover rounded-button bg-surface-elevated"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <label className="flex items-center gap-2 cursor-pointer w-full border border-dashed border-[rgba(255,255,255,0.12)] rounded-input px-3 py-2.5 hover:border-brand/40 transition-colors">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0">
+                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-xs text-secondary">
+                      {newPhotoFiles.length > 0 ? `${newPhotoFiles.length} photo${newPhotoFiles.length > 1 ? 's' : ''} selected` : 'Add photos…'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="sr-only"
+                      onChange={e => {
+                        const files = Array.from(e.target.files ?? [])
+                        setNewPhotoFiles(prev => [...prev, ...files])
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                  {uploadingPhotos && (
+                    <p className="text-xs text-secondary mt-1">Uploading photos…</p>
+                  )}
+                </div>
 
                 {/* Checklist */}
                 <div>
@@ -563,7 +641,7 @@ export default function TasksPage() {
 
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
-                  <Button type="submit" loading={saving} className="flex-1">{editing ? 'Save' : 'Create Task'}</Button>
+                  <Button type="submit" loading={saving || uploadingPhotos} className="flex-1">{editing ? 'Save' : 'Create Task'}</Button>
                 </div>
               </form>
             </div>
