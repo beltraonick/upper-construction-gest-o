@@ -5,41 +5,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { login } from '@/app/actions/auth'
 import { Input } from '@/components/ui/Input'
+import { t, translateError, type Locale } from '@/lib/i18n/login'
 
 type RoleOption = 'employee' | 'admin' | 'client'
-
-const ROLES: { id: RoleOption; label: string; sub: string; icon: React.ReactNode }[] = [
-  {
-    id: 'employee',
-    label: 'Employee',
-    sub: 'Clock in, view tasks',
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-  {
-    id: 'admin',
-    label: 'Administrator',
-    sub: 'Manage team & projects',
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'client',
-    label: 'Client',
-    sub: 'View project progress',
-    icon: (
-      <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
-      </svg>
-    ),
-  },
-]
 
 const DEMO_EMAILS: Record<RoleOption, string> = {
   admin: 'admin@orbit.test',
@@ -47,11 +15,44 @@ const DEMO_EMAILS: Record<RoleOption, string> = {
   client: 'client@orbit.test',
 }
 
-export function LoginForm() {
+export function LoginForm({ locale }: { locale: Locale }) {
   const router = useRouter()
   const [selectedRole, setSelectedRole] = useState<RoleOption>('employee')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const ROLES: { id: RoleOption; label: string; sub: string; icon: React.ReactNode }[] = [
+    {
+      id: 'employee',
+      label: t(locale, 'roleEmployee'),
+      sub: t(locale, 'roleEmployeeSub'),
+      icon: (
+        <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+          <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+        </svg>
+      ),
+    },
+    {
+      id: 'admin',
+      label: t(locale, 'roleAdmin'),
+      sub: t(locale, 'roleAdminSub'),
+      icon: (
+        <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'client',
+      label: t(locale, 'roleClient'),
+      sub: t(locale, 'roleClientSub'),
+      icon: (
+        <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 110 2h-3a1 1 0 01-1-1v-2a1 1 0 00-1-1H9a1 1 0 00-1 1v2a1 1 0 01-1 1H4a1 1 0 110-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clipRule="evenodd" />
+        </svg>
+      ),
+    },
+  ]
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -66,7 +67,7 @@ export function LoginForm() {
       const result = await login(email, password)
 
       if (result.error) {
-        setError(result.error)
+        setError(translateError(locale, result.error))
         setLoading(false)
         return
       }
@@ -83,7 +84,7 @@ export function LoginForm() {
         router.push('/home')
       }
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(t(locale, 'errorGeneric'))
       setLoading(false)
     }
   }
@@ -92,7 +93,7 @@ export function LoginForm() {
     <div className="space-y-5">
       {/* Role selector */}
       <div>
-        <p className="text-xs font-medium text-secondary mb-2 uppercase tracking-wide">I am a…</p>
+        <p className="text-xs font-medium text-secondary mb-2 uppercase tracking-wide">{t(locale, 'iAmA')}</p>
         <div className="grid grid-cols-3 gap-2">
           {ROLES.map(r => (
             <button
@@ -116,7 +117,7 @@ export function LoginForm() {
       {/* Login form */}
       <form onSubmit={handleSubmit} className="space-y-3">
         <Input
-          label="Email"
+          label={t(locale, 'emailLabel')}
           name="email"
           type="email"
           placeholder={DEMO_EMAILS[selectedRole]}
@@ -125,7 +126,7 @@ export function LoginForm() {
         />
         <div className="space-y-1">
           <Input
-            label="Password"
+            label={t(locale, 'passwordLabel')}
             name="password"
             type="password"
             placeholder="••••••••"
@@ -137,7 +138,7 @@ export function LoginForm() {
               href="/forgot-password"
               className="text-xs text-secondary hover:text-brand transition-colors"
             >
-              Forgot password?
+              {t(locale, 'forgotPassword')}
             </Link>
           </div>
         </div>
@@ -159,10 +160,10 @@ export function LoginForm() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
               </svg>
-              Signing in…
+              {t(locale, 'signingIn')}
             </>
           ) : (
-            'Sign In'
+            t(locale, 'signIn')
           )}
         </button>
       </form>

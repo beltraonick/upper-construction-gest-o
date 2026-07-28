@@ -149,8 +149,8 @@ export function ProfileForm({ initialProfile }: { initialProfile: Profile }) {
               onChange={e => setForm(f => ({ ...f, language: e.target.value as Language }))}
             />
             <p className="text-xs text-tertiary mt-2">
-              This saves your preference. Full Portuguese/Spanish translation of the app screens is still being built —
-              today the interface text stays in English regardless of this setting.
+              This saves your preference. The login screen is translated, but the rest of the app is still being
+              translated — today those screens stay in English regardless of this setting.
             </p>
           </Card>
         </Section>
