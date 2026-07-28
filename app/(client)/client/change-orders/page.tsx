@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { ChangeOrdersList, type ChangeOrder } from './ChangeOrdersList'
+import { t } from '@/lib/i18n/translate'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -10,6 +11,8 @@ const supabaseReady =
 export default async function ClientChangeOrdersPage() {
   const user = getCurrentUser()
   if (!user) redirect('/login')
+
+  const locale = user.language
 
   let orders: ChangeOrder[] = []
 
@@ -40,8 +43,8 @@ export default async function ClientChangeOrdersPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 md:py-8">
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-primary tracking-tight">Change Orders</h1>
-        <p className="text-sm text-secondary mt-1">Review and approve extra work requested for your project.</p>
+        <h1 className="text-xl font-bold text-primary tracking-tight">{t(locale, 'client.changeOrders.title')}</h1>
+        <p className="text-sm text-secondary mt-1">{t(locale, 'client.changeOrders.subtitle')}</p>
       </div>
       <ChangeOrdersList initialOrders={orders} supabaseReady={!!supabaseReady} />
     </div>

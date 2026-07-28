@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 interface ReportRow {
   employee_id: string
@@ -32,13 +33,16 @@ interface EntryRow {
 
 const fmt = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 
-const PERIOD_OPTIONS = [
-  { value: 'week', label: 'This Week' },
-  { value: 'last_week', label: 'Last Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'last_month', label: 'Last Month' },
-  { value: 'all', label: 'All Time' },
-]
+function usePeriodOptions() {
+  const { t } = useTranslation()
+  return [
+    { value: 'week', label: t('common.thisWeek') },
+    { value: 'last_week', label: t('admin.reports.periodLastWeek') },
+    { value: 'month', label: t('common.thisMonth') },
+    { value: 'last_month', label: t('admin.reports.periodLastMonth') },
+    { value: 'all', label: t('admin.reports.periodAllTime') },
+  ]
+}
 
 function getPeriodStart(p: string): Date | null {
   const now = new Date()
@@ -69,7 +73,9 @@ function getPeriodEnd(p: string): Date | null {
 }
 
 export default function ReportsPage() {
+  const { t } = useTranslation()
   const companyId = useCompanyId()
+  const PERIOD_OPTIONS = usePeriodOptions()
   const [rows, setRows] = useState<ReportRow[]>([])
   const [entries, setEntries] = useState<EntryRow[]>([])
   const [profiles, setProfiles] = useState<{ id: string; hourly_rate: number }[]>([])
@@ -156,8 +162,8 @@ export default function ReportsPage() {
     <div className="p-4 md:p-8 max-w-[1400px]">
       <div className="mb-6 md:mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Reports</h1>
-          <p className="text-sm text-secondary mt-1">Hours and earnings overview</p>
+          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t('admin.reports.title')}</h1>
+          <p className="text-sm text-secondary mt-1">{t('admin.reports.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="w-40">
@@ -177,7 +183,7 @@ export default function ReportsPage() {
                   view === v ? 'bg-brand text-white' : 'text-secondary hover:text-primary hover:bg-surface-elevated',
                 ].join(' ')}
               >
-                {v}
+                {v === 'summary' ? t('admin.reports.viewSummary') : t('admin.reports.viewDetail')}
               </button>
             ))}
           </div>
@@ -185,7 +191,7 @@ export default function ReportsPage() {
             onClick={printPage}
             className="px-3 py-2 rounded-button border border-[rgba(255,255,255,0.08)] text-xs font-medium text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
           >
-            Print
+            {t('admin.reports.print')}
           </button>
         </div>
       </div>
@@ -194,19 +200,19 @@ export default function ReportsPage() {
       {!loading && rows.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <Card>
-            <p className="text-xs text-secondary uppercase tracking-wide mb-1">Employees</p>
+            <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t('admin.reports.employees')}</p>
             <p className="text-2xl font-bold text-primary">{rows.length}</p>
           </Card>
           <Card>
-            <p className="text-xs text-secondary uppercase tracking-wide mb-1">Total Hours</p>
+            <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t('admin.reports.totalHours')}</p>
             <p className="text-2xl font-bold text-primary">{grandHours.toFixed(1)}h</p>
           </Card>
           <Card>
-            <p className="text-xs text-secondary uppercase tracking-wide mb-1">Est. Payroll</p>
+            <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t('admin.reports.estPayroll')}</p>
             <p className="text-2xl font-bold text-primary">{fmt(grandPay)}</p>
           </Card>
           <Card>
-            <p className="text-xs text-secondary uppercase tracking-wide mb-1">Entries</p>
+            <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t('admin.reports.entries')}</p>
             <p className="text-2xl font-bold text-primary">{entries.length}</p>
           </Card>
         </div>
@@ -215,22 +221,22 @@ export default function ReportsPage() {
       {view === 'summary' ? (
         <Card padding="none">
           <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-            <h2 className="text-sm font-semibold text-primary">By Employee</h2>
+            <h2 className="text-sm font-semibold text-primary">{t('admin.reports.byEmployee')}</h2>
           </div>
           {loading ? (
-            <p className="px-5 py-10 text-sm text-secondary text-center">Loading…</p>
+            <p className="px-5 py-10 text-sm text-secondary text-center">{t('common.loading')}</p>
           ) : rows.length === 0 ? (
-            <p className="px-5 py-10 text-sm text-secondary text-center">No data for this period.</p>
+            <p className="px-5 py-10 text-sm text-secondary text-center">{t('admin.reports.noDataPeriod')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[rgba(255,255,255,0.07)]">
-                    <th className="text-left px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Employee</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Entries</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Regular</th>
-                    <th className="text-right px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Overtime</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Est. Pay</th>
+                    <th className="text-left px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.tableEmployee')}</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.entries')}</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.regular')}</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.overtime')}</th>
+                    <th className="text-right px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.estPay')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[rgba(255,255,255,0.05)]">
@@ -262,22 +268,22 @@ export default function ReportsPage() {
       ) : (
         <Card padding="none">
           <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-            <h2 className="text-sm font-semibold text-primary">All Entries</h2>
+            <h2 className="text-sm font-semibold text-primary">{t('admin.reports.allEntries')}</h2>
           </div>
           {loading ? (
-            <p className="px-5 py-10 text-sm text-secondary text-center">Loading…</p>
+            <p className="px-5 py-10 text-sm text-secondary text-center">{t('common.loading')}</p>
           ) : entries.length === 0 ? (
-            <p className="px-5 py-10 text-sm text-secondary text-center">No entries for this period.</p>
+            <p className="px-5 py-10 text-sm text-secondary text-center">{t('admin.reports.noEntriesPeriod')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[rgba(255,255,255,0.07)]">
-                    <th className="text-left px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Employee</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Time</th>
-                    <th className="text-left px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Location</th>
-                    <th className="text-right px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">Hours</th>
+                    <th className="text-left px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.tableEmployee')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.date')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.time')}</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.location')}</th>
+                    <th className="text-right px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.hours')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[rgba(255,255,255,0.05)]">
@@ -303,7 +309,7 @@ export default function ReportsPage() {
                         <td className="text-right px-5 py-3 tabular-nums">
                           {hours != null
                             ? <span className="font-semibold text-primary">{hours.toFixed(2)}h</span>
-                            : <span className="text-green text-xs">Active</span>}
+                            : <span className="text-green text-xs">{t('common.active')}</span>}
                         </td>
                       </tr>
                     )

@@ -6,8 +6,10 @@ import type { MembershipRequest } from '@/app/actions/membership'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 export default function MembersPage() {
+  const { t } = useTranslation()
   const [requests, setRequests] = useState<MembershipRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
@@ -43,9 +45,9 @@ export default function MembersPage() {
   return (
     <div className="p-4 md:p-8 max-w-2xl">
       <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Member Requests</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t('admin.members.title')}</h1>
         <p className="text-sm text-secondary mt-1">
-          Review and approve employees who registered with your invite code
+          {t('admin.members.subtitle')}
         </p>
       </div>
 
@@ -57,7 +59,7 @@ export default function MembersPage() {
 
       {loading ? (
         <Card>
-          <p className="text-sm text-secondary text-center py-4">Loading…</p>
+          <p className="text-sm text-secondary text-center py-4">{t('common.loading')}</p>
         </Card>
       ) : requests.length === 0 ? (
         <Card>
@@ -67,8 +69,8 @@ export default function MembersPage() {
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-primary">No pending requests</p>
-            <p className="text-xs text-secondary mt-1">All membership requests have been reviewed.</p>
+            <p className="text-sm font-medium text-primary">{t('admin.members.noPendingRequests')}</p>
+            <p className="text-xs text-secondary mt-1">{t('admin.members.allReviewed')}</p>
           </div>
         </Card>
       ) : (
@@ -87,7 +89,7 @@ export default function MembersPage() {
                       <p className="text-xs text-tertiary">{profile.phone}</p>
                     )}
                     <p className="text-xs text-tertiary mt-0.5">
-                      Requested {new Date(req.created_at).toLocaleDateString()}
+                      {t('admin.members.requestedOn').replace('{date}', new Date(req.created_at).toLocaleDateString())}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -97,7 +99,7 @@ export default function MembersPage() {
                       disabled={isProcessing}
                       className="text-xs px-3 py-1.5 h-auto"
                     >
-                      Reject
+                      {t('admin.members.reject')}
                     </Button>
                     <Button
                       onClick={() => handleApprove(req.id)}
@@ -105,7 +107,7 @@ export default function MembersPage() {
                       loading={isProcessing}
                       className="text-xs px-3 py-1.5 h-auto"
                     >
-                      Approve
+                      {t('admin.members.approve')}
                     </Button>
                   </div>
                 </div>
@@ -116,12 +118,12 @@ export default function MembersPage() {
       )}
 
       <div className="mt-6 bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-4">
-        <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">How it works</p>
+        <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{t('admin.members.howItWorks')}</p>
         <ul className="space-y-1.5">
           {[
-            'Employees register using your company invite code from Settings',
-            'Their request appears here awaiting your review',
-            'Approve to grant access — reject to disassociate them from your company',
+            t('admin.members.step1'),
+            t('admin.members.step2'),
+            t('admin.members.step3'),
           ].map((text, i) => (
             <li key={i} className="flex items-start gap-2">
               <span className="w-4 h-4 rounded-full bg-brand/20 text-brand text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">

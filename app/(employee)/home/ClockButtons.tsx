@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { queueIfOffline } from '@/lib/offline-queue'
 import { Button } from '@/components/ui/Button'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 interface ClockButtonsProps {
   employeeId: string
@@ -55,6 +56,7 @@ async function getLocation() {
 
 export function ClockButtons({ employeeId, companyId, openEntryId, clockInTime }: ClockButtonsProps) {
   const router = useRouter()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [elapsed, setElapsed] = useState('')
   const [locationInfo, setLocationInfo] = useState('')
@@ -75,7 +77,7 @@ export function ClockButtons({ employeeId, companyId, openEntryId, clockInTime }
 
   async function clockIn() {
     setLoading(true)
-    setLocationInfo('Getting location…')
+    setLocationInfo(t('employee.clockButtons.gettingLocation'))
 
     const loc = await getLocation()
     setLocationInfo(loc?.city ? `${loc.city}, ${loc.state}` : '')
@@ -139,16 +141,16 @@ export function ClockButtons({ employeeId, companyId, openEntryId, clockInTime }
       <div className="flex flex-col items-center gap-4 py-2">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green animate-pulse" />
-          <span className="text-sm text-green font-medium">Clocked In</span>
+          <span className="text-sm text-green font-medium">{t('employee.clockButtons.clockedIn')}</span>
         </div>
         <p className="text-4xl font-bold text-primary tracking-widest font-mono">{elapsed}</p>
         {localClockInTime && (
           <p className="text-xs text-secondary">
-            Since {new Date(localClockInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+            {t('employee.clockButtons.sinceLabel')} {new Date(localClockInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
         <Button variant="danger" size="lg" onClick={clockOut} loading={loading} className="w-full mt-1">
-          Clock Out
+          {t('employee.clockButtons.clockOut')}
         </Button>
       </div>
     )
@@ -156,7 +158,7 @@ export function ClockButtons({ employeeId, companyId, openEntryId, clockInTime }
 
   return (
     <div className="flex flex-col items-center gap-4 py-2">
-      <p className="text-sm text-secondary">You are not clocked in</p>
+      <p className="text-sm text-secondary">{t('employee.clockButtons.notClockedIn')}</p>
       {locationInfo && (
         <p className="text-xs text-secondary flex items-center gap-1.5">
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 text-brand">
@@ -166,7 +168,7 @@ export function ClockButtons({ employeeId, companyId, openEntryId, clockInTime }
         </p>
       )}
       <Button size="lg" onClick={clockIn} loading={loading} className="w-full">
-        Clock In
+        {t('employee.clockButtons.clockIn')}
       </Button>
     </div>
   )

@@ -7,6 +7,7 @@ import { useCompanyId } from '@/lib/company-context'
 import { queueIfOffline } from '@/lib/offline-queue'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -57,6 +58,7 @@ export function TaskList({
   supabaseReady: boolean
 }) {
   const companyId = useCompanyId()
+  const { t } = useTranslation()
   const [tasks, setTasks] = useState(initial)
   const [selected, setSelected] = useState<Task | null>(null)
   const [saving, setSaving] = useState(false)
@@ -108,10 +110,10 @@ export function TaskList({
       if (category === 'before') setBeforePath(uploaded.path)
       else setAfterPath(uploaded.path)
     } catch {
-      alert('Photo upload failed. Make sure the "task-photos" storage bucket is created and set to public in Supabase Dashboard.')
+      alert(t('employee.tasks.photoUploadFailed'))
     }
     setUploadingPhoto(false)
-  }, [selected, supabaseReady, companyId])
+  }, [selected, supabaseReady, companyId, t])
 
   async function toggleCheck(taskId: string, index: number, done: boolean) {
     const task = tasks.find(t => t.id === taskId)
@@ -138,14 +140,14 @@ export function TaskList({
   async function completeTask(taskId: string) {
     // Photo requirements check
     if (selected?.before_photo_required && !beforePath) {
-      alert('Please upload a Before photo before completing this task.')
+      alert(t('employee.tasks.beforePhotoRequired'))
       return
     }
     if (selected?.after_photo_required && !afterPath) {
-      alert('Please upload an After photo before completing this task.')
+      alert(t('employee.tasks.afterPhotoRequired'))
       return
     }
-    if (!confirm('Mark this task as complete?')) return
+    if (!confirm(t('employee.tasks.confirmComplete'))) return
     setSaving(true)
     if (supabaseReady) {
       const update: Record<string, unknown> = {
@@ -184,7 +186,7 @@ export function TaskList({
   if (!supabaseReady) {
     return (
       <Card>
-        <p className="text-sm text-secondary text-center py-6">Connect Supabase to view tasks.</p>
+        <p className="text-sm text-secondary text-center py-6">{t('employee.tasks.connectSupabase')}</p>
       </Card>
     )
   }
@@ -198,8 +200,8 @@ export function TaskList({
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
           </div>
-          <p className="text-sm font-medium text-primary">All done!</p>
-          <p className="text-xs text-secondary mt-1">No open tasks right now.</p>
+          <p className="text-sm font-medium text-primary">{t('employee.tasks.allDone')}</p>
+          <p className="text-xs text-secondary mt-1">{t('employee.tasks.noOpenTasksRightNow')}</p>
         </div>
       </Card>
     )
@@ -208,37 +210,37 @@ export function TaskList({
   return (
     <>
       <div className="space-y-2">
-        {tasks.map((t: Task) => {
-          const checklist: ChecklistItem[] = t.checklist ?? []
+        {tasks.map((task: Task) => {
+          const checklist: ChecklistItem[] = task.checklist ?? []
           const doneCount = checklist.filter((c: ChecklistItem) => c.done).length
           const totalCount = checklist.length
-          const priority: string = t.priority ?? 'medium'
+          const priority: string = task.priority ?? 'medium'
           return (
             <button
-              key={t.id}
-              onClick={() => openTask(t)}
+              key={task.id}
+              onClick={() => openTask(task)}
               className="w-full text-left"
             >
               <Card className="hover:bg-surface-elevated transition-colors">
                 <div className="flex items-start gap-3">
                   <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[priority] ?? 'bg-secondary'}`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-primary">{t.title}</p>
-                    {t.project?.name && (
-                      <p className="text-xs text-secondary mt-0.5 truncate">{t.project.name}</p>
+                    <p className="text-sm font-medium text-primary">{task.title}</p>
+                    {task.project?.name && (
+                      <p className="text-xs text-secondary mt-0.5 truncate">{task.project.name}</p>
                     )}
-                    {t.area && (
-                      <p className="text-xs text-tertiary truncate">{t.area}</p>
+                    {task.area && (
+                      <p className="text-xs text-tertiary truncate">{task.area}</p>
                     )}
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      {priority === 'urgent' && <Badge variant="gray">Urgent</Badge>}
-                      {priority === 'high' && <Badge variant="gray">High</Badge>}
+                      {priority === 'urgent' && <Badge variant="gray">{t('common.priority.urgent')}</Badge>}
+                      {priority === 'high' && <Badge variant="gray">{t('common.priority.high')}</Badge>}
                       {totalCount > 0 && (
-                        <span className="text-[11px] text-secondary">{doneCount}/{totalCount} steps</span>
+                        <span className="text-[11px] text-secondary">{t('employee.tasks.stepsProgress').replace('{done}', String(doneCount)).replace('{total}', String(totalCount))}</span>
                       )}
-                      {t.due_date && (
-                        <span className={`text-[11px] ${new Date(t.due_date) < new Date() ? 'text-danger' : 'text-tertiary'}`}>
-                          Due {new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {task.due_date && (
+                        <span className={`text-[11px] ${new Date(task.due_date) < new Date() ? 'text-danger' : 'text-tertiary'}`}>
+                          {t('employee.tasks.dueDatePrefix')} {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </span>
                       )}
                     </div>
@@ -289,7 +291,7 @@ export function TaskList({
               {/* Checklist */}
               {selected.checklist && selected.checklist.length > 0 && (
                 <div className="mb-5">
-                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">Checklist</p>
+                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{t('employee.tasks.checklistLabel')}</p>
                   <div className="space-y-2">
                     {(selected.checklist as ChecklistItem[]).map((item, i) => (
                       <label key={i} className="flex items-center gap-3 cursor-pointer group">
@@ -320,12 +322,12 @@ export function TaskList({
               {/* Before / After Photos */}
               {supabaseReady && (
                 <div className="mb-5">
-                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">Photos</p>
+                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">{t('employee.tasks.photosLabel')}</p>
                   <div className="grid grid-cols-2 gap-3">
                     {/* Before photo */}
                     <div>
                       <p className="text-[11px] text-secondary mb-1.5 flex items-center gap-1">
-                        Before
+                        {t('employee.tasks.beforeLabel')}
                         {selected?.before_photo_required && (
                           <span className="text-danger font-semibold">*</span>
                         )}
@@ -353,7 +355,7 @@ export function TaskList({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
                           </svg>
-                          <span className="text-[11px] text-tertiary">Add Before</span>
+                          <span className="text-[11px] text-tertiary">{t('employee.tasks.addBefore')}</span>
                         </button>
                       )}
                     </div>
@@ -361,7 +363,7 @@ export function TaskList({
                     {/* After photo */}
                     <div>
                       <p className="text-[11px] text-secondary mb-1.5 flex items-center gap-1">
-                        After
+                        {t('employee.tasks.afterLabel')}
                         {selected?.after_photo_required && (
                           <span className="text-danger font-semibold">*</span>
                         )}
@@ -389,13 +391,13 @@ export function TaskList({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
                           </svg>
-                          <span className="text-[11px] text-tertiary">Add After</span>
+                          <span className="text-[11px] text-tertiary">{t('employee.tasks.addAfter')}</span>
                         </button>
                       )}
                     </div>
                   </div>
                   {uploadingPhoto && (
-                    <p className="text-[11px] text-secondary mt-2 text-center">Uploading photo…</p>
+                    <p className="text-[11px] text-secondary mt-2 text-center">{t('employee.tasks.uploadingPhoto')}</p>
                   )}
 
                   {/* Hidden file inputs */}
@@ -403,7 +405,6 @@ export function TaskList({
                     ref={beforeRef}
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     className="hidden"
                     onChange={e => handlePhoto(e, 'before')}
                   />
@@ -411,7 +412,6 @@ export function TaskList({
                     ref={afterRef}
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     className="hidden"
                     onChange={e => handlePhoto(e, 'after')}
                   />
@@ -420,13 +420,13 @@ export function TaskList({
 
               {/* Notes */}
               <div className="mb-5">
-                <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">Notes</p>
+                <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{t('employee.tasks.notesLabel')}</p>
                 <textarea
                   rows={3}
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   onBlur={() => saveNotes(selected.id)}
-                  placeholder="Add notes…"
+                  placeholder={t('employee.tasks.notesPlaceholder')}
                   className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none transition-colors"
                 />
               </div>
@@ -446,7 +446,7 @@ export function TaskList({
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    Mark as Complete
+                    {t('employee.tasks.markComplete')}
                   </>
                 )}
               </button>

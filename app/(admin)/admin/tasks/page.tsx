@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 interface ChecklistItem { text: string; done: boolean }
 
@@ -35,26 +36,6 @@ interface Profile { id: string; full_name: string }
 interface Project { id: string; name: string }
 interface Room { id: string; project_id: string; floor: string | null; label: string }
 
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'urgent', label: 'Urgent' },
-]
-
-const STATUS_OPTIONS = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
-]
-
-const FILTER_STATUS = [
-  { value: '', label: 'All statuses' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
-]
-
 const PRIORITY_COLORS: Record<string, string> = {
   low: 'bg-blue/10 text-blue',
   medium: 'bg-amber/10 text-amber',
@@ -76,6 +57,7 @@ const BLANK = {
 }
 
 export default function TasksPage() {
+  const { t } = useTranslation()
   const companyId = useCompanyId()
   const [tasks, setTasks] = useState<Task[]>([])
   const [employees, setEmployees] = useState<Profile[]>([])
@@ -92,6 +74,26 @@ export default function TasksPage() {
   const [editPhotos, setEditPhotos] = useState<{ id: string; storage_path: string }[]>([])
   const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([])
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
+
+  const PRIORITY_OPTIONS = [
+    { value: 'low', label: t('common.priority.low') },
+    { value: 'medium', label: t('common.priority.medium') },
+    { value: 'high', label: t('common.priority.high') },
+    { value: 'urgent', label: t('common.priority.urgent') },
+  ]
+
+  const STATUS_OPTIONS = [
+    { value: 'pending', label: t('common.pending') },
+    { value: 'in_progress', label: t('common.inProgress') },
+    { value: 'completed', label: t('common.completed') },
+  ]
+
+  const FILTER_STATUS = [
+    { value: '', label: t('admin.tasks.allStatuses') },
+    { value: 'pending', label: t('common.pending') },
+    { value: 'in_progress', label: t('common.inProgress') },
+    { value: 'completed', label: t('common.completed') },
+  ]
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -255,7 +257,7 @@ export default function TasksPage() {
   }
 
   async function deleteTask(id: string) {
-    if (!confirm('Delete this task?')) return
+    if (!confirm(t('admin.tasks.confirmDelete'))) return
     const supabase = createClient()
     await supabase.from('tasks').delete().eq('id', id)
     load()
@@ -283,23 +285,23 @@ export default function TasksPage() {
   }
 
   const empOptions = [
-    { value: '', label: 'Unassigned' },
+    { value: '', label: t('admin.tasks.unassigned') },
     ...employees.map(e => ({ value: e.id, label: e.full_name })),
   ]
 
   const projOptions = [
-    { value: '', label: 'No project' },
+    { value: '', label: t('admin.tasks.noProject') },
     ...projects.map(p => ({ value: p.id, label: p.name })),
   ]
 
   const projFilterOptions = [
-    { value: '', label: 'All projects' },
+    { value: '', label: t('admin.tasks.allProjects') },
     ...projects.map(p => ({ value: p.id, label: p.name })),
   ]
 
   function roomOptionsFor(pid: string) {
     return [
-      { value: '', label: 'No room' },
+      { value: '', label: t('admin.tasks.noRoom') },
       ...rooms
         .filter(r => r.project_id === pid)
         .map(r => ({ value: r.id, label: [r.floor, r.label].filter(Boolean).join(' — ') })),
@@ -310,21 +312,23 @@ export default function TasksPage() {
     <div className="p-4 md:p-8 max-w-[1400px]">
       <div className="mb-6 md:mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Tasks</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t('admin.tasks.title')}</h1>
           <p className="text-sm text-secondary mt-1">
-            {counts.pending} pending · {counts.in_progress} in progress · {counts.completed} completed
+            {t('admin.tasks.summary').replace('{n}', String(counts.pending)).replace('{m}', String(counts.in_progress)).replace('{k}', String(counts.completed))}
           </p>
-          <p className="text-xs text-tertiary mt-0.5">Work orders assigned to your team. Use <a href="/admin/rooms" className="text-brand hover:underline">Rooms</a> to track individual spaces within a project.</p>
+          <p className="text-xs text-tertiary mt-0.5">
+            {t('admin.tasks.helperText')}
+          </p>
         </div>
-        <Button onClick={openAdd}>+ Add Task</Button>
+        <Button onClick={openAdd}>{t('admin.tasks.addTask')}</Button>
       </div>
 
       {/* Summary chips */}
       <div className="flex gap-2 mb-5 flex-wrap">
         {[
-          { label: 'Pending', count: counts.pending, color: 'text-secondary' },
-          { label: 'In Progress', count: counts.in_progress, color: 'text-amber' },
-          { label: 'Completed', count: counts.completed, color: 'text-green' },
+          { label: t('common.pending'), count: counts.pending, color: 'text-secondary' },
+          { label: t('common.inProgress'), count: counts.in_progress, color: 'text-amber' },
+          { label: t('common.completed'), count: counts.completed, color: 'text-green' },
         ].map(c => (
           <div key={c.label} className="bg-surface border border-[rgba(255,255,255,0.07)] rounded-button px-3 py-1.5 flex items-center gap-2">
             <span className={`text-xs font-semibold ${c.color}`}>{c.count}</span>
@@ -345,83 +349,86 @@ export default function TasksPage() {
 
       <Card padding="none">
         {loading ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">Loading…</p>
+          <p className="px-5 py-10 text-sm text-secondary text-center">{t('common.loading')}</p>
         ) : filtered.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <p className="text-sm text-secondary mb-3">
-              {tasks.length === 0 ? 'No tasks yet.' : 'No tasks match the current filters.'}
+              {tasks.length === 0 ? t('admin.tasks.noTasksYet') : t('admin.tasks.noTasksMatchFilters')}
             </p>
             {tasks.length === 0 && (
-              <Button onClick={openAdd} variant="secondary">Create first task</Button>
+              <Button onClick={openAdd} variant="secondary">{t('admin.tasks.createFirstTask')}</Button>
             )}
           </div>
         ) : (
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
-            {filtered.map(t => {
-              const doneItems = (t.checklist ?? []).filter(c => c.done).length
-              const totalItems = (t.checklist ?? []).length
+            {filtered.map(task => {
+              const doneItems = (task.checklist ?? []).filter(c => c.done).length
+              const totalItems = (task.checklist ?? []).length
               return (
-                <div key={t.id} className="px-5 py-4 flex items-start gap-3 group">
+                <div key={task.id} className="px-5 py-4 flex items-start gap-3 group">
                   {/* Priority stripe */}
                   <div className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    t.priority === 'urgent' ? 'bg-danger' :
-                    t.priority === 'high' ? 'bg-danger/60' :
-                    t.priority === 'medium' ? 'bg-amber' : 'bg-blue'
+                    task.priority === 'urgent' ? 'bg-danger' :
+                    task.priority === 'high' ? 'bg-danger/60' :
+                    task.priority === 'medium' ? 'bg-amber' : 'bg-blue'
                   }`} />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <p className={`text-sm font-medium ${t.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
-                        {t.title}
+                      <p className={`text-sm font-medium ${task.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
+                        {task.title}
                       </p>
-                      <Badge variant={STATUS_VARIANTS[t.status] ?? 'gray'}>
-                        {t.status === 'in_progress' ? 'In Progress' : t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                      <Badge variant={STATUS_VARIANTS[task.status] ?? 'gray'}>
+                        {task.status === 'in_progress' ? t('common.inProgress')
+                          : task.status === 'pending' ? t('common.pending')
+                          : task.status === 'completed' ? t('common.completed')
+                          : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
                       </Badge>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${PRIORITY_COLORS[t.priority] ?? ''}`}>
-                        {t.priority.toUpperCase()}
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${PRIORITY_COLORS[task.priority] ?? ''}`}>
+                        {t(`common.priority.${task.priority}`).toUpperCase()}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">
-                      {t.project?.name && (
-                        <p className="text-xs text-secondary truncate">📁 {t.project.name}</p>
+                      {task.project?.name && (
+                        <p className="text-xs text-secondary truncate">📁 {task.project.name}</p>
                       )}
-                      {t.assigned_employee?.full_name && (
-                        <p className="text-xs text-secondary">👤 {t.assigned_employee.full_name}</p>
+                      {task.assigned_employee?.full_name && (
+                        <p className="text-xs text-secondary">👤 {task.assigned_employee.full_name}</p>
                       )}
-                      {t.area && (
-                        <p className="text-xs text-tertiary">📍 {t.area}</p>
+                      {task.area && (
+                        <p className="text-xs text-tertiary">📍 {task.area}</p>
                       )}
                       {totalItems > 0 && (
-                        <p className="text-xs text-tertiary">{doneItems}/{totalItems} done</p>
+                        <p className="text-xs text-tertiary">{t('admin.tasks.doneOfTotal').replace('{n}', String(doneItems)).replace('{m}', String(totalItems))}</p>
                       )}
-                      {t.due_date && (
-                        <p className={`text-xs ${new Date(t.due_date) < new Date() && t.status !== 'completed' ? 'text-danger' : 'text-tertiary'}`}>
-                          Due {new Date(t.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {task.due_date && (
+                        <p className={`text-xs ${new Date(task.due_date) < new Date() && task.status !== 'completed' ? 'text-danger' : 'text-tertiary'}`}>
+                          {t('admin.tasks.duePrefix').replace('{date}', new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}
                         </p>
                       )}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {t.status === 'pending' && (
+                    {task.status === 'pending' && (
                       <button
-                        onClick={() => quickStatus(t.id, 'in_progress')}
+                        onClick={() => quickStatus(task.id, 'in_progress')}
                         className="text-xs px-2 py-1 rounded-button bg-amber/10 text-amber hover:bg-amber/20 transition-colors"
                       >
-                        Start
+                        {t('admin.tasks.start')}
                       </button>
                     )}
-                    {t.status === 'in_progress' && (
+                    {task.status === 'in_progress' && (
                       <button
-                        onClick={() => quickStatus(t.id, 'completed')}
+                        onClick={() => quickStatus(task.id, 'completed')}
                         className="text-xs px-2 py-1 rounded-button bg-green/10 text-green hover:bg-green/20 transition-colors"
                       >
-                        Complete
+                        {t('admin.tasks.complete')}
                       </button>
                     )}
                     <button
-                      onClick={() => openEdit(t)}
+                      onClick={() => openEdit(task)}
                       className="p-1.5 rounded-button text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
                     >
                       <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
@@ -429,7 +436,7 @@ export default function TasksPage() {
                       </svg>
                     </button>
                     <button
-                      onClick={() => deleteTask(t.id)}
+                      onClick={() => deleteTask(task.id)}
                       className="p-1.5 rounded-button text-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
                     >
                       <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
@@ -456,39 +463,39 @@ export default function TasksPage() {
           >
             <div className="p-6">
               <h2 className="text-base font-semibold text-primary mb-5">
-                {editing ? 'Edit Task' : 'New Task'}
+                {editing ? t('admin.tasks.editTask') : t('admin.tasks.newTask')}
               </h2>
 
               <form onSubmit={handleSave} className="space-y-4">
                 <Input
-                  label="Task Title"
+                  label={t('admin.tasks.taskTitle')}
                   required
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="e.g. Paint Room 214"
+                  placeholder={t('admin.tasks.taskTitlePlaceholder')}
                 />
 
                 <div className="grid grid-cols-2 gap-3">
                   <Select
-                    label="Priority"
+                    label={t('admin.tasks.priority')}
                     options={PRIORITY_OPTIONS}
                     value={form.priority}
                     onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
                   />
                   <Select
-                    label="Status"
+                    label={t('admin.tasks.status')}
                     options={STATUS_OPTIONS}
                     value={form.status}
                     onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
                   />
                   <Select
-                    label="Project"
+                    label={t('admin.tasks.project')}
                     options={projOptions}
                     value={form.project_id}
                     onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
                   />
                   <Select
-                    label="Assigned To"
+                    label={t('admin.tasks.assignedTo')}
                     options={empOptions}
                     value={form.assigned_employee_id}
                     onChange={e => setForm(f => ({ ...f, assigned_employee_id: e.target.value }))}
@@ -497,7 +504,7 @@ export default function TasksPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <Select
-                    label="Room"
+                    label={t('admin.tasks.room')}
                     options={roomOptionsFor(form.project_id)}
                     value={form.room_id}
                     onChange={e => {
@@ -511,8 +518,8 @@ export default function TasksPage() {
                     }}
                   />
                   <Input
-                    label="Area / Location"
-                    placeholder="e.g. Floor 3, Room 214"
+                    label={t('admin.tasks.areaLocation')}
+                    placeholder={t('admin.tasks.areaPlaceholder')}
                     value={form.area}
                     onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
                   />
@@ -520,7 +527,7 @@ export default function TasksPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <Input
-                    label="Due Date"
+                    label={t('admin.tasks.dueDate')}
                     type="date"
                     value={form.due_date}
                     onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
@@ -528,19 +535,19 @@ export default function TasksPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-secondary mb-1.5">Description</label>
+                  <label className="block text-xs font-medium text-secondary mb-1.5">{t('admin.tasks.description')}</label>
                   <textarea
                     rows={2}
                     value={form.description}
                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                    placeholder="Optional details…"
+                    placeholder={t('admin.tasks.descriptionPlaceholder')}
                     className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none transition-colors"
                   />
                 </div>
 
                 {/* Photos */}
                 <div>
-                  <label className="block text-xs font-medium text-secondary mb-2">Photos</label>
+                  <label className="block text-xs font-medium text-secondary mb-2">{t('admin.tasks.photos')}</label>
                   {editPhotos.length > 0 && (
                     <div className="grid grid-cols-5 gap-2 mb-2">
                       {editPhotos.map(p => (
@@ -548,7 +555,7 @@ export default function TasksPage() {
                         <img
                           key={p.id}
                           src={editPhotoUrl(p.storage_path)}
-                          alt="Task photo"
+                          alt={t('admin.tasks.taskPhotoAlt')}
                           className="aspect-square object-cover rounded-button bg-surface-elevated"
                         />
                       ))}
@@ -561,7 +568,7 @@ export default function TasksPage() {
                         <img
                           key={i}
                           src={URL.createObjectURL(f)}
-                          alt="New photo"
+                          alt={t('admin.tasks.newPhotoAlt')}
                           className="aspect-square object-cover rounded-button bg-surface-elevated"
                         />
                       ))}
@@ -572,7 +579,7 @@ export default function TasksPage() {
                       <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                     </svg>
                     <span className="text-xs text-secondary">
-                      {newPhotoFiles.length > 0 ? `${newPhotoFiles.length} photo${newPhotoFiles.length > 1 ? 's' : ''} selected` : 'Add photos…'}
+                      {newPhotoFiles.length > 0 ? t('admin.tasks.photosSelected').replace('{n}', String(newPhotoFiles.length)).replace(/\{plural\}/g, newPhotoFiles.length > 1 ? 's' : '') : t('admin.tasks.addPhotos')}
                     </span>
                     <input
                       type="file"
@@ -587,13 +594,13 @@ export default function TasksPage() {
                     />
                   </label>
                   {uploadingPhotos && (
-                    <p className="text-xs text-secondary mt-1">Uploading photos…</p>
+                    <p className="text-xs text-secondary mt-1">{t('admin.tasks.uploadingPhotos')}</p>
                   )}
                 </div>
 
                 {/* Checklist */}
                 <div>
-                  <label className="block text-xs font-medium text-secondary mb-2">Checklist</label>
+                  <label className="block text-xs font-medium text-secondary mb-2">{t('admin.tasks.checklist')}</label>
                   {form.checklist.map((item, i) => (
                     <div key={i} className="flex items-center gap-2 mb-1.5">
                       <input
@@ -620,7 +627,7 @@ export default function TasksPage() {
                       value={newCheckItem}
                       onChange={e => setNewCheckItem(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem() } }}
-                      placeholder="Add checklist item…"
+                      placeholder={t('admin.tasks.checklistPlaceholder')}
                       className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none transition-colors"
                     />
                     <button
@@ -628,14 +635,14 @@ export default function TasksPage() {
                       onClick={addCheckItem}
                       className="px-3 py-2 text-xs font-medium rounded-button bg-surface-elevated text-secondary hover:text-primary border border-[rgba(255,255,255,0.07)] transition-colors"
                     >
-                      Add
+                      {t('admin.tasks.add')}
                     </button>
                   </div>
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
-                  <Button type="submit" loading={saving || uploadingPhotos} className="flex-1">{editing ? 'Save' : 'Create Task'}</Button>
+                  <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">{t('common.cancel')}</Button>
+                  <Button type="submit" loading={saving || uploadingPhotos} className="flex-1">{editing ? t('admin.tasks.save') : t('admin.tasks.createTask')}</Button>
                 </div>
               </form>
             </div>

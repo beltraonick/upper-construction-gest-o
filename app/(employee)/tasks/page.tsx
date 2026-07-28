@@ -2,6 +2,7 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TaskList } from './TaskList'
+import { t } from '@/lib/i18n/translate'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -11,6 +12,8 @@ export default async function EmployeeTasksPage() {
   const user = getCurrentUser()
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
+
+  const locale = user.language
 
   let profileId: string | null = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,9 +74,11 @@ export default async function EmployeeTasksPage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-6">
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-primary tracking-tight">My Tasks</h1>
+        <h1 className="text-xl font-bold text-primary tracking-tight">{t(locale, 'employee.tasks.title')}</h1>
         <p className="text-sm text-secondary mt-0.5">
-          {taskCount === 0 ? 'No tasks assigned' : `${taskCount} task${taskCount !== 1 ? 's' : ''} to do`}
+          {taskCount === 0
+            ? t(locale, 'employee.tasks.noTasksAssigned')
+            : t(locale, taskCount === 1 ? 'employee.tasks.taskCountSingular' : 'employee.tasks.taskCountPlural').replace('{n}', String(taskCount))}
         </p>
       </div>
 

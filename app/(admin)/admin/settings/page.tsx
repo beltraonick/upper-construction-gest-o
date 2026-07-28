@@ -6,13 +6,14 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { getCompanyInviteCode, regenerateInviteCode } from '@/app/actions/invites'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 const VERSION = '1.0.0'
 
 const ACCOUNTS = [
-  { role: 'Admin', email: 'admin@orbit.test', password: 'Admin123!' },
-  { role: 'Employee', email: 'employee@orbit.test', password: 'Employee123!' },
-  { role: 'Client', email: 'client@orbit.test', password: 'Client123!' },
+  { roleKey: 'roleAdmin' as const, email: 'admin@orbit.test', password: 'Admin123!' },
+  { roleKey: 'employee' as const, email: 'employee@orbit.test', password: 'Employee123!' },
+  { roleKey: 'client' as const, email: 'client@orbit.test', password: 'Client123!' },
 ]
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -25,6 +26,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState('')
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [inviteLoading, setInviteLoading] = useState(true)
@@ -53,20 +55,22 @@ export default function SettingsPage() {
 
   const orbitAiKey = process.env.NEXT_PUBLIC_HAS_AI === '1'
 
+  const roleLabel = (roleKey: 'roleAdmin' | 'employee' | 'client') =>
+    roleKey === 'roleAdmin' ? t('admin.settings.roleAdmin') : t(`common.role.${roleKey}`)
+
   return (
     <div className="p-4 md:p-8 max-w-2xl">
       <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Settings</h1>
-        <p className="text-sm text-secondary mt-1">Platform configuration and accounts</p>
+        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t('admin.settings.title')}</h1>
+        <p className="text-sm text-secondary mt-1">{t('admin.settings.subtitle')}</p>
       </div>
 
       {/* Employee Invite Code */}
-      <Section title="Employee Invite Code">
+      <Section title={t('admin.settings.sectionInviteCode')}>
         <Card>
           <div className="space-y-3">
             <p className="text-xs text-secondary">
-              Share this code with employees so they can register and join your company.
-              Only one code is active at a time — regenerating it immediately invalidates the previous one.
+              {t('admin.settings.inviteCodeHint')}
             </p>
             {inviteLoading ? (
               <div className="h-11 bg-surface-elevated rounded-input animate-pulse" />
@@ -82,7 +86,7 @@ export default function SettingsPage() {
                     onClick={() => copy(inviteCode, 'invite')}
                     className="h-11 px-4 rounded-button bg-surface-elevated border border-[rgba(255,255,255,0.07)] text-xs text-secondary hover:text-primary transition-colors flex-shrink-0"
                   >
-                    {copied === 'invite' ? 'Copied!' : 'Copy'}
+                    {copied === 'invite' ? t('admin.settings.copied') : t('admin.settings.copy')}
                   </button>
                 )}
               </div>
@@ -94,36 +98,36 @@ export default function SettingsPage() {
               disabled={inviteLoading || inviteRegenerating}
               className="w-full"
             >
-              Regenerate Code
+              {t('admin.settings.regenerateCode')}
             </Button>
           </div>
         </Card>
       </Section>
 
       {/* Platform info */}
-      <Section title="Platform">
+      <Section title={t('admin.settings.sectionPlatform')}>
         <Card>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-primary">OrbitOps</p>
-                <p className="text-xs text-secondary">Construction team management</p>
+                <p className="text-xs text-secondary">{t('admin.settings.constructionTeamManagement')}</p>
               </div>
               <Badge variant="green">v{VERSION}</Badge>
             </div>
             <div className="border-t border-[rgba(255,255,255,0.07)] pt-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-secondary">Supabase</span>
-                <Badge variant="green">Connected</Badge>
+                <Badge variant="green">{t('admin.settings.connected')}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-secondary">PWA / Offline</span>
-                <Badge variant="green">Enabled</Badge>
+                <span className="text-xs text-secondary">{t('admin.settings.pwaOffline')}</span>
+                <Badge variant="green">{t('admin.settings.enabled')}</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-secondary">OrbitOps AI</span>
                 <Badge variant={orbitAiKey ? 'green' : 'amber'}>
-                  {orbitAiKey ? 'Active' : 'Add ANTHROPIC_API_KEY'}
+                  {orbitAiKey ? t('common.active') : t('admin.settings.addAnthropicKey')}
                 </Badge>
               </div>
             </div>
@@ -146,36 +150,36 @@ export default function SettingsPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-primary">OrbitOps AI Business Copilot</p>
-              <p className="text-xs text-secondary mt-0.5">Ask about projects, workforce, tasks and payroll in natural language.</p>
+              <p className="text-xs text-secondary mt-0.5">{t('admin.settings.aiDescription')}</p>
             </div>
           </div>
           <div className="bg-surface-elevated rounded-input p-3 space-y-1">
-            <p className="text-xs font-medium text-secondary">To enable OrbitOps AI:</p>
-            <p className="text-xs text-secondary">1. Get an API key from <span className="text-brand">console.anthropic.com</span></p>
-            <p className="text-xs text-secondary">2. Add <code className="text-amber">ANTHROPIC_API_KEY</code> to your Vercel environment variables</p>
-            <p className="text-xs text-secondary">3. Redeploy — the OrbitOps AI sphere will activate automatically</p>
+            <p className="text-xs font-medium text-secondary">{t('admin.settings.enableAiTitle')}</p>
+            <p className="text-xs text-secondary">1. {t('admin.settings.aiStep1')} <span className="text-brand">console.anthropic.com</span></p>
+            <p className="text-xs text-secondary">2. {t('admin.settings.aiStep2Before')} <code className="text-amber">ANTHROPIC_API_KEY</code> {t('admin.settings.aiStep2After')}</p>
+            <p className="text-xs text-secondary">3. {t('admin.settings.aiStep3')}</p>
           </div>
         </Card>
       </Section>
 
       {/* Test accounts */}
-      <Section title="Test Accounts">
+      <Section title={t('admin.settings.sectionTestAccounts')}>
         <Card padding="none">
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
             {ACCOUNTS.map(a => (
-              <div key={a.role} className="px-5 py-4 flex items-center gap-3">
+              <div key={a.roleKey} className="px-5 py-4 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-primary">{a.role}</p>
+                    <p className="text-sm font-medium text-primary">{roleLabel(a.roleKey)}</p>
                   </div>
                   <p className="text-xs font-mono text-secondary mt-0.5">{a.email}</p>
                   <p className="text-xs font-mono text-tertiary">{a.password}</p>
                 </div>
                 <button
-                  onClick={() => copy(`${a.email}\n${a.password}`, a.role)}
+                  onClick={() => copy(`${a.email}\n${a.password}`, a.roleKey)}
                   className="text-xs px-2.5 py-1.5 rounded-button bg-surface-elevated text-secondary hover:text-primary transition-colors border border-[rgba(255,255,255,0.07)]"
                 >
-                  {copied === a.role ? 'Copied!' : 'Copy'}
+                  {copied === a.roleKey ? t('admin.settings.copied') : t('admin.settings.copy')}
                 </button>
               </div>
             ))}
@@ -184,23 +188,23 @@ export default function SettingsPage() {
       </Section>
 
       {/* Company settings (coming in next release) */}
-      <Section title="Company Settings">
+      <Section title={t('admin.settings.sectionCompanySettings')}>
         <Card>
           <div className="space-y-4">
             <Input
-              label="Company Name"
+              label={t('admin.settings.companyName')}
               defaultValue="Upper Construction"
               disabled
             />
             <Input
-              label="Default Hourly Rate ($)"
+              label={t('admin.settings.defaultHourlyRate')}
               type="number"
               defaultValue="25"
               disabled
             />
             <div className="pt-1">
               <Button disabled variant="secondary">
-                Save Changes (coming soon)
+                {t('admin.settings.saveChangesComingSoon')}
               </Button>
             </div>
           </div>

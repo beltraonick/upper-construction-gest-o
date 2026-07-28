@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 interface Employee {
   id: string
@@ -24,23 +25,13 @@ interface Employee {
   created_at: string
 }
 
-const ROLE_OPTIONS = [
-  { value: 'employee', label: 'Employee' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'client', label: 'Client (hotel)' },
-]
-
-const STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'archived', label: 'Archived' },
-]
-
 const BLANK: Omit<Employee, 'id' | 'created_at'> & { password: string } = {
   full_name: '', email: '', role: 'employee', position: '',
   company_name: '', hourly_rate: 0, phone: '', status: 'active', password: '',
 }
 
 export default function EmployeesPage() {
+  const { t } = useTranslation()
   const companyId = useCompanyId()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [openIds, setOpenIds] = useState<Set<string>>(new Set())
@@ -53,6 +44,17 @@ export default function EmployeesPage() {
   const [error, setError] = useState('')
   const [activationUrl, setActivationUrl] = useState('')
   const [copied, setCopied] = useState('')
+
+  const ROLE_OPTIONS = [
+    { value: 'employee', label: t('admin.employees.roleEmployee') },
+    { value: 'admin', label: t('admin.employees.roleAdmin') },
+    { value: 'client', label: t('admin.employees.roleClient') },
+  ]
+
+  const STATUS_OPTIONS = [
+    { value: 'active', label: t('common.active') },
+    { value: 'archived', label: t('admin.employees.statusArchived') },
+  ]
 
   const load = useCallback(async () => {
     const supabase = createClient()
@@ -161,18 +163,18 @@ export default function EmployeesPage() {
     <div className="p-4 md:p-8 max-w-[1400px]">
       <div className="mb-6 md:mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Employees</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t('admin.employees.title')}</h1>
           <p className="text-sm text-secondary mt-1">
-            {active} active · {clockedIn} clocked in now
+            {t('admin.employees.summary').replace('{n}', String(active)).replace('{m}', String(clockedIn))}
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add Employee</Button>
+        <Button onClick={openAdd}>{t('admin.employees.addEmployee')}</Button>
       </div>
 
       {/* Search */}
       <div className="mb-4">
         <Input
-          placeholder="Search by name, email or position…"
+          placeholder={t('admin.employees.searchPlaceholder')}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -180,10 +182,10 @@ export default function EmployeesPage() {
 
       <Card padding="none">
         {loading ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">Loading…</p>
+          <p className="px-5 py-10 text-sm text-secondary text-center">{t('common.loading')}</p>
         ) : filtered.length === 0 ? (
           <p className="px-5 py-10 text-sm text-secondary text-center">
-            {employees.length === 0 ? 'No employees yet. Add your first team member.' : 'No results for that search.'}
+            {employees.length === 0 ? t('admin.employees.noEmployeesYet') : t('admin.employees.noResultsForSearch')}
           </p>
         ) : (
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
@@ -198,18 +200,18 @@ export default function EmployeesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium text-primary truncate">{emp.full_name}</p>
-                    {emp.role === 'admin' && <Badge variant="blue">Admin</Badge>}
-                    {emp.status === 'archived' && <Badge variant="gray">Archived</Badge>}
+                    {emp.role === 'admin' && <Badge variant="blue">{t('admin.employees.roleAdmin')}</Badge>}
+                    {emp.status === 'archived' && <Badge variant="gray">{t('admin.employees.statusArchived')}</Badge>}
                   </div>
                   <p className="text-xs text-secondary truncate">
-                    {emp.position ?? 'No position'}
+                    {emp.position ?? t('admin.employees.noPosition')}
                     {emp.company_name ? ` · ${emp.company_name}` : ''}
                   </p>
                   <p className="text-xs text-tertiary truncate">{emp.email}</p>
                 </div>
                 <div className="hidden md:block text-right flex-shrink-0 mr-4">
                   <p className="text-sm font-semibold text-primary">
-                    ${Number(emp.hourly_rate).toFixed(2)}/hr
+                    ${Number(emp.hourly_rate).toFixed(2)}{t('admin.employees.perHour')}
                   </p>
                   {emp.phone && <p className="text-xs text-secondary">{emp.phone}</p>}
                 </div>
@@ -217,7 +219,7 @@ export default function EmployeesPage() {
                   <button
                     onClick={() => openEdit(emp)}
                     className="p-1.5 rounded-button text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
-                    title="Edit"
+                    title={t('admin.employees.editTooltip')}
                   >
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                       <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -226,7 +228,7 @@ export default function EmployeesPage() {
                   <button
                     onClick={() => toggleStatus(emp)}
                     className="p-1.5 rounded-button text-secondary hover:text-danger hover:bg-danger/10 transition-colors"
-                    title={emp.status === 'active' ? 'Archive' : 'Activate'}
+                    title={emp.status === 'active' ? t('admin.employees.archiveTooltip') : t('admin.employees.activateTooltip')}
                   >
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                       {emp.status === 'active'
@@ -254,13 +256,13 @@ export default function EmployeesPage() {
           >
             <div className="p-6">
               <h2 className="text-base font-semibold text-primary mb-5">
-                {editing ? 'Edit Employee' : 'Add Employee'}
+                {editing ? t('admin.employees.editEmployee') : t('admin.employees.addEmployeeTitle')}
               </h2>
               <form onSubmit={handleSave} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <Input
-                      label="Full Name"
+                      label={t('admin.employees.fullName')}
                       required
                       value={form.full_name}
                       onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
@@ -268,7 +270,7 @@ export default function EmployeesPage() {
                   </div>
                   <div className="col-span-2">
                     <Input
-                      label="Email"
+                      label={t('admin.employees.email')}
                       type="email"
                       required
                       value={form.email}
@@ -278,43 +280,43 @@ export default function EmployeesPage() {
                   {!editing && form.role !== 'client' && (
                     <div className="col-span-2">
                       <Input
-                        label="Password (for their login)"
+                        label={t('admin.employees.passwordLabel')}
                         type="text"
                         required
-                        placeholder="At least 8 characters"
+                        placeholder={t('admin.employees.passwordPlaceholder')}
                         value={form.password}
                         onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                       />
-                      <p className="text-xs text-tertiary mt-1">Share this with them directly — it won&apos;t be shown again.</p>
+                      <p className="text-xs text-tertiary mt-1">{t('admin.employees.passwordHint')}</p>
                     </div>
                   )}
                   {!editing && form.role === 'client' && (
                     <div className="col-span-2 bg-brand/5 border border-brand/20 rounded-input p-3">
                       <p className="text-xs text-secondary">
-                        Clients receive an activation link to set their own password. No password needed here.
+                        {t('admin.employees.clientActivationHint')}
                       </p>
                     </div>
                   )}
                   <Select
-                    label="Role"
+                    label={t('admin.employees.role')}
                     options={ROLE_OPTIONS}
                     value={form.role}
                     onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                   />
                   <Select
-                    label="Status"
+                    label={t('admin.employees.status')}
                     options={STATUS_OPTIONS}
                     value={form.status}
                     onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
                   />
                   <Input
-                    label="Position / Trade"
-                    placeholder="e.g. Painter, Electrician"
+                    label={t('admin.employees.positionLabel')}
+                    placeholder={t('admin.employees.positionPlaceholder')}
                     value={form.position ?? ''}
                     onChange={e => setForm(f => ({ ...f, position: e.target.value }))}
                   />
                   <Input
-                    label="Hourly Rate ($)"
+                    label={t('admin.employees.hourlyRateLabel')}
                     type="number"
                     min="0"
                     step="0.01"
@@ -322,13 +324,13 @@ export default function EmployeesPage() {
                     onChange={e => setForm(f => ({ ...f, hourly_rate: Number(e.target.value) }))}
                   />
                   <Input
-                    label="Company (subcontractor)"
-                    placeholder="Leave blank if direct hire"
+                    label={t('admin.employees.companyLabel')}
+                    placeholder={t('admin.employees.companyPlaceholder')}
                     value={form.company_name ?? ''}
                     onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
                   />
                   <Input
-                    label="Phone"
+                    label={t('admin.employees.phone')}
                     type="tel"
                     value={form.phone ?? ''}
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
@@ -336,16 +338,16 @@ export default function EmployeesPage() {
                 </div>
                 {activationUrl && (
                   <div className="bg-green/5 border border-green/20 rounded-input p-3 space-y-2">
-                    <p className="text-xs font-semibold text-green">Client created! Share this activation link:</p>
+                    <p className="text-xs font-semibold text-green">{t('admin.employees.clientCreated')}</p>
                     <p className="text-xs font-mono text-secondary break-all select-all">{activationUrl}</p>
                     <button
                       type="button"
                       onClick={() => { navigator.clipboard.writeText(activationUrl); setCopied('act') }}
                       className="text-xs text-brand hover:text-brand-hover font-medium transition-colors"
                     >
-                      {copied === 'act' ? 'Copied!' : 'Copy link'}
+                      {copied === 'act' ? t('admin.employees.copied') : t('admin.employees.copyLink')}
                     </button>
-                    <p className="text-xs text-tertiary">Link expires in 72 hours. You can regenerate it from the employee list.</p>
+                    <p className="text-xs text-tertiary">{t('admin.employees.linkExpires')}</p>
                   </div>
                 )}
 
@@ -357,11 +359,11 @@ export default function EmployeesPage() {
 
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">
-                    {activationUrl ? 'Done' : 'Cancel'}
+                    {activationUrl ? t('admin.employees.done') : t('common.cancel')}
                   </Button>
                   {!activationUrl && (
                     <Button type="submit" loading={saving} className="flex-1">
-                      {editing ? 'Save Changes' : 'Add Employee'}
+                      {editing ? t('admin.employees.saveChanges') : t('admin.employees.addEmployeeTitle')}
                     </Button>
                   )}
                 </div>

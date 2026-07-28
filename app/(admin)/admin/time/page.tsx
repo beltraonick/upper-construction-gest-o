@@ -6,6 +6,8 @@ import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
+import type { Locale } from '@/lib/i18n/translate'
 
 interface TimeEntry {
   id: string
@@ -19,24 +21,30 @@ interface TimeEntry {
   profile: { full_name: string; email: string } | null
 }
 
-const FILTER_OPTIONS = [
-  { value: 'today', label: 'Today' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'all', label: 'All Time' },
-]
+function filterOptions(t: (key: string) => string) {
+  return [
+    { value: 'today', label: t('common.today') },
+    { value: 'week', label: t('common.thisWeek') },
+    { value: 'month', label: t('common.thisMonth') },
+    { value: 'all', label: t('admin.time.allTime') },
+  ]
+}
 
 function calcHours(clockIn: string, clockOut: string | null) {
   if (!clockOut) return null
   return (new Date(clockOut).getTime() - new Date(clockIn).getTime()) / 3600000
 }
 
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+function localeTag(locale: Locale) {
+  return locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US'
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+function fmtTime(iso: string, locale: Locale) {
+  return new Date(iso).toLocaleTimeString(localeTag(locale), { hour: '2-digit', minute: '2-digit' })
+}
+
+function fmtDate(iso: string, locale: Locale) {
+  return new Date(iso).toLocaleDateString(localeTag(locale), { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 function getRange(filter: string): Date | null {
@@ -54,6 +62,7 @@ function getRange(filter: string): Date | null {
 }
 
 export default function TimePage() {
+  const { t, locale } = useTranslation()
   const companyId = useCompanyId()
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,7 +123,7 @@ export default function TimePage() {
   }
 
   const empOptions = [
-    { value: '', label: 'All employees' },
+    { value: '', label: t('admin.time.allEmployees') },
     ...employees.map(e => ({ value: e.id, label: e.full_name })),
   ]
 
@@ -125,10 +134,10 @@ export default function TimePage() {
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
       <div className="mb-6 md:mb-8">
-        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Time & Attendance</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t('admin.time.title')}</h1>
         <p className="text-sm text-secondary mt-1">
-          {activeCount > 0 && `${activeCount} clocked in · `}
-          {totalHours.toFixed(1)}h total · {pendingCount > 0 && <span className="text-amber">{pendingCount} pending approval</span>}
+          {activeCount > 0 && `${t('admin.time.clockedInCount').replace('{n}', String(activeCount))} · `}
+          {t('admin.time.hoursTotal').replace('{n}', totalHours.toFixed(1))} · {pendingCount > 0 && <span className="text-amber">{t('admin.time.pendingApprovalCount').replace('{n}', String(pendingCount))}</span>}
         </p>
       </div>
 
@@ -136,7 +145,7 @@ export default function TimePage() {
       <div className="flex gap-3 mb-4 flex-wrap">
         <div className="w-40">
           <Select
-            options={FILTER_OPTIONS}
+            options={filterOptions(t)}
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />
@@ -152,9 +161,9 @@ export default function TimePage() {
 
       <Card padding="none">
         {loading ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">Loading…</p>
+          <p className="px-5 py-10 text-sm text-secondary text-center">{t('common.loading')}</p>
         ) : entries.length === 0 ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">No entries for this period.</p>
+          <p className="px-5 py-10 text-sm text-secondary text-center">{t('admin.time.noEntriesForPeriod')}</p>
         ) : (
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
             {entries.map(e => {
@@ -166,15 +175,15 @@ export default function TimePage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-primary">
-                        {e.profile?.full_name ?? 'Unknown'}
+                        {e.profile?.full_name ?? t('admin.time.unknownEmployee')}
                       </p>
-                      {status === 'active' && <Badge variant="green">Active</Badge>}
-                      {status === 'pending' && <Badge variant="amber">Pending</Badge>}
-                      {status === 'rejected' && <Badge variant="gray">Rejected</Badge>}
+                      {status === 'active' && <Badge variant="green">{t('common.active')}</Badge>}
+                      {status === 'pending' && <Badge variant="amber">{t('common.pending')}</Badge>}
+                      {status === 'rejected' && <Badge variant="gray">{t('common.rejected')}</Badge>}
                     </div>
                     <p className="text-xs text-secondary mt-0.5">
-                      {fmtDate(e.clock_in)} · {fmtTime(e.clock_in)}
-                      {e.clock_out ? ` → ${fmtTime(e.clock_out)}` : ' — In progress'}
+                      {fmtDate(e.clock_in, locale)} · {fmtTime(e.clock_in, locale)}
+                      {e.clock_out ? ` → ${fmtTime(e.clock_out, locale)}` : t('admin.time.inProgress')}
                     </p>
                     {(e.city || e.project?.name) && (
                       <p className="text-xs text-tertiary mt-0.5 truncate">
@@ -196,7 +205,7 @@ export default function TimePage() {
                           disabled={isActing}
                           className="text-xs px-2 py-1 rounded-button bg-danger/10 text-danger hover:bg-danger/20 transition-colors disabled:opacity-50"
                         >
-                          Clock Out
+                          {t('admin.time.clockOut')}
                         </button>
                       )}
                       {status === 'pending' && (
@@ -206,14 +215,14 @@ export default function TimePage() {
                             disabled={isActing}
                             className="text-xs px-2 py-1 rounded-button bg-green/10 text-green hover:bg-green/20 transition-colors disabled:opacity-50"
                           >
-                            Approve
+                            {t('admin.time.approve')}
                           </button>
                           <button
                             onClick={() => reject(e.id)}
                             disabled={isActing}
                             className="text-xs px-2 py-1 rounded-button bg-surface-elevated text-secondary hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
                           >
-                            Reject
+                            {t('admin.time.reject')}
                           </button>
                         </>
                       )}

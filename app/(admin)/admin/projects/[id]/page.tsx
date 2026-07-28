@@ -12,6 +12,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { PlanViewer } from '@/components/admin/PlanViewer'
 import type { PlanMarker } from '@/components/admin/PlanViewer'
 import { useCompanyId } from '@/lib/company-context'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -74,41 +75,42 @@ interface Photo {
 
 type Tab = 'overview' | 'plans' | 'tasks' | 'photos'
 
-const STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'on_hold', label: 'On Hold' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
-]
-
-function statusBadge(s: string) {
+function statusBadge(s: string, t: (key: string) => string) {
   const map: Record<string, { label: string; variant: 'green' | 'amber' | 'blue' | 'gray' }> = {
-    active:    { label: 'Active',    variant: 'green' },
-    on_hold:   { label: 'On Hold',   variant: 'amber' },
-    completed: { label: 'Completed', variant: 'blue' },
-    cancelled: { label: 'Cancelled', variant: 'gray' },
+    active:    { label: t('common.active'), variant: 'green' },
+    on_hold:   { label: t('admin.projectDetail.statusOnHold'), variant: 'amber' },
+    completed: { label: t('common.completed'), variant: 'blue' },
+    cancelled: { label: t('admin.projectDetail.statusCancelled'), variant: 'gray' },
   }
   const c = map[s] ?? { label: s, variant: 'gray' as const }
   return <Badge variant={c.variant}>{c.label}</Badge>
 }
 
-const PRIORITY_OPTS = [
-  { value: 'low',    label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high',   label: 'High' },
-  { value: 'urgent', label: 'Urgent' },
-]
-
-const MARKER_TYPE_OPTS = [
-  { value: 'task', label: 'Task' },
-  { value: 'note', label: 'Note' },
-]
-
 export default function ProjectDetailPage() {
+  const { t } = useTranslation()
   const params = useParams()
   const projectId = params.id as string
   const router = useRouter()
   const companyId = useCompanyId()
+
+  const STATUS_OPTIONS = [
+    { value: 'active', label: t('common.active') },
+    { value: 'on_hold', label: t('admin.projectDetail.statusOnHold') },
+    { value: 'completed', label: t('common.completed') },
+    { value: 'cancelled', label: t('admin.projectDetail.statusCancelled') },
+  ]
+
+  const PRIORITY_OPTS = [
+    { value: 'low',    label: t('common.priority.low') },
+    { value: 'medium', label: t('common.priority.medium') },
+    { value: 'high',   label: t('common.priority.high') },
+    { value: 'urgent', label: t('common.priority.urgent') },
+  ]
+
+  const MARKER_TYPE_OPTS = [
+    { value: 'task', label: t('admin.projectDetail.markerTypeTask') },
+    { value: 'note', label: t('admin.projectDetail.markerTypeNote') },
+  ]
 
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -284,7 +286,7 @@ export default function ProjectDetailPage() {
       .select()
       .single()
 
-    if (planErr || !plan) { setUploadingPlan(false); alert('Failed to create plan record.'); return }
+    if (planErr || !plan) { setUploadingPlan(false); alert(t('admin.projectDetail.failedCreatePlan')); return }
 
     // 2. Upload file
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
@@ -294,7 +296,7 @@ export default function ProjectDetailPage() {
     if (uploadErr) {
       await supabase.from('project_plans').delete().eq('id', plan.id)
       setUploadingPlan(false)
-      alert('Upload failed. Make sure the "plans" storage bucket is created and set to public in Supabase Dashboard.')
+      alert(t('admin.projectDetail.uploadFailedPlanBucket'))
       return
     }
 
@@ -373,7 +375,7 @@ export default function ProjectDetailPage() {
         ))
       }
     } catch {
-      alert('Failed to save marker. Run migration 004 first.')
+      alert(t('admin.projectDetail.failedSaveMarker'))
     }
 
     setPendingMarker(null)
@@ -390,7 +392,7 @@ export default function ProjectDetailPage() {
     const ext = file.name.split('.').pop() ?? 'jpg'
     const path = `${projectId}/misc-${Date.now()}.${ext}`
     const { error } = await supabase.storage.from('project-photos').upload(path, file, { contentType: file.type, upsert: true })
-    if (error) { alert('Upload failed. Check if "project-photos" bucket exists.'); setUploadingPhoto(false); return }
+    if (error) { alert(t('admin.projectDetail.uploadFailedPhotoBucket')); setUploadingPhoto(false); return }
     const { data: row } = await supabase
       .from('project_photos')
       .insert({ project_id: projectId, company_id: companyId, storage_path: path, tag: 'progress' })
@@ -407,7 +409,7 @@ export default function ProjectDetailPage() {
   if (loading) {
     return (
       <div className="p-4 md:p-8 flex items-center justify-center min-h-[50vh]">
-        <p className="text-secondary text-sm">Loading project…</p>
+        <p className="text-secondary text-sm">{t('admin.projectDetail.loadingProject')}</p>
       </div>
     )
   }
@@ -415,9 +417,9 @@ export default function ProjectDetailPage() {
   if (!project && supabaseReady) {
     return (
       <div className="p-4 md:p-8 text-center">
-        <p className="text-secondary">Project not found.</p>
+        <p className="text-secondary">{t('admin.projectDetail.projectNotFound')}</p>
         <Button onClick={() => router.push('/admin/projects')} variant="secondary" className="mt-4">
-          ← Back to Projects
+          {t('admin.projectDetail.backToProjectsButton')}
         </Button>
       </div>
     )
@@ -434,7 +436,7 @@ export default function ProjectDetailPage() {
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
           </svg>
-          Projects
+          {t('admin.projectDetail.backToProjects')}
         </button>
 
         {project ? (
@@ -442,17 +444,17 @@ export default function ProjectDetailPage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{project.name}</h1>
-                {statusBadge(project.status)}
+                {statusBadge(project.status, t)}
               </div>
               {project.address && <p className="text-sm text-secondary mt-0.5">{project.address}</p>}
             </div>
             <Button onClick={() => setEditing(true)} variant="secondary" className="flex-shrink-0">
-              Edit
+              {t('admin.projectDetail.edit')}
             </Button>
           </div>
         ) : (
           <div className="bg-amber/5 border border-amber/20 rounded-card p-4">
-            <p className="text-sm text-amber">Connect Supabase to see project details.</p>
+            <p className="text-sm text-amber">{t('admin.projectDetail.connectSupabaseDetails')}</p>
           </div>
         )}
       </div>
@@ -470,7 +472,7 @@ export default function ProjectDetailPage() {
                 : 'border-transparent text-secondary hover:text-primary',
             ].join(' ')}
           >
-            {tab}
+            {t(`admin.projectDetail.tab${tab.charAt(0).toUpperCase()}${tab.slice(1)}`)}
           </button>
         ))}
       </div>
@@ -481,7 +483,7 @@ export default function ProjectDetailPage() {
           {/* Progress */}
           <Card>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-secondary">Progress</p>
+              <p className="text-sm font-medium text-secondary">{t('admin.projectDetail.progress')}</p>
               <p className="text-lg font-bold text-primary">{project.progress}%</p>
             </div>
             <ProgressBar value={project.progress} />
@@ -490,57 +492,57 @@ export default function ProjectDetailPage() {
           {/* Info grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
-              <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">Project Info</p>
+              <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">{t('admin.projectDetail.projectInfo')}</p>
               <div className="space-y-2">
                 {project.address && (
                   <div>
-                    <p className="text-xs text-tertiary">Address</p>
+                    <p className="text-xs text-tertiary">{t('admin.projectDetail.address')}</p>
                     <p className="text-sm text-primary">{project.address}</p>
                   </div>
                 )}
                 {project.start_date && (
                   <div>
-                    <p className="text-xs text-tertiary">Start Date</p>
+                    <p className="text-xs text-tertiary">{t('admin.projectDetail.startDate')}</p>
                     <p className="text-sm text-primary">{new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                   </div>
                 )}
                 {project.end_date && (
                   <div>
-                    <p className="text-xs text-tertiary">End Date</p>
+                    <p className="text-xs text-tertiary">{t('admin.projectDetail.endDate')}</p>
                     <p className="text-sm text-primary">{new Date(project.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                   </div>
                 )}
                 <div>
-                  <p className="text-xs text-tertiary">Created</p>
+                  <p className="text-xs text-tertiary">{t('admin.projectDetail.created')}</p>
                   <p className="text-sm text-primary">{new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                 </div>
               </div>
             </Card>
 
             <Card>
-              <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">Client</p>
+              <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">{t('admin.projectDetail.client')}</p>
               <div className="space-y-2">
                 {project.client_name ? (
                   <>
                     <div>
-                      <p className="text-xs text-tertiary">Name</p>
+                      <p className="text-xs text-tertiary">{t('admin.projectDetail.name')}</p>
                       <p className="text-sm text-primary">{project.client_name}</p>
                     </div>
                     {project.client_email && (
                       <div>
-                        <p className="text-xs text-tertiary">Email</p>
+                        <p className="text-xs text-tertiary">{t('admin.projectDetail.email')}</p>
                         <p className="text-sm text-primary">{project.client_email}</p>
                       </div>
                     )}
                     {project.client_phone && (
                       <div>
-                        <p className="text-xs text-tertiary">Phone</p>
+                        <p className="text-xs text-tertiary">{t('admin.projectDetail.phone')}</p>
                         <p className="text-sm text-primary">{project.client_phone}</p>
                       </div>
                     )}
                   </>
                 ) : (
-                  <p className="text-sm text-tertiary">No client assigned.</p>
+                  <p className="text-sm text-tertiary">{t('admin.projectDetail.noClientAssigned')}</p>
                 )}
               </div>
             </Card>
@@ -548,7 +550,7 @@ export default function ProjectDetailPage() {
 
           {project.description && (
             <Card>
-              <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">Description</p>
+              <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{t('admin.projectDetail.description')}</p>
               <p className="text-sm text-secondary leading-relaxed">{project.description}</p>
             </Card>
           )}
@@ -572,7 +574,7 @@ export default function ProjectDetailPage() {
                     </svg>
                   </button>
                   <h2 className="text-sm font-semibold text-primary">{selectedPlan.name}</h2>
-                  <span className="text-xs text-tertiary">{selectedPlan.markers.length} marker{selectedPlan.markers.length !== 1 ? 's' : ''}</span>
+                  <span className="text-xs text-tertiary">{t('admin.projectDetail.markerCount').replace('{n}', String(selectedPlan.markers.length)).replace('{plural}', selectedPlan.markers.length !== 1 ? 's' : '')}</span>
                 </div>
                 <button
                   onClick={() => setAddMarkerMode(m => !m)}
@@ -586,7 +588,7 @@ export default function ProjectDetailPage() {
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                     <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                   </svg>
-                  {addMarkerMode ? 'Cancel' : 'Add Marker'}
+                  {addMarkerMode ? t('admin.projectDetail.cancel') : t('admin.projectDetail.addMarker')}
                 </button>
               </div>
 
@@ -604,7 +606,7 @@ export default function ProjectDetailPage() {
                           : 'bg-surface-elevated text-secondary hover:text-primary border border-[rgba(255,255,255,0.07)]',
                       ].join(' ')}
                     >
-                      Sheet {sheet.page_number}
+                      {t('admin.projectDetail.sheetNumber').replace('{n}', String(sheet.page_number))}
                     </button>
                   ))}
                 </div>
@@ -615,10 +617,10 @@ export default function ProjectDetailPage() {
                   <iframe
                     src={planUrl(currentSheet.storage_path)}
                     className="w-full h-full"
-                    title="PDF Plan"
+                    title={t('admin.projectDetail.pdfPlanTitle')}
                     style={{ border: 'none' }}
                   />
-                  <p className="text-xs text-tertiary mt-2">PDF plans display in viewer only — markers require image format (PNG/JPG).</p>
+                  <p className="text-xs text-tertiary mt-2">{t('admin.projectDetail.pdfMarkerNote')}</p>
                 </div>
               ) : (
                 <PlanViewer
@@ -629,7 +631,7 @@ export default function ProjectDetailPage() {
                     setPendingMarker({ x, y })
                     setMarkerForm({ type: 'task', title: '', description: '', priority: 'medium' })
                   }}
-                  onMarkerClick={m => alert(`${m.marker_type.toUpperCase()}: ${m.title}`)}
+                  onMarkerClick={m => alert(t('admin.projectDetail.markerAlert').replace('{type}', (m.marker_type === 'task' ? t('admin.projectDetail.markerTypeTask') : t('admin.projectDetail.markerTypeNote')).toUpperCase()).replace('{title}', m.title))}
                 />
               )}
             </div>
@@ -639,15 +641,15 @@ export default function ProjectDetailPage() {
           {!selectedPlan && (
             <>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-primary">Floor Plans & Blueprints</h2>
+                <h2 className="text-sm font-semibold text-primary">{t('admin.projectDetail.floorPlansTitle')}</h2>
                 <div className="flex items-center gap-2">
-                  {!supabaseReady && <span className="text-xs text-amber">Connect Supabase</span>}
+                  {!supabaseReady && <span className="text-xs text-amber">{t('admin.projectDetail.connectSupabase')}</span>}
                   <Button
                     onClick={() => planFileRef.current?.click()}
                     loading={uploadingPlan}
                     disabled={!supabaseReady || uploadingPlan}
                   >
-                    {uploadingPlan ? 'Uploading…' : '+ Upload Plan'}
+                    {uploadingPlan ? t('admin.projectDetail.uploading') : t('admin.projectDetail.uploadPlan')}
                   </Button>
                 </div>
               </div>
@@ -659,7 +661,7 @@ export default function ProjectDetailPage() {
                 onChange={uploadPlan}
               />
 
-              {loadingPlans && <p className="text-sm text-secondary text-center py-8">Loading plans…</p>}
+              {loadingPlans && <p className="text-sm text-secondary text-center py-8">{t('admin.projectDetail.loadingPlans')}</p>}
 
               {!loadingPlans && plans.length === 0 && (
                 <Card>
@@ -669,8 +671,8 @@ export default function ProjectDetailPage() {
                         <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-primary">No plans yet</p>
-                    <p className="text-xs text-secondary mt-1">Upload PNG, JPG, or PDF floor plans to get started.</p>
+                    <p className="text-sm font-medium text-primary">{t('admin.projectDetail.noPlansYet')}</p>
+                    <p className="text-xs text-secondary mt-1">{t('admin.projectDetail.noPlansHint')}</p>
                   </div>
                 </Card>
               )}
@@ -703,7 +705,9 @@ export default function ProjectDetailPage() {
                       <div className="p-3">
                         <p className="text-sm font-medium text-primary truncate">{plan.name}</p>
                         <p className="text-xs text-secondary mt-0.5">
-                          {plan.sheets.length} sheet{plan.sheets.length !== 1 ? 's' : ''} · {plan.markers.length} marker{plan.markers.length !== 1 ? 's' : ''}
+                          {t('admin.projectDetail.sheetsAndMarkers')
+                            .replace('{n}', String(plan.sheets.length)).replace('{sheetPlural}', plan.sheets.length !== 1 ? 's' : '')
+                            .replace('{m}', String(plan.markers.length)).replace('{markerPlural}', plan.markers.length !== 1 ? 's' : '')}
                         </p>
                       </div>
                     </Card>
@@ -719,27 +723,27 @@ export default function ProjectDetailPage() {
       {activeTab === 'tasks' && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-primary">{tasks.length} Open Task{tasks.length !== 1 ? 's' : ''}</h2>
+            <h2 className="text-sm font-semibold text-primary">{t('admin.projectDetail.openTasks').replace('{n}', String(tasks.length)).replace(/\{plural\}/g, tasks.length !== 1 ? 's' : '')}</h2>
           </div>
-          {loadingTasks && <p className="text-sm text-secondary text-center py-8">Loading tasks…</p>}
+          {loadingTasks && <p className="text-sm text-secondary text-center py-8">{t('admin.projectDetail.loadingTasks')}</p>}
           {!loadingTasks && tasks.length === 0 && (
             <Card>
-              <p className="text-sm text-secondary text-center py-8">No open tasks for this project.</p>
+              <p className="text-sm text-secondary text-center py-8">{t('admin.projectDetail.noOpenTasks')}</p>
             </Card>
           )}
           <div className="space-y-2">
-            {tasks.map(t => (
-              <Card key={t.id}>
+            {tasks.map(task => (
+              <Card key={task.id}>
                 <div className="flex items-start gap-3">
-                  <div className={['w-2 h-2 rounded-full flex-shrink-0 mt-1.5', t.priority === 'urgent' ? 'bg-danger' : t.priority === 'high' ? 'bg-danger/60' : t.priority === 'medium' ? 'bg-amber' : 'bg-blue'].join(' ')} />
+                  <div className={['w-2 h-2 rounded-full flex-shrink-0 mt-1.5', task.priority === 'urgent' ? 'bg-danger' : task.priority === 'high' ? 'bg-danger/60' : task.priority === 'medium' ? 'bg-amber' : 'bg-blue'].join(' ')} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-primary">{t.title}</p>
-                    {t.assigned_employee?.full_name && (
-                      <p className="text-xs text-secondary mt-0.5">{t.assigned_employee.full_name}</p>
+                    <p className="text-sm font-medium text-primary">{task.title}</p>
+                    {task.assigned_employee?.full_name && (
+                      <p className="text-xs text-secondary mt-0.5">{task.assigned_employee.full_name}</p>
                     )}
-                    {t.area && <p className="text-xs text-tertiary">{t.area}</p>}
+                    {task.area && <p className="text-xs text-tertiary">{task.area}</p>}
                   </div>
-                  {statusBadge(t.status)}
+                  {statusBadge(task.status, t)}
                 </div>
               </Card>
             ))}
@@ -751,28 +755,27 @@ export default function ProjectDetailPage() {
       {activeTab === 'photos' && (
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-primary">Photos</h2>
+            <h2 className="text-sm font-semibold text-primary">{t('admin.projectDetail.photosHeading')}</h2>
             <Button
               onClick={() => photoFileRef.current?.click()}
               loading={uploadingPhoto}
               disabled={!supabaseReady || uploadingPhoto}
             >
-              {uploadingPhoto ? 'Uploading…' : '+ Add Photo'}
+              {uploadingPhoto ? t('admin.projectDetail.uploading') : t('admin.projectDetail.addPhoto')}
             </Button>
           </div>
           <input
             ref={photoFileRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={uploadPhoto}
           />
 
-          {loadingPhotos && <p className="text-sm text-secondary text-center py-8">Loading photos…</p>}
+          {loadingPhotos && <p className="text-sm text-secondary text-center py-8">{t('admin.projectDetail.loadingPhotos')}</p>}
           {!loadingPhotos && photos.length === 0 && (
             <Card>
-              <p className="text-sm text-secondary text-center py-8">No photos yet.</p>
+              <p className="text-sm text-secondary text-center py-8">{t('admin.projectDetail.noPhotosYet')}</p>
             </Card>
           )}
 
@@ -786,7 +789,7 @@ export default function ProjectDetailPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photoUrl(p.storage_path)}
-                  alt="Project photo"
+                  alt={t('admin.projectDetail.projectPhotoAlt')}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                 />
               </button>
@@ -806,28 +809,28 @@ export default function ProjectDetailPage() {
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
-              <h2 className="text-base font-semibold text-primary mb-5">Edit Project</h2>
+              <h2 className="text-base font-semibold text-primary mb-5">{t('admin.projectDetail.editProjectTitle')}</h2>
               <form onSubmit={saveProject} className="space-y-4">
                 <Input
-                  label="Project Name"
+                  label={t('admin.projectDetail.projectName')}
                   required
                   value={editForm.name ?? ''}
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                 />
                 <Input
-                  label="Address"
-                  placeholder="e.g. 123 Main St, Charleston SC"
+                  label={t('admin.projectDetail.address')}
+                  placeholder={t('admin.projectDetail.addressPlaceholder')}
                   value={editForm.address ?? ''}
                   onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <Input
-                    label="Client Name"
+                    label={t('admin.projectDetail.clientName')}
                     value={editForm.client_name ?? ''}
                     onChange={e => setEditForm(f => ({ ...f, client_name: e.target.value }))}
                   />
                   <Input
-                    label="Client Email"
+                    label={t('admin.projectDetail.clientEmail')}
                     type="email"
                     value={editForm.client_email ?? ''}
                     onChange={e => setEditForm(f => ({ ...f, client_email: e.target.value }))}
@@ -835,27 +838,27 @@ export default function ProjectDetailPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Input
-                    label="Start Date"
+                    label={t('admin.projectDetail.startDate')}
                     type="date"
                     value={editForm.start_date ?? ''}
                     onChange={e => setEditForm(f => ({ ...f, start_date: e.target.value }))}
                   />
                   <Input
-                    label="End Date"
+                    label={t('admin.projectDetail.endDate')}
                     type="date"
                     value={editForm.end_date ?? ''}
                     onChange={e => setEditForm(f => ({ ...f, end_date: e.target.value }))}
                   />
                 </div>
                 <Select
-                  label="Status"
+                  label={t('admin.projectDetail.status')}
                   options={STATUS_OPTIONS}
                   value={editForm.status ?? 'active'}
                   onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
                 />
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-1">
-                    Progress: {editForm.progress ?? 0}%
+                    {t('admin.projectDetail.progressPercent').replace('{n}', String(editForm.progress ?? 0))}
                   </label>
                   <input
                     type="range"
@@ -867,7 +870,7 @@ export default function ProjectDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-secondary mb-1">Description</label>
+                  <label className="block text-xs font-medium text-secondary mb-1">{t('admin.projectDetail.description')}</label>
                   <textarea
                     rows={3}
                     value={editForm.description ?? ''}
@@ -876,8 +879,8 @@ export default function ProjectDetailPage() {
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="secondary" onClick={() => setEditing(false)} className="flex-1">Cancel</Button>
-                  <Button type="submit" loading={saving} className="flex-1">Save Changes</Button>
+                  <Button type="button" variant="secondary" onClick={() => setEditing(false)} className="flex-1">{t('common.cancel')}</Button>
+                  <Button type="submit" loading={saving} className="flex-1">{t('admin.projectDetail.saveChanges')}</Button>
                 </div>
               </form>
             </div>
@@ -896,49 +899,49 @@ export default function ProjectDetailPage() {
             onClick={e => e.stopPropagation()}
           >
             <div className="p-5">
-              <h2 className="text-base font-semibold text-primary mb-4">Add Marker</h2>
+              <h2 className="text-base font-semibold text-primary mb-4">{t('admin.projectDetail.addMarkerTitle')}</h2>
               <div className="space-y-3">
                 <Select
-                  label="Type"
+                  label={t('admin.projectDetail.type')}
                   options={MARKER_TYPE_OPTS}
                   value={markerForm.type}
                   onChange={e => setMarkerForm(f => ({ ...f, type: e.target.value }))}
                 />
                 <Input
-                  label="Title"
+                  label={t('admin.projectDetail.title')}
                   required
-                  placeholder={markerForm.type === 'task' ? 'e.g. Inspect foundation' : 'Note title'}
+                  placeholder={markerForm.type === 'task' ? t('admin.projectDetail.taskTitlePlaceholder') : t('admin.projectDetail.noteTitlePlaceholder')}
                   value={markerForm.title}
                   onChange={e => setMarkerForm(f => ({ ...f, title: e.target.value }))}
                 />
                 {markerForm.type === 'task' && (
                   <Select
-                    label="Priority"
+                    label={t('admin.projectDetail.priority')}
                     options={PRIORITY_OPTS}
                     value={markerForm.priority}
                     onChange={e => setMarkerForm(f => ({ ...f, priority: e.target.value }))}
                   />
                 )}
                 <div>
-                  <label className="block text-xs font-medium text-secondary mb-1">Description</label>
+                  <label className="block text-xs font-medium text-secondary mb-1">{t('admin.projectDetail.description')}</label>
                   <textarea
                     rows={2}
                     value={markerForm.description}
                     onChange={e => setMarkerForm(f => ({ ...f, description: e.target.value }))}
-                    placeholder="Optional…"
+                    placeholder={t('admin.projectDetail.optionalPlaceholder')}
                     className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none"
                   />
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
-                <Button type="button" variant="secondary" onClick={() => setPendingMarker(null)} className="flex-1">Cancel</Button>
+                <Button type="button" variant="secondary" onClick={() => setPendingMarker(null)} className="flex-1">{t('admin.projectDetail.cancel')}</Button>
                 <Button
                   onClick={saveMarker}
                   loading={savingMarker}
                   disabled={!markerForm.title.trim() || savingMarker}
                   className="flex-1"
                 >
-                  {markerForm.type === 'task' ? 'Create Task' : 'Save Note'}
+                  {markerForm.type === 'task' ? t('admin.projectDetail.createTask') : t('admin.projectDetail.saveNote')}
                 </Button>
               </div>
             </div>
@@ -955,7 +958,7 @@ export default function ProjectDetailPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={photoUrl(lightbox.storage_path)}
-            alt="Project photo"
+            alt={t('admin.projectDetail.projectPhotoAlt')}
             className="max-w-full max-h-full object-contain rounded-card"
             onClick={e => e.stopPropagation()}
           />

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { createClient } from '@/lib/supabase/server'
+import { t } from '@/lib/i18n/translate'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -15,6 +16,8 @@ export default async function PagamentoPage() {
   const user = getCurrentUser()
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
+
+  const locale = user.language
 
   let hourlyRate = 0
   let weekHours = 0
@@ -77,29 +80,29 @@ export default async function PagamentoPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-4">
-      <h1 className="text-xl font-bold text-primary mb-1">My Earnings</h1>
+      <h1 className="text-xl font-bold text-primary mb-1">{t(locale, 'employee.pagamento.title')}</h1>
       <p className="text-sm text-secondary mb-6">
-        Rate: {hourlyRate > 0 ? `${fmt(hourlyRate)}/hr` : 'Not configured'}
+        {t(locale, 'employee.pagamento.rateLabel')} {hourlyRate > 0 ? `${fmt(hourlyRate)}/hr` : t(locale, 'employee.pagamento.rateNotConfigured')}
       </p>
 
       {/* Period summary */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card>
-          <p className="text-xs text-secondary uppercase tracking-wide mb-1">This Week</p>
+          <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'common.thisWeek')}</p>
           <p className="text-2xl font-bold text-primary">
             {weekEarnings > 0 ? fmt(weekEarnings) : '—'}
           </p>
           <p className="text-xs text-secondary mt-1">
-            {weekHours > 0 ? `${weekHours.toFixed(1)}h worked` : 'No hours yet'}
+            {weekHours > 0 ? t(locale, 'employee.pagamento.hoursWorked').replace('{n}', weekHours.toFixed(1)) : t(locale, 'employee.pagamento.noHoursYet')}
           </p>
         </Card>
         <Card>
-          <p className="text-xs text-secondary uppercase tracking-wide mb-1">This Month</p>
+          <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'common.thisMonth')}</p>
           <p className="text-2xl font-bold text-primary">
             {monthEarnings > 0 ? fmt(monthEarnings) : '—'}
           </p>
           <p className="text-xs text-secondary mt-1">
-            {monthHours > 0 ? `${monthHours.toFixed(1)}h worked` : 'No hours yet'}
+            {monthHours > 0 ? t(locale, 'employee.pagamento.hoursWorked').replace('{n}', monthHours.toFixed(1)) : t(locale, 'employee.pagamento.noHoursYet')}
           </p>
         </Card>
       </div>
@@ -107,9 +110,12 @@ export default async function PagamentoPage() {
       {/* Overtime indicator */}
       {weekHours > 40 && (
         <div className="mb-4 bg-amber/5 border border-amber/20 rounded-card px-4 py-3">
-          <p className="text-xs font-semibold text-amber">Overtime This Week</p>
+          <p className="text-xs font-semibold text-amber">{t(locale, 'employee.pagamento.overtimeThisWeek')}</p>
           <p className="text-xs text-secondary mt-0.5">
-            {(weekHours - 40).toFixed(1)}h overtime · Regular: {fmt(40 * hourlyRate)} · OT: {fmt((weekHours - 40) * hourlyRate * 1.5)}
+            {t(locale, 'employee.pagamento.overtimeDetail')
+              .replace('{n}', (weekHours - 40).toFixed(1))
+              .replace('{a}', fmt(40 * hourlyRate))
+              .replace('{b}', fmt((weekHours - 40) * hourlyRate * 1.5))}
           </p>
         </div>
       )}
@@ -117,12 +123,12 @@ export default async function PagamentoPage() {
       {/* Payroll history */}
       <Card padding="none">
         <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-          <h2 className="text-sm font-semibold text-primary">Payroll History</h2>
+          <h2 className="text-sm font-semibold text-primary">{t(locale, 'employee.pagamento.payrollHistory')}</h2>
         </div>
         {payrollRecords.length === 0 ? (
           <div className="px-5 py-10 text-center">
-            <p className="text-sm text-secondary">No payroll records yet.</p>
-            <p className="text-xs text-tertiary mt-1">Records appear after admin closes a pay period.</p>
+            <p className="text-sm text-secondary">{t(locale, 'employee.pagamento.noPayrollRecords')}</p>
+            <p className="text-xs text-tertiary mt-1">{t(locale, 'employee.pagamento.recordsAppearAfter')}</p>
           </div>
         ) : (
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
@@ -142,8 +148,8 @@ export default async function PagamentoPage() {
                 <div className="text-right flex flex-col items-end gap-1.5">
                   <span className="text-base font-bold text-primary">{fmt(Number(r.total_amount))}</span>
                   {r.status === 'paid'
-                    ? <Badge variant="green">Paid</Badge>
-                    : <Badge variant="amber">Pending</Badge>}
+                    ? <Badge variant="green">{t(locale, 'employee.pagamento.paid')}</Badge>
+                    : <Badge variant="amber">{t(locale, 'common.pending')}</Badge>}
                 </div>
               </div>
             ))}

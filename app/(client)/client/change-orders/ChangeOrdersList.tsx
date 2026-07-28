@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 export interface ChangeOrder {
   id: string
@@ -18,10 +19,10 @@ export interface ChangeOrder {
   project?: { name: string } | null
 }
 
-function statusBadge(s: string) {
-  if (s === 'approved') return <Badge variant="green">Approved</Badge>
-  if (s === 'rejected') return <Badge variant="red">Declined</Badge>
-  return <Badge variant="amber">Awaiting your review</Badge>
+function statusBadge(s: string, t: (key: string) => string) {
+  if (s === 'approved') return <Badge variant="green">{t('common.approved')}</Badge>
+  if (s === 'rejected') return <Badge variant="red">{t('client.changeOrders.declined')}</Badge>
+  return <Badge variant="amber">{t('client.changeOrders.awaitingReview')}</Badge>
 }
 
 export function ChangeOrdersList({
@@ -31,6 +32,7 @@ export function ChangeOrdersList({
   initialOrders: ChangeOrder[]
   supabaseReady: boolean
 }) {
+  const { t } = useTranslation()
   const [orders, setOrders] = useState(initialOrders)
   const [comments, setComments] = useState<Record<string, string>>({})
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -64,7 +66,7 @@ export function ChangeOrdersList({
   if (!supabaseReady) {
     return (
       <Card>
-        <p className="text-sm text-secondary text-center py-6">Connect Supabase to see change orders.</p>
+        <p className="text-sm text-secondary text-center py-6">{t('client.changeOrders.connectSupabase')}</p>
       </Card>
     )
   }
@@ -72,7 +74,7 @@ export function ChangeOrdersList({
   if (orders.length === 0) {
     return (
       <Card>
-        <p className="text-sm text-secondary text-center py-10">No change orders yet. You&apos;ll see extra work here as soon as it&apos;s requested.</p>
+        <p className="text-sm text-secondary text-center py-10">{t('client.changeOrders.noChangeOrders')}</p>
       </Card>
     )
   }
@@ -87,7 +89,7 @@ export function ChangeOrdersList({
                 <h3 className="text-base font-semibold text-primary truncate">{o.title}</h3>
                 {o.project?.name && <p className="text-xs text-tertiary mt-0.5">{o.project.name}</p>}
               </div>
-              {statusBadge(o.status)}
+              {statusBadge(o.status, t)}
             </div>
 
             {o.description && <p className="text-sm text-secondary mb-3">{o.description}</p>}
@@ -101,7 +103,7 @@ export function ChangeOrdersList({
                 <textarea
                   className="w-full rounded-input bg-surface-elevated border border-[rgba(255,255,255,0.08)] px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60"
                   rows={2}
-                  placeholder="Add a comment (optional)"
+                  placeholder={t('client.changeOrders.commentPlaceholder')}
                   value={comments[o.id] ?? ''}
                   onChange={e => setComments(c => ({ ...c, [o.id]: e.target.value }))}
                 />
@@ -112,14 +114,14 @@ export function ChangeOrdersList({
                     loading={busyId === o.id}
                     onClick={() => decide(o.id, 'rejected')}
                   >
-                    Decline
+                    {t('client.changeOrders.declineButton')}
                   </Button>
                   <Button
                     className="flex-1"
                     loading={busyId === o.id}
                     onClick={() => decide(o.id, 'approved')}
                   >
-                    Approve
+                    {t('client.changeOrders.approveButton')}
                   </Button>
                 </div>
               </div>
@@ -133,12 +135,12 @@ export function ChangeOrdersList({
                 <div className="flex gap-2">
                   <input
                     className="flex-1 rounded-input bg-surface-elevated border border-[rgba(255,255,255,0.08)] px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40"
-                    placeholder="Edit comment…"
+                    placeholder={t('client.changeOrders.editCommentPlaceholder')}
                     value={comments[o.id] ?? o.client_comment ?? ''}
                     onChange={e => setComments(c => ({ ...c, [o.id]: e.target.value }))}
                   />
                   <Button variant="secondary" size="sm" loading={busyId === o.id} onClick={() => saveComment(o.id)}>
-                    Save
+                    {t('common.save')}
                   </Button>
                 </div>
               </div>

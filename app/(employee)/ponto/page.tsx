@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { createClient } from '@/lib/supabase/server'
+import { t } from '@/lib/i18n/translate'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -17,6 +18,8 @@ export default async function PontoPage() {
   const user = getCurrentUser()
   if (!user) redirect('/login')
   if (user.status === 'pending') redirect('/pending')
+
+  const locale = user.language
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let entries: any[] = []
@@ -64,18 +67,18 @@ export default async function PontoPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-4">
-      <h1 className="text-xl font-bold text-primary mb-1">Time & Attendance</h1>
-      <p className="text-sm text-secondary mb-6">Your clock-in / clock-out history</p>
+      <h1 className="text-xl font-bold text-primary mb-1">{t(locale, 'employee.ponto.title')}</h1>
+      <p className="text-sm text-secondary mb-6">{t(locale, 'employee.ponto.subtitle')}</p>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
         <Card>
-          <p className="text-xs text-secondary uppercase tracking-wide mb-1">This Week</p>
+          <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'common.thisWeek')}</p>
           <p className="text-2xl font-bold text-primary">
             {weekHours > 0 ? `${weekHours.toFixed(1)}h` : '—'}
           </p>
         </Card>
         <Card>
-          <p className="text-xs text-secondary uppercase tracking-wide mb-1">This Month</p>
+          <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'common.thisMonth')}</p>
           <p className="text-2xl font-bold text-primary">
             {monthHours > 0 ? `${monthHours.toFixed(1)}h` : '—'}
           </p>
@@ -84,12 +87,12 @@ export default async function PontoPage() {
 
       <Card padding="none">
         <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-          <h2 className="text-sm font-semibold text-primary">Recent Entries</h2>
+          <h2 className="text-sm font-semibold text-primary">{t(locale, 'employee.ponto.recentEntries')}</h2>
         </div>
 
         {entries.length === 0 ? (
           <p className="px-5 py-10 text-sm text-secondary text-center">
-            {supabaseReady ? 'No time entries yet.' : 'Connect Supabase to see history.'}
+            {supabaseReady ? t(locale, 'employee.ponto.noEntriesYet') : t(locale, 'employee.ponto.connectSupabase')}
           </p>
         ) : (
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
@@ -110,7 +113,7 @@ export default async function PontoPage() {
                       })}
                     </p>
                     <p className="text-xs text-secondary mt-0.5">
-                      {inTime}{outTime ? ` → ${outTime}` : ' — In progress'}
+                      {inTime}{outTime ? ` → ${outTime}` : ` — ${t(locale, 'employee.ponto.inProgress')}`}
                     </p>
                     {(e.city || e.project?.name) && (
                       <p className="text-xs text-tertiary mt-0.5 truncate">
@@ -125,9 +128,9 @@ export default async function PontoPage() {
                         {hours.toFixed(2)}h
                       </span>
                     )}
-                    {!e.clock_out && <Badge variant="green">Active</Badge>}
-                    {e.clock_out && status === 'pending' && <Badge variant="amber">Pending</Badge>}
-                    {status === 'rejected' && <Badge variant="gray">Rejected</Badge>}
+                    {!e.clock_out && <Badge variant="green">{t(locale, 'common.active')}</Badge>}
+                    {e.clock_out && status === 'pending' && <Badge variant="amber">{t(locale, 'common.pending')}</Badge>}
+                    {status === 'rejected' && <Badge variant="gray">{t(locale, 'common.rejected')}</Badge>}
                   </div>
                 </div>
               )

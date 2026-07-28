@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
+import { useTranslation } from '@/lib/i18n/LocaleContext'
+import type { Locale } from '@/lib/i18n/translate'
 
 interface EmployeeSummary {
   id: string
@@ -61,13 +63,20 @@ function getPeriodDates(period: string): { start: Date; end: Date } {
   return { start, end }
 }
 
-const PERIOD_OPTIONS = [
-  { value: 'week', label: 'This Week' },
-  { value: 'last_week', label: 'Last Week' },
-  { value: 'month', label: 'This Month' },
-]
+function periodOptions(t: (key: string) => string) {
+  return [
+    { value: 'week', label: t('common.thisWeek') },
+    { value: 'last_week', label: t('admin.payroll.lastWeek') },
+    { value: 'month', label: t('common.thisMonth') },
+  ]
+}
+
+function localeTag(locale: Locale) {
+  return locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US'
+}
 
 export default function PayrollPage() {
+  const { t, locale } = useTranslation()
   const companyId = useCompanyId()
   const [summaries, setSummaries] = useState<EmployeeSummary[]>([])
   const [records, setRecords] = useState<PayrollRecord[]>([])
@@ -135,7 +144,7 @@ export default function PayrollPage() {
 
   async function closePayroll() {
     if (summaries.length === 0) return
-    const ok = window.confirm(`Close payroll for ${summaries.length} employee(s)? This creates payroll records.`)
+    const ok = window.confirm(t('admin.payroll.confirmClosePayroll').replace('{n}', String(summaries.length)))
     if (!ok) return
 
     setClosing(true)
@@ -168,20 +177,20 @@ export default function PayrollPage() {
     <div className="p-4 md:p-8 max-w-[1400px]">
       <div className="mb-6 md:mb-8 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">Payroll</h1>
-          <p className="text-sm text-secondary mt-1">Calculate and close pay periods</p>
+          <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t('admin.payroll.title')}</h1>
+          <p className="text-sm text-secondary mt-1">{t('admin.payroll.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-40">
             <Select
-              options={PERIOD_OPTIONS}
+              options={periodOptions(t)}
               value={period}
               onChange={e => setPeriod(e.target.value)}
             />
           </div>
           {summaries.length > 0 && (
             <Button onClick={closePayroll} loading={closing}>
-              Close Payroll
+              {t('admin.payroll.closePayroll')}
             </Button>
           )}
         </div>
@@ -191,15 +200,15 @@ export default function PayrollPage() {
       {!loading && summaries.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
           <Card>
-            <p className="text-xs text-secondary uppercase tracking-wide mb-1">Total Employees</p>
+            <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t('admin.payroll.totalEmployees')}</p>
             <p className="text-2xl font-bold text-primary">{summaries.length}</p>
           </Card>
           <Card>
-            <p className="text-xs text-secondary uppercase tracking-wide mb-1">Total Hours</p>
+            <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t('admin.payroll.totalHours')}</p>
             <p className="text-2xl font-bold text-primary">{totalHours.toFixed(1)}h</p>
           </Card>
           <Card className="col-span-2 md:col-span-1">
-            <p className="text-xs text-secondary uppercase tracking-wide mb-1">Total Payout</p>
+            <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t('admin.payroll.totalPayout')}</p>
             <p className="text-2xl font-bold text-primary">{fmt(totalPayout)}</p>
           </Card>
         </div>
@@ -208,13 +217,13 @@ export default function PayrollPage() {
       {/* Per-employee breakdown */}
       <Card padding="none" className="mb-6">
         <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-          <h2 className="text-sm font-semibold text-primary">Employee Breakdown</h2>
+          <h2 className="text-sm font-semibold text-primary">{t('admin.payroll.employeeBreakdown')}</h2>
         </div>
         {loading ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">Loading…</p>
+          <p className="px-5 py-10 text-sm text-secondary text-center">{t('common.loading')}</p>
         ) : summaries.length === 0 ? (
           <p className="px-5 py-10 text-sm text-secondary text-center">
-            No completed time entries for this period.
+            {t('admin.payroll.noCompletedEntries')}
           </p>
         ) : (
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
@@ -223,18 +232,18 @@ export default function PayrollPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-primary">{s.full_name}</p>
                   <p className="text-xs text-secondary mt-0.5">
-                    {s.totalHours.toFixed(1)}h total
+                    {t('admin.payroll.hoursTotal').replace('{n}', s.totalHours.toFixed(1))}
                     {s.overtimeHours > 0 && (
-                      <span className="text-amber ml-1">· {s.overtimeHours.toFixed(1)}h OT</span>
+                      <span className="text-amber ml-1">· {t('admin.payroll.otHours').replace('{n}', s.overtimeHours.toFixed(1))}</span>
                     )}
-                    {' · '}{fmt(s.hourly_rate)}/hr
+                    {' · '}{t('admin.payroll.perHour').replace('{amount}', fmt(s.hourly_rate))}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-sm font-bold text-primary">{fmt(s.totalPay)}</p>
                   {s.overtimeHours > 0 && (
                     <p className="text-xs text-tertiary">
-                      {fmt(s.regularPay)} + {fmt(s.overtimePay)} OT
+                      {fmt(s.regularPay)} + {fmt(s.overtimePay)} {t('admin.payroll.otSuffix')}
                     </p>
                   )}
                 </div>
@@ -247,11 +256,11 @@ export default function PayrollPage() {
       {/* Payroll history */}
       <Card padding="none">
         <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-          <h2 className="text-sm font-semibold text-primary">Payroll History</h2>
+          <h2 className="text-sm font-semibold text-primary">{t('admin.payroll.payrollHistory')}</h2>
         </div>
         {records.length === 0 ? (
           <p className="px-5 py-10 text-sm text-secondary text-center">
-            No payroll records yet. Close a pay period to generate records.
+            {t('admin.payroll.noPayrollRecordsYet')}
           </p>
         ) : (
           <div className="divide-y divide-[rgba(255,255,255,0.05)]">
@@ -259,20 +268,20 @@ export default function PayrollPage() {
               <div key={r.id} className="px-5 py-4 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-primary">
-                    {(r.profile as unknown as { full_name: string } | null)?.full_name ?? 'Unknown'}
+                    {(r.profile as unknown as { full_name: string } | null)?.full_name ?? t('admin.payroll.unknownEmployee')}
                   </p>
                   <p className="text-xs text-secondary mt-0.5">
-                    {new Date(r.period_start + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {new Date(r.period_start + 'T00:00:00').toLocaleDateString(localeTag(locale), { month: 'short', day: 'numeric' })}
                     {' – '}
-                    {new Date(r.period_end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {new Date(r.period_end + 'T00:00:00').toLocaleDateString(localeTag(locale), { month: 'short', day: 'numeric', year: 'numeric' })}
                     {' · '}{Number(r.total_hours).toFixed(1)}h
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                   <span className="text-sm font-bold text-primary">{fmt(Number(r.total_amount))}</span>
                   {r.status === 'paid'
-                    ? <Badge variant="green">Paid</Badge>
-                    : <Badge variant="amber">Pending</Badge>}
+                    ? <Badge variant="green">{t('admin.payroll.paid')}</Badge>
+                    : <Badge variant="amber">{t('common.pending')}</Badge>}
                 </div>
                 {r.status !== 'paid' && (
                   <button
@@ -283,7 +292,7 @@ export default function PayrollPage() {
                     }}
                     className="text-xs px-2 py-1 rounded-button bg-green/10 text-green hover:bg-green/20 transition-colors flex-shrink-0"
                   >
-                    Mark Paid
+                    {t('admin.payroll.markPaid')}
                   </button>
                 )}
               </div>
