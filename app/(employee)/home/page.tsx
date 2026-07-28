@@ -122,7 +122,9 @@ export default async function EmployeeHomePage() {
 
       {/* Greeting */}
       <div className="flex items-center gap-4 mb-8">
-        <Avatar name={user.full_name} size="xl" />
+        <Link href="/profile" aria-label="Profile & Settings">
+          <Avatar name={user.full_name} size="xl" />
+        </Link>
         <div className="flex-1">
           <p className="text-sm text-secondary">{greeting},</p>
           <h1 className="text-2xl font-bold text-primary tracking-tight">{user.full_name}</h1>

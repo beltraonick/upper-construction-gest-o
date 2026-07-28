@@ -174,13 +174,13 @@ export function Sidebar({ user }: { user: SessionUser }) {
 
         {/* User + Logout */}
         <div className="px-3 py-4 border-t border-[rgba(255,255,255,0.07)] space-y-1">
-          <div className="flex items-center gap-3 px-3 py-2">
+          <Link href="/profile" className="flex items-center gap-3 px-3 py-2 rounded-button hover:bg-surface-elevated transition-colors">
             <Avatar name={user.full_name} size="sm" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-primary truncate leading-tight">{user.full_name}</p>
               <p className="text-[11px] text-tertiary truncate capitalize">{user.role}</p>
             </div>
-          </div>
+          </Link>
           <form action={logout}>
             <button
               type="submit"
@@ -203,7 +203,9 @@ export function Sidebar({ user }: { user: SessionUser }) {
           <span className="text-sm font-semibold text-primary">OrbitOps</span>
         </div>
         <div className="flex items-center gap-2">
-          <Avatar name={user.full_name} size="sm" />
+          <Link href="/profile" aria-label="Profile & Settings">
+            <Avatar name={user.full_name} size="sm" />
+          </Link>
           <form action={logout}>
             <button
               type="submit"

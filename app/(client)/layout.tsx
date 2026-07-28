@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getCurrentUser } from '@/lib/auth/session'
 import { logout } from '@/app/actions/auth'
 import { ClientNav } from './ClientNav'
@@ -27,10 +28,10 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
+          <Link href="/profile" className="text-right hidden sm:block hover:opacity-80 transition-opacity">
             <p className="text-xs font-medium text-primary leading-tight">{user.full_name}</p>
             <p className="text-[10px] text-tertiary">Client</p>
-          </div>
+          </Link>
           <form action={logout}>
             <button
               type="submit"

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getCurrentUser } from '@/lib/auth/session'
 import { logout } from '@/app/actions/auth'
 
@@ -25,7 +26,7 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-secondary hidden sm:inline">{user.full_name}</span>
+          <Link href="/profile" className="text-xs text-secondary hidden sm:inline hover:text-primary transition-colors">{user.full_name}</Link>
           <form action={logout}>
             <button
               type="submit"
