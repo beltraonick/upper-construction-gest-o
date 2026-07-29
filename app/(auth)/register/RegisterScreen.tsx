@@ -29,7 +29,18 @@ export function RegisterScreen() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.png" alt="OrbitOps" className="w-14 h-14 rounded-2xl mb-4 shadow-lg object-cover" />
           <h1 className="text-2xl font-bold text-primary tracking-tight">{t(locale, 'registerTitle')}</h1>
-          <p className="text-sm text-secondary mt-1">{t(locale, 'registerSubtitle')}</p>
+          <p className="text-sm text-secondary mt-1 text-center">{t(locale, 'registerSubtitle')}</p>
+        </div>
+
+        {/* Company redirect callout */}
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-input border border-[rgba(255,255,255,0.10)] bg-surface px-4 py-3">
+          <p className="text-xs text-secondary">{t(locale, 'registerCompanyHint')}</p>
+          <Link
+            href="/signup"
+            className="text-xs font-semibold text-brand hover:text-brand-hover transition-colors flex-shrink-0"
+          >
+            {t(locale, 'registerCompanyLink')}
+          </Link>
         </div>
 
         {/* Card */}
