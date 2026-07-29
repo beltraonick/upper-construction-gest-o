@@ -183,6 +183,19 @@ export function LoginForm({ locale, showOwnerRole = false }: { locale: Locale; s
         </button>
       </form>
 
+      {/* Dynamic create-account link based on selected role */}
+      {selectedRole !== 'owner' && (
+        <p className="text-center text-sm text-secondary pt-1">
+          {t(locale, 'noAccount')}{' '}
+          <Link
+            href={selectedRole === 'admin' ? '/signup' : '/register'}
+            className="text-brand hover:text-brand-hover font-medium transition-colors"
+          >
+            {t(locale, 'createAccountLink')}
+          </Link>
+        </p>
+      )}
+
       {/* Dev hint */}
       {process.env.NODE_ENV === 'development' && (
         <div className="bg-amber/5 border border-amber/20 rounded-card p-3">

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { LoginForm } from './LoginForm'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { getStoredLocale, storeLocale, t, type Locale } from '@/lib/i18n/login'
@@ -37,26 +36,6 @@ export function LoginScreen({ showOwnerRole = false }: { showOwnerRole?: boolean
           <LoginForm locale={locale} showOwnerRole={showOwnerRole} />
         </div>
 
-        <div className="mt-6 space-y-2.5">
-          <div className="flex items-center justify-between gap-3 rounded-input border border-[rgba(255,255,255,0.08)] bg-surface px-4 py-3">
-            <p className="text-xs text-secondary">{t(locale, 'joiningTeam')}</p>
-            <Link
-              href="/register"
-              className="text-xs font-semibold text-brand hover:text-brand-hover transition-colors flex-shrink-0"
-            >
-              {t(locale, 'createAccount')} →
-            </Link>
-          </div>
-          <div className="flex items-center justify-between gap-3 rounded-input border border-[rgba(255,255,255,0.08)] bg-surface px-4 py-3">
-            <p className="text-xs text-secondary">{t(locale, 'newBusiness')}</p>
-            <Link
-              href="/signup"
-              className="text-xs font-semibold text-brand hover:text-brand-hover transition-colors flex-shrink-0"
-            >
-              {t(locale, 'setupCompany')} →
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   )
