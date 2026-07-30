@@ -91,7 +91,7 @@ export default async function OwnerDashboardPage() {
         ) : companies.length === 0 ? (
           <p className="px-5 py-10 text-sm text-secondary text-center">{t(locale, 'owner.dashboard.noCompanies')}</p>
         ) : (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {companies.map(c => {
               const bucket = counts.get(c.id) ?? { admins: 0, employees: 0, clients: 0, projects: 0 }
               return (

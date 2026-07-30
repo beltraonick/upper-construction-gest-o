@@ -113,11 +113,11 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-6">
         <div className="lg:col-span-3">
           <Card padding="none">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h2 className="text-sm font-semibold text-primary">{t(locale, 'admin.dashboard.activeProjects')}</h2>
               <a href="/admin/projects" className="text-xs text-brand hover:text-brand-hover font-medium transition-colors">{t(locale, 'admin.dashboard.viewAll')}</a>
             </div>
-            <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+            <div className="divide-y divide-[var(--border)]">
               {!stats && <p className="px-5 py-8 text-sm text-secondary text-center">{t(locale, 'admin.dashboard.connectSupabaseProjects')}</p>}
               {stats?.recentProjects?.length === 0 && <p className="px-5 py-8 text-sm text-secondary text-center">{t(locale, 'admin.dashboard.noActiveProjects')}</p>}
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
@@ -143,7 +143,7 @@ export default async function AdminDashboardPage() {
 
         <div className="lg:col-span-2 flex flex-col gap-4 md:gap-6">
           <Card padding="none">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h2 className="text-sm font-semibold text-primary">{t(locale, 'admin.dashboard.clockedInNow')}</h2>
               <span className="flex items-center gap-1.5 text-xs text-green font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-green animate-pulse" /> {t(locale, 'admin.dashboard.live')}
@@ -151,7 +151,7 @@ export default async function AdminDashboardPage() {
             </div>
             {!stats && <p className="px-5 py-6 text-sm text-secondary text-center">{t(locale, 'admin.dashboard.connectSupabase')}</p>}
             {stats?.todayClockedIn?.length === 0 && <p className="px-5 py-6 text-sm text-secondary text-center">{t(locale, 'admin.dashboard.noOneClockedIn')}</p>}
-            <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+            <div className="divide-y divide-[var(--border)]">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {(stats?.todayClockedIn as any[])?.slice(0, 5).map((e: any) => (
                 <div key={e.id} className="flex items-center gap-3 px-5 py-3">
@@ -167,13 +167,13 @@ export default async function AdminDashboardPage() {
           </Card>
 
           <Card padding="none">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
               <h2 className="text-sm font-semibold text-primary">{t(locale, 'admin.dashboard.recentHours')}</h2>
               <a href="/admin/time" className="text-xs text-brand hover:text-brand-hover font-medium transition-colors">{t(locale, 'admin.dashboard.viewAll')}</a>
             </div>
             {!stats && <p className="px-5 py-6 text-sm text-secondary text-center">{t(locale, 'admin.dashboard.connectSupabase')}</p>}
             {stats?.recentTimeEntries?.length === 0 && <p className="px-5 py-6 text-sm text-secondary text-center">{t(locale, 'admin.dashboard.noEntriesThisWeek')}</p>}
-            <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+            <div className="divide-y divide-[var(--border)]">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {(stats?.recentTimeEntries as any[])?.map((e: any) => (
                 <div key={e.id} className="flex items-center gap-3 px-5 py-3">

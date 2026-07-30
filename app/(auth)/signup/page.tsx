@@ -12,7 +12,7 @@ export default function SignupPage() {
           <p className="text-sm text-secondary mt-1 text-center">Create a new OrbitOps workspace for your business</p>
         </div>
 
-        <div className="bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-6">
+        <div className="bg-surface rounded-card border border-[var(--border)] p-6">
           <SignupForm />
         </div>
 

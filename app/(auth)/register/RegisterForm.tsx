@@ -59,7 +59,7 @@ export function RegisterForm({ locale }: { locale: Locale }) {
         <p className="text-xs text-secondary">{t(locale, 'inviteCodeHint')}</p>
       </div>
 
-      <div className="border-t border-[rgba(255,255,255,0.07)] pt-1" />
+      <div className="border-t border-[var(--border)] pt-1" />
 
       <Input label={t(locale, 'fullNameLabel')} name="full_name" type="text" placeholder="John Smith" required autoComplete="name" />
       <Input label={t(locale, 'emailLabel')} name="email" type="email" placeholder="you@example.com" required autoComplete="email" />
@@ -70,11 +70,11 @@ export function RegisterForm({ locale }: { locale: Locale }) {
         <select
           name="language"
           defaultValue={locale}
-          className="h-11 w-full rounded-input bg-surface-elevated border border-[rgba(255,255,255,0.08)] px-4 text-sm text-primary transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60 hover:border-[rgba(255,255,255,0.14)]"
+          className="h-11 w-full rounded-input bg-surface-elevated border border-[var(--border)] px-4 text-sm text-primary transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60 hover:border-[var(--border-strong)]"
         >
-          <option value="en" className="bg-[#222]">English</option>
-          <option value="pt" className="bg-[#222]">Português</option>
-          <option value="es" className="bg-[#222]">Español</option>
+          <option value="en" className="bg-surface-elevated">English</option>
+          <option value="pt" className="bg-surface-elevated">Português</option>
+          <option value="es" className="bg-surface-elevated">Español</option>
         </select>
       </div>
 

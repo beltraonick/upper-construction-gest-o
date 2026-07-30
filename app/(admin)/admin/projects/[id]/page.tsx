@@ -461,7 +461,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-[rgba(255,255,255,0.07)] mb-6 overflow-x-auto">
+      <div className="flex gap-0 border-b border-[var(--border)] mb-6 overflow-x-auto">
         {(['overview', 'plans', 'tasks', 'photos'] as Tab[]).map(tab => (
           <button
             key={tab}
@@ -583,7 +583,7 @@ export default function ProjectDetailPage() {
                     'flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-button transition-colors',
                     addMarkerMode
                       ? 'bg-brand text-white'
-                      : 'bg-surface-elevated text-secondary hover:text-primary border border-[rgba(255,255,255,0.07)]',
+                      : 'bg-surface-elevated text-secondary hover:text-primary border border-[var(--border)]',
                   ].join(' ')}
                 >
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -604,7 +604,7 @@ export default function ProjectDetailPage() {
                         'text-xs px-3 py-1.5 rounded-button flex-shrink-0 transition-colors',
                         sheetIndex === i
                           ? 'bg-brand text-white'
-                          : 'bg-surface-elevated text-secondary hover:text-primary border border-[rgba(255,255,255,0.07)]',
+                          : 'bg-surface-elevated text-secondary hover:text-primary border border-[var(--border)]',
                       ].join(' ')}
                     >
                       {t('admin.projectDetail.sheetNumber').replace('{n}', String(sheet.page_number))}
@@ -687,7 +687,7 @@ export default function ProjectDetailPage() {
                   >
                     <Card className="hover:bg-surface-elevated transition-colors" padding="none">
                       {/* Thumbnail */}
-                      <div className="aspect-[4/3] bg-[#0a0a0a] rounded-t-card overflow-hidden">
+                      <div className="aspect-[4/3] bg-surface-elevated rounded-t-card overflow-hidden">
                         {plan.sheets[0] && plan.sheets[0].file_type !== 'pdf' ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -783,7 +783,7 @@ export default function ProjectDetailPage() {
           onClick={() => setEditing(false)}
         >
           <div
-            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
@@ -853,7 +853,7 @@ export default function ProjectDetailPage() {
                     rows={3}
                     value={editForm.description ?? ''}
                     onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                    className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none"
+                    className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none"
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
@@ -873,7 +873,7 @@ export default function ProjectDetailPage() {
           onClick={() => setPendingMarker(null)}
         >
           <div
-            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-sm"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-sm"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-5">
@@ -907,7 +907,7 @@ export default function ProjectDetailPage() {
                     value={markerForm.description}
                     onChange={e => setMarkerForm(f => ({ ...f, description: e.target.value }))}
                     placeholder={t('admin.projectDetail.optionalPlaceholder')}
-                    className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none"
+                    className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none"
                   />
                 </div>
               </div>
@@ -942,7 +942,7 @@ export default function ProjectDetailPage() {
           />
           <button
             onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface/80 border border-[rgba(255,255,255,0.1)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm"
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface/80 border border-[var(--border)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />

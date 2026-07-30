@@ -242,9 +242,9 @@ function TaskDrawer({
       />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-surface border-l border-[rgba(255,255,255,0.08)] flex flex-col shadow-2xl">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-surface border-l border-[var(--border)] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)] flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] flex-shrink-0">
           <h2 className="text-sm font-semibold text-primary">
             {task?.id ? t('admin.projectDetail.kanbanEditTask') : t('admin.projectDetail.kanbanNewTask')}
           </h2>
@@ -278,7 +278,7 @@ function TaskDrawer({
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder={t('admin.projectDetail.kanbanTaskTitlePlaceholder')}
-              className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none"
+              className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none"
             />
           </div>
 
@@ -348,7 +348,7 @@ function TaskDrawer({
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder={t('admin.projectDetail.kanbanDescriptionPlaceholder')}
-              className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none"
+              className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none"
             />
           </div>
 
@@ -366,7 +366,7 @@ function TaskDrawer({
                   <button
                     onClick={() => toggleCheckItem(i)}
                     className={['w-4 h-4 rounded flex-shrink-0 border flex items-center justify-center transition-colors',
-                      item.done ? 'bg-brand border-brand' : 'border-[rgba(255,255,255,0.2)] bg-transparent',
+                      item.done ? 'bg-brand border-brand' : 'border-[var(--border-strong)] bg-transparent',
                     ].join(' ')}
                   >
                     {item.done && (
@@ -396,11 +396,11 @@ function TaskDrawer({
                 onChange={e => setCheckInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem() } }}
                 placeholder={t('admin.projectDetail.kanbanChecklistPlaceholder')}
-                className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none"
+                className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[var(--border)] focus:border-brand/50 outline-none"
               />
               <button
                 onClick={addCheckItem}
-                className="px-3 py-2 text-xs font-medium bg-surface-elevated border border-[rgba(255,255,255,0.07)] text-secondary hover:text-primary rounded-button transition-colors"
+                className="px-3 py-2 text-xs font-medium bg-surface-elevated border border-[var(--border)] text-secondary hover:text-primary rounded-button transition-colors"
               >
                 {t('admin.projectDetail.kanbanAdd')}
               </button>
@@ -415,7 +415,7 @@ function TaskDrawer({
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
               placeholder={t('admin.projectDetail.kanbanNotesPlaceholder')}
-              className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none"
+              className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none"
             />
           </div>
 
@@ -504,7 +504,7 @@ function TaskDrawer({
             {!loadingPhotos && allPhotos.length === 0 && (
               <button
                 onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-[rgba(255,255,255,0.12)] rounded-card py-6 text-center hover:border-brand/40 transition-colors group"
+                className="w-full border-2 border-dashed border-[var(--border)] rounded-card py-6 text-center hover:border-brand/40 transition-colors group"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-8 h-8 mx-auto text-tertiary group-hover:text-brand/60 mb-1">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -516,10 +516,10 @@ function TaskDrawer({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-[rgba(255,255,255,0.07)] flex-shrink-0 flex gap-3">
+        <div className="px-5 py-4 border-t border-[var(--border)] flex-shrink-0 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 text-sm font-medium border border-[rgba(255,255,255,0.1)] text-secondary hover:text-primary rounded-button transition-colors"
+            className="flex-1 px-4 py-2.5 text-sm font-medium border border-[var(--border)] text-secondary hover:text-primary rounded-button transition-colors"
           >
             {t('admin.projectDetail.kanbanCancel')}
           </button>
@@ -599,13 +599,13 @@ function KanbanColumnView({
 
   return (
     <div
-      className={['flex-shrink-0 w-64 flex flex-col rounded-card border transition-colors', dragOver ? 'border-brand/50 bg-brand/5' : 'border-[rgba(255,255,255,0.07)] bg-surface-elevated'].join(' ')}
+      className={['flex-shrink-0 w-64 flex flex-col rounded-card border transition-colors', dragOver ? 'border-brand/50 bg-brand/5' : 'border-[var(--border)] bg-surface-elevated'].join(' ')}
       onDragOver={e => { e.preventDefault(); setDragOver(true) }}
       onDragLeave={() => setDragOver(false)}
       onDrop={() => { setDragOver(false); onDrop(col.id) }}
     >
       {/* Column header */}
-      <div className="px-3 py-2.5 flex items-center justify-between border-b border-[rgba(255,255,255,0.07)]">
+      <div className="px-3 py-2.5 flex items-center justify-between border-b border-[var(--border)]">
         {renaming ? (
           <form
             onSubmit={e => { e.preventDefault(); onRename(col, renameVal); setRenaming(false) }}
@@ -636,7 +636,7 @@ function KanbanColumnView({
               </svg>
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 z-10 w-36 bg-surface border border-[rgba(255,255,255,0.1)] rounded-card shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 z-10 w-36 bg-surface border border-[var(--border)] rounded-card shadow-xl overflow-hidden">
                 <button
                   onClick={() => { setRenameVal(col.name); setRenaming(true); setMenuOpen(false) }}
                   className="w-full text-left px-3 py-2 text-xs text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
@@ -668,7 +668,7 @@ function KanbanColumnView({
       </div>
 
       {/* Add task button */}
-      <div className="p-2 border-t border-[rgba(255,255,255,0.05)]">
+      <div className="p-2 border-t border-[var(--border)]">
         <button
           onClick={() => onAddTask(col.id)}
           className="w-full text-left px-2 py-1.5 text-xs text-tertiary hover:text-secondary transition-colors rounded-button hover:bg-surface flex items-center gap-1.5"
@@ -702,7 +702,7 @@ function TaskCard({
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
-      className="bg-surface rounded-button border border-[rgba(255,255,255,0.07)] p-3 cursor-pointer hover:border-[rgba(255,255,255,0.15)] hover:bg-surface/80 transition-all active:opacity-70 select-none"
+      className="bg-surface rounded-button border border-[var(--border)] p-3 cursor-pointer hover:border-[var(--border-strong)] hover:bg-surface/80 transition-all active:opacity-70 select-none"
     >
       {/* Priority dot + title */}
       <div className="flex items-start gap-2">
@@ -852,7 +852,7 @@ export function KanbanBoard({
         {!addingColumn && (
           <button
             onClick={() => setAddingColumn(true)}
-            className="flex items-center gap-1.5 text-xs font-medium text-secondary hover:text-primary px-3 py-1.5 rounded-button border border-[rgba(255,255,255,0.07)] hover:border-[rgba(255,255,255,0.15)] bg-surface-elevated transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-secondary hover:text-primary px-3 py-1.5 rounded-button border border-[var(--border)] hover:border-[var(--border-strong)] bg-surface-elevated transition-colors"
           >
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
               <path fillRule="evenodd" d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5h-4.5a.75.75 0 010-1.5h4.5v-4.5A.75.75 0 018 2z" clipRule="evenodd" />
@@ -864,7 +864,7 @@ export function KanbanBoard({
 
       {/* No columns empty state */}
       {columns.length === 0 && !addingColumn && (
-        <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-[rgba(255,255,255,0.08)] rounded-card">
+        <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-[var(--border)] rounded-card">
           <div className="w-12 h-12 rounded-full bg-brand/10 flex items-center justify-center mb-3">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6 text-brand">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15M3.75 9h16.5M3.75 15h16.5" />
@@ -902,7 +902,7 @@ export function KanbanBoard({
 
             {/* Add column form */}
             {addingColumn && (
-              <div className="flex-shrink-0 w-64 flex flex-col gap-2 p-3 border border-dashed border-[rgba(255,255,255,0.15)] rounded-card bg-surface-elevated">
+              <div className="flex-shrink-0 w-64 flex flex-col gap-2 p-3 border border-dashed border-[var(--border-strong)] rounded-card bg-surface-elevated">
                 <p className="text-xs font-semibold text-secondary">{t('admin.projectDetail.kanbanColumnName')}</p>
                 <input
                   autoFocus
@@ -910,12 +910,12 @@ export function KanbanBoard({
                   onChange={e => setNewColumnName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') addColumn(); if (e.key === 'Escape') { setAddingColumn(false); setNewColumnName('') } }}
                   placeholder={t('admin.projectDetail.kanbanColumnPlaceholder')}
-                  className="bg-surface text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none"
+                  className="bg-surface text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[var(--border)] focus:border-brand/50 outline-none"
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setAddingColumn(false); setNewColumnName('') }}
-                    className="flex-1 py-1.5 text-xs text-secondary border border-[rgba(255,255,255,0.08)] rounded-button hover:text-primary transition-colors"
+                    className="flex-1 py-1.5 text-xs text-secondary border border-[var(--border)] rounded-button hover:text-primary transition-colors"
                   >
                     {t('admin.projectDetail.kanbanCancel')}
                   </button>

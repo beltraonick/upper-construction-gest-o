@@ -75,7 +75,7 @@ export default function MembersPage() {
         </Card>
       ) : (
         <Card padding="none">
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {requests.map(req => {
               const profile = req.profiles
               const isProcessing = processing === req.id
@@ -117,7 +117,7 @@ export default function MembersPage() {
         </Card>
       )}
 
-      <div className="mt-6 bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-4">
+      <div className="mt-6 bg-surface rounded-card border border-[var(--border)] p-4">
         <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{t('admin.members.howItWorks')}</p>
         <ul className="space-y-1.5">
           {[

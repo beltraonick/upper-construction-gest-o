@@ -68,7 +68,7 @@ function ProjectCard({
   const location = [project.city, project.state].filter(Boolean).join(', ')
 
   return (
-    <div className="group relative bg-surface border border-[rgba(255,255,255,0.07)] rounded-card overflow-hidden hover:border-[rgba(255,255,255,0.14)] transition-all duration-200 hover:shadow-lg hover:shadow-black/20 flex flex-col">
+    <div className="group relative bg-surface border border-[var(--border)] rounded-card overflow-hidden hover:border-[var(--border-strong)] transition-all duration-200 hover:shadow-lg hover:shadow-black/20 flex flex-col">
       {/* Color bar accent */}
       <div className={`h-1 w-full ${colors.dot} opacity-70`} />
 
@@ -130,7 +130,7 @@ function ProjectCard({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-[rgba(255,255,255,0.05)] mt-auto">
+        <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] mt-auto">
           <span className="text-[11px] text-tertiary">
             {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
@@ -289,7 +289,7 @@ export default function ProjectsPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-surface border border-[rgba(255,255,255,0.07)] rounded-card h-44 animate-pulse" />
+            <div key={i} className="bg-surface border border-[var(--border)] rounded-card h-44 animate-pulse" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -326,7 +326,7 @@ export default function ProjectsPage() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
@@ -386,7 +386,7 @@ export default function ProjectsPage() {
                       onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
                     />
                   </div>
-                  <div className="col-span-2 pt-2 border-t border-[rgba(255,255,255,0.07)]">
+                  <div className="col-span-2 pt-2 border-t border-[var(--border)]">
                     <p className="text-xs font-medium text-secondary mb-3">{t('admin.projects.clientAccess')}</p>
                   </div>
                   <Input

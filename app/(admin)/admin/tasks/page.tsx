@@ -330,7 +330,7 @@ export default function TasksPage() {
           { label: t('common.inProgress'), count: counts.in_progress, color: 'text-amber' },
           { label: t('common.completed'), count: counts.completed, color: 'text-green' },
         ].map(c => (
-          <div key={c.label} className="bg-surface border border-[rgba(255,255,255,0.07)] rounded-button px-3 py-1.5 flex items-center gap-2">
+          <div key={c.label} className="bg-surface border border-[var(--border)] rounded-button px-3 py-1.5 flex items-center gap-2">
             <span className={`text-xs font-semibold ${c.color}`}>{c.count}</span>
             <span className="text-xs text-secondary">{c.label}</span>
           </div>
@@ -360,7 +360,7 @@ export default function TasksPage() {
             )}
           </div>
         ) : (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {filtered.map(task => {
               const doneItems = (task.checklist ?? []).filter(c => c.done).length
               const totalItems = (task.checklist ?? []).length
@@ -458,7 +458,7 @@ export default function TasksPage() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
@@ -541,7 +541,7 @@ export default function TasksPage() {
                     value={form.description}
                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                     placeholder={t('admin.tasks.descriptionPlaceholder')}
-                    className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none transition-colors"
+                    className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none transition-colors"
                   />
                 </div>
 
@@ -574,7 +574,7 @@ export default function TasksPage() {
                       ))}
                     </div>
                   )}
-                  <label className="flex items-center gap-2 cursor-pointer w-full border border-dashed border-[rgba(255,255,255,0.12)] rounded-input px-3 py-2.5 hover:border-brand/40 transition-colors">
+                  <label className="flex items-center gap-2 cursor-pointer w-full border border-dashed border-[var(--border)] rounded-input px-3 py-2.5 hover:border-brand/40 transition-colors">
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0">
                       <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                     </svg>
@@ -628,12 +628,12 @@ export default function TasksPage() {
                       onChange={e => setNewCheckItem(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem() } }}
                       placeholder={t('admin.tasks.checklistPlaceholder')}
-                      className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none transition-colors"
+                      className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[var(--border)] focus:border-brand/50 outline-none transition-colors"
                     />
                     <button
                       type="button"
                       onClick={addCheckItem}
-                      className="px-3 py-2 text-xs font-medium rounded-button bg-surface-elevated text-secondary hover:text-primary border border-[rgba(255,255,255,0.07)] transition-colors"
+                      className="px-3 py-2 text-xs font-medium rounded-button bg-surface-elevated text-secondary hover:text-primary border border-[var(--border)] transition-colors"
                     >
                       {t('admin.tasks.add')}
                     </button>

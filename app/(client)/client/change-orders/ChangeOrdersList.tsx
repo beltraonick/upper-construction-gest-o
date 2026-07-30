@@ -101,7 +101,7 @@ export function ChangeOrdersList({
             {o.status === 'pending' ? (
               <div className="space-y-3">
                 <textarea
-                  className="w-full rounded-input bg-surface-elevated border border-[rgba(255,255,255,0.08)] px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60"
+                  className="w-full rounded-input bg-surface-elevated border border-[var(--border)] px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60"
                   rows={2}
                   placeholder={t('client.changeOrders.commentPlaceholder')}
                   value={comments[o.id] ?? ''}
@@ -134,7 +134,7 @@ export function ChangeOrdersList({
                 )}
                 <div className="flex gap-2">
                   <input
-                    className="flex-1 rounded-input bg-surface-elevated border border-[rgba(255,255,255,0.08)] px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40"
+                    className="flex-1 rounded-input bg-surface-elevated border border-[var(--border)] px-3 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40"
                     placeholder={t('client.changeOrders.editCommentPlaceholder')}
                     value={comments[o.id] ?? o.client_comment ?? ''}
                     onChange={e => setComments(c => ({ ...c, [o.id]: e.target.value }))}

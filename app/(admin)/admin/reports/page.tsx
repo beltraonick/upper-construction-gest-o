@@ -173,7 +173,7 @@ export default function ReportsPage() {
               onChange={e => setPeriod(e.target.value)}
             />
           </div>
-          <div className="flex rounded-button border border-[rgba(255,255,255,0.08)] overflow-hidden">
+          <div className="flex rounded-button border border-[var(--border)] overflow-hidden">
             {(['summary', 'detail'] as const).map(v => (
               <button
                 key={v}
@@ -189,7 +189,7 @@ export default function ReportsPage() {
           </div>
           <button
             onClick={printPage}
-            className="px-3 py-2 rounded-button border border-[rgba(255,255,255,0.08)] text-xs font-medium text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
+            className="px-3 py-2 rounded-button border border-[var(--border)] text-xs font-medium text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
           >
             {t('admin.reports.print')}
           </button>
@@ -220,7 +220,7 @@ export default function ReportsPage() {
 
       {view === 'summary' ? (
         <Card padding="none">
-          <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
+          <div className="px-5 py-4 border-b border-[var(--border)]">
             <h2 className="text-sm font-semibold text-primary">{t('admin.reports.byEmployee')}</h2>
           </div>
           {loading ? (
@@ -231,7 +231,7 @@ export default function ReportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[rgba(255,255,255,0.07)]">
+                  <tr className="border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.tableEmployee')}</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.entries')}</th>
                     <th className="text-right px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.regular')}</th>
@@ -239,7 +239,7 @@ export default function ReportsPage() {
                     <th className="text-right px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.estPay')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[rgba(255,255,255,0.05)]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {rows.map(r => {
                     const rate = rateMap.get(r.employee_id) ?? 0
                     const pay = r.regularHours * rate + r.overtimeHours * rate * 1.5
@@ -267,7 +267,7 @@ export default function ReportsPage() {
         </Card>
       ) : (
         <Card padding="none">
-          <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
+          <div className="px-5 py-4 border-b border-[var(--border)]">
             <h2 className="text-sm font-semibold text-primary">{t('admin.reports.allEntries')}</h2>
           </div>
           {loading ? (
@@ -278,7 +278,7 @@ export default function ReportsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[rgba(255,255,255,0.07)]">
+                  <tr className="border-b border-[var(--border)]">
                     <th className="text-left px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.tableEmployee')}</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.date')}</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.time')}</th>
@@ -286,7 +286,7 @@ export default function ReportsPage() {
                     <th className="text-right px-5 py-3 text-xs font-medium text-tertiary uppercase tracking-wide">{t('admin.reports.hours')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[rgba(255,255,255,0.05)]">
+                <tbody className="divide-y divide-[var(--border)]">
                   {entries.map(e => {
                     const hours = e.clock_out
                       ? (new Date(e.clock_out).getTime() - new Date(e.clock_in).getTime()) / 3600000

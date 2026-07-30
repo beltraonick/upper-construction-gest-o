@@ -165,7 +165,7 @@ export default function TimePage() {
         ) : entries.length === 0 ? (
           <p className="px-5 py-10 text-sm text-secondary text-center">{t('admin.time.noEntriesForPeriod')}</p>
         ) : (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {entries.map(e => {
               const hours = calcHours(e.clock_in, e.clock_out)
               const status = e.clock_out ? (e.approval_status ?? 'approved') : 'active'

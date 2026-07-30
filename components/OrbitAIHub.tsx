@@ -145,7 +145,7 @@ export function OrbitAIHub() {
               <button
                 key={s}
                 onClick={() => send(s)}
-                className="text-xs text-secondary bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.07)] hover:text-primary px-3 py-1.5 rounded-full transition-colors border border-[rgba(255,255,255,0.07)]"
+                className="text-xs text-secondary bg-black/[0.03] hover:bg-black/[0.05] hover:text-primary px-3 py-1.5 rounded-full transition-colors border border-[var(--border)]"
               >
                 {s}
               </button>
@@ -157,7 +157,7 @@ export function OrbitAIHub() {
       {/* Chat area */}
       {open && (
         <>
-          <div className="border-t border-[rgba(255,255,255,0.05)]" />
+          <div className="border-t border-[var(--border)]" />
 
           <div
             className="overflow-y-auto px-4 py-4 space-y-3"
@@ -179,7 +179,7 @@ export function OrbitAIHub() {
                     'max-w-[82%] text-sm rounded-card px-3 py-2.5 leading-relaxed whitespace-pre-wrap',
                     m.role === 'user'
                       ? 'bg-brand text-white'
-                      : 'bg-surface-elevated text-primary border border-[rgba(255,255,255,0.05)]',
+                      : 'bg-surface-elevated text-primary border border-[var(--border)]',
                   ].join(' ')}
                 >
                   {m.content === '' && loading && i === messages.length - 1
@@ -191,7 +191,7 @@ export function OrbitAIHub() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="flex gap-2 px-4 pb-4 border-t border-[rgba(255,255,255,0.05)] pt-3">
+          <div className="flex gap-2 px-4 pb-4 border-t border-[var(--border)] pt-3">
             <input
               ref={inputRef}
               value={input}
@@ -199,7 +199,7 @@ export function OrbitAIHub() {
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
               placeholder="Ask Orbit AI…"
               disabled={loading}
-              className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none transition-colors disabled:opacity-60"
+              className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none transition-colors disabled:opacity-60"
             />
             <button
               onClick={() => send()}

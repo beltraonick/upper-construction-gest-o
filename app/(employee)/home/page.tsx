@@ -197,7 +197,7 @@ export default async function EmployeeHomePage() {
 
       {/* My Tasks preview */}
       <Card padding="none">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h2 className="text-sm font-semibold text-primary">{t(locale, 'employee.home.myTasks')}</h2>
           <Link href="/tasks" className="text-xs text-brand hover:text-brand-hover font-medium transition-colors">
             {t(locale, 'employee.home.viewAll')}
@@ -220,7 +220,7 @@ export default async function EmployeeHomePage() {
         )}
 
         {tasks.length > 0 && (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {tasks.map(t => (
               <Link key={t.id} href="/tasks" className="flex items-center gap-3 px-5 py-3.5 hover:bg-surface-elevated transition-colors">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[t.priority] ?? 'bg-secondary'}`} />

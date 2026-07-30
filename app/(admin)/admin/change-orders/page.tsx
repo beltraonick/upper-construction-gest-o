@@ -146,7 +146,7 @@ export default function ChangeOrdersPage() {
             {orders.length === 0 ? t('admin.changeOrders.noChangeOrdersYet') : t('admin.changeOrders.noResultsForFilter')}
           </p>
         ) : (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {filtered.map(o => (
               <div key={o.id} className="flex items-start gap-3 px-5 py-4">
                 <div className="flex-1 min-w-0">
@@ -188,7 +188,7 @@ export default function ChangeOrdersPage() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
@@ -210,7 +210,7 @@ export default function ChangeOrdersPage() {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-secondary">{t('admin.changeOrders.description')}</label>
                   <textarea
-                    className="w-full rounded-input bg-surface-elevated border border-[rgba(255,255,255,0.08)] px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60"
+                    className="w-full rounded-input bg-surface-elevated border border-[var(--border)] px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60"
                     rows={3}
                     value={form.description}
                     onChange={e => setForm(f => ({ ...f, description: e.target.value }))}

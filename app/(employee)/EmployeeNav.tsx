@@ -49,7 +49,7 @@ export function EmployeeNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-[rgba(255,255,255,0.07)] flex safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-[var(--border)] flex safe-bottom">
       {NAV.map(item => {
         const active = pathname === item.href || pathname.startsWith(item.href + '/')
         return (

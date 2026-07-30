@@ -134,9 +134,9 @@ export function Sidebar({ user }: { user: SessionUser }) {
   return (
     <>
       {/* ── Desktop Sidebar (md+) ── */}
-      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-[240px] flex-col bg-surface border-r border-[rgba(255,255,255,0.07)] z-40">
+      <aside className="hidden md:flex fixed left-0 top-0 h-screen w-[240px] flex-col bg-surface border-r border-[var(--border)] z-40">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-[rgba(255,255,255,0.07)]">
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-[var(--border)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.png" alt="OrbitOps" className="w-8 h-8 rounded-lg flex-shrink-0 object-cover" />
           <div className="min-w-0">
@@ -168,7 +168,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
         </nav>
 
         {/* User + Logout */}
-        <div className="px-3 py-4 border-t border-[rgba(255,255,255,0.07)] space-y-1">
+        <div className="px-3 py-4 border-t border-[var(--border)] space-y-1">
           <Link href="/profile" className="flex items-center gap-3 px-3 py-2 rounded-button hover:bg-surface-elevated transition-colors">
             <Avatar name={user.full_name} size="sm" />
             <div className="min-w-0 flex-1">
@@ -191,7 +191,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
       </aside>
 
       {/* ── Mobile Top Bar (< md) ── */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between px-4 h-14">
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[var(--border)] flex items-center justify-between px-4 h-14">
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />
@@ -216,7 +216,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
       </header>
 
       {/* ── Mobile Bottom Nav (< md) ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-[rgba(255,255,255,0.07)] flex safe-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-[var(--border)] flex safe-bottom">
         {BOTTOM_NAV.map(item => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (

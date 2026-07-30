@@ -188,7 +188,7 @@ export default function EmployeesPage() {
             {employees.length === 0 ? t('admin.employees.noEmployeesYet') : t('admin.employees.noResultsForSearch')}
           </p>
         ) : (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {filtered.map(emp => (
               <div key={emp.id} className="flex items-center gap-3 px-5 py-4">
                 <div className="relative flex-shrink-0">
@@ -251,7 +251,7 @@ export default function EmployeesPage() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">

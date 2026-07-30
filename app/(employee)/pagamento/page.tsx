@@ -122,7 +122,7 @@ export default async function PagamentoPage() {
 
       {/* Payroll history */}
       <Card padding="none">
-        <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
+        <div className="px-5 py-4 border-b border-[var(--border)]">
           <h2 className="text-sm font-semibold text-primary">{t(locale, 'employee.pagamento.payrollHistory')}</h2>
         </div>
         {payrollRecords.length === 0 ? (
@@ -131,7 +131,7 @@ export default async function PagamentoPage() {
             <p className="text-xs text-tertiary mt-1">{t(locale, 'employee.pagamento.recordsAppearAfter')}</p>
           </div>
         ) : (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {payrollRecords.map((r: any) => (
               <div key={r.id} className="px-5 py-4 flex items-center justify-between gap-3">

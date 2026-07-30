@@ -76,7 +76,7 @@ export default function SettingsPage() {
               <div className="h-11 bg-surface-elevated rounded-input animate-pulse" />
             ) : (
               <div className="flex items-center gap-2">
-                <div className="flex-1 h-11 flex items-center px-4 bg-surface-elevated rounded-input border border-[rgba(255,255,255,0.08)]">
+                <div className="flex-1 h-11 flex items-center px-4 bg-surface-elevated rounded-input border border-[var(--border)]">
                   <span className="text-base font-mono font-semibold text-primary tracking-widest">
                     {inviteCode ?? '—'}
                   </span>
@@ -84,7 +84,7 @@ export default function SettingsPage() {
                 {inviteCode && (
                   <button
                     onClick={() => copy(inviteCode, 'invite')}
-                    className="h-11 px-4 rounded-button bg-surface-elevated border border-[rgba(255,255,255,0.07)] text-xs text-secondary hover:text-primary transition-colors flex-shrink-0"
+                    className="h-11 px-4 rounded-button bg-surface-elevated border border-[var(--border)] text-xs text-secondary hover:text-primary transition-colors flex-shrink-0"
                   >
                     {copied === 'invite' ? t('admin.settings.copied') : t('admin.settings.copy')}
                   </button>
@@ -115,7 +115,7 @@ export default function SettingsPage() {
               </div>
               <Badge variant="green">v{VERSION}</Badge>
             </div>
-            <div className="border-t border-[rgba(255,255,255,0.07)] pt-3 space-y-2">
+            <div className="border-t border-[var(--border)] pt-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-secondary">Supabase</span>
                 <Badge variant="green">{t('admin.settings.connected')}</Badge>
@@ -165,7 +165,7 @@ export default function SettingsPage() {
       {/* Test accounts */}
       <Section title={t('admin.settings.sectionTestAccounts')}>
         <Card padding="none">
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {ACCOUNTS.map(a => (
               <div key={a.roleKey} className="px-5 py-4 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
@@ -177,7 +177,7 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={() => copy(`${a.email}\n${a.password}`, a.roleKey)}
-                  className="text-xs px-2.5 py-1.5 rounded-button bg-surface-elevated text-secondary hover:text-primary transition-colors border border-[rgba(255,255,255,0.07)]"
+                  className="text-xs px-2.5 py-1.5 rounded-button bg-surface-elevated text-secondary hover:text-primary transition-colors border border-[var(--border)]"
                 >
                   {copied === a.roleKey ? t('admin.settings.copied') : t('admin.settings.copy')}
                 </button>

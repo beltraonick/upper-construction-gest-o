@@ -21,7 +21,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     <LocaleProvider locale={user.language}>
     <div className="min-h-screen bg-background">
       {/* Top bar */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between px-4 h-14 safe-top">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[var(--border)] flex items-center justify-between px-4 h-14 safe-top">
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />

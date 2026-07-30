@@ -32,9 +32,10 @@ export function LoginScreen({ showOwnerRole = false }: { showOwnerRole?: boolean
         </div>
 
         {/* Card */}
-        <div className="bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-6">
+        <div className="bg-surface rounded-card border border-[var(--border)] p-6">
           <LoginForm locale={locale} showOwnerRole={showOwnerRole} />
         </div>
+
 
       </div>
     </div>
