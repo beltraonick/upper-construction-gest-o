@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
+import { useCurrentUser } from '@/lib/user-context'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -43,6 +44,8 @@ interface TaskPhoto {
   id: string
   storage_path: string
   tag: string
+  uploaded_by_name: string | null
+  created_at: string
 }
 
 interface Profile { id: string; full_name: string }
@@ -89,6 +92,7 @@ function TaskDrawer({
   onDeleted: (id: string) => void
 }) {
   const { t } = useTranslation()
+  const currentUser = useCurrentUser()
 
   const blankForm = useCallback(() => ({
     title: task?.title ?? '',
@@ -111,6 +115,7 @@ function TaskDrawer({
   const [newFiles, setNewFiles] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [checkInput, setCheckInput] = useState('')
   const [lightbox, setLightbox] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -119,10 +124,11 @@ function TaskDrawer({
     setForm(blankForm())
     setNewFiles([])
     setPhotos([])
+    setSaveError(null)
     if (task?.id) {
       setLoadingPhotos(true)
       const supabase = createClient()
-      supabase.from('task_media').select('id, storage_path, tag').eq('task_id', task.id).order('created_at').then(({ data }) => {
+      supabase.from('task_media').select('id, storage_path, tag, uploaded_by_name, created_at').eq('task_id', task.id).order('created_at').then(({ data }) => {
         setPhotos((data ?? []) as TaskPhoto[])
         setLoadingPhotos(false)
       })
@@ -156,6 +162,7 @@ function TaskDrawer({
   async function handleSave() {
     if (!form.title.trim()) return
     setSaving(true)
+    setSaveError(null)
     const supabase = createClient()
     const payload = {
       title: form.title.trim(),
@@ -175,10 +182,12 @@ function TaskDrawer({
     let savedTask: KanbanTask | null = null
 
     if (task?.id) {
-      const { data } = await supabase.from('tasks').update(payload).eq('id', task.id).select('*, assigned_employee:assigned_to(full_name)').single()
+      const { data, error } = await supabase.from('tasks').update(payload).eq('id', task.id).select('*, assigned_employee:assigned_to(full_name)').single()
+      if (error) { setSaveError(error.message); setSaving(false); return }
       savedTask = data as KanbanTask
     } else {
-      const { data } = await supabase.from('tasks').insert({ ...payload, project_id: projectId, company_id: companyId }).select('*, assigned_employee:assigned_to(full_name)').single()
+      const { data, error } = await supabase.from('tasks').insert({ ...payload, project_id: projectId, company_id: companyId }).select('*, assigned_employee:assigned_to(full_name)').single()
+      if (error) { setSaveError(error.message); setSaving(false); return }
       savedTask = data as KanbanTask
     }
 
@@ -190,12 +199,18 @@ function TaskDrawer({
         const path = `${companyId}/${savedTask.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
         const { error } = await supabase.storage.from('task-photos').upload(path, file, { contentType: file.type })
         if (!error) {
-          await supabase.from('task_media').insert({ task_id: savedTask.id, company_id: companyId, storage_path: path, tag: 'progress' })
+          await supabase.from('task_media').insert({
+            task_id: savedTask.id,
+            company_id: companyId,
+            storage_path: path,
+            tag: 'progress',
+            uploaded_by_name: currentUser.name,
+          })
         }
       }
       setUploading(false)
       setNewFiles([])
-      const { data: updatedPhotos } = await supabase.from('task_media').select('id, storage_path, tag').eq('task_id', savedTask.id).order('created_at')
+      const { data: updatedPhotos } = await supabase.from('task_media').select('id, storage_path, tag, uploaded_by_name, created_at').eq('task_id', savedTask.id).order('created_at')
       setPhotos((updatedPhotos ?? []) as TaskPhoto[])
     }
 
@@ -242,8 +257,8 @@ function TaskDrawer({
   }
 
   const allPhotos = [
-    ...photos.map(p => ({ id: p.id, url: taskPhotoUrl(p.storage_path), isNew: false, photo: p })),
-    ...newFiles.map((f, i) => ({ id: `new-${i}`, url: URL.createObjectURL(f), isNew: true, photo: null })),
+    ...photos.map(p => ({ id: p.id, url: taskPhotoUrl(p.storage_path), isNew: false, photo: p, uploaderName: p.uploaded_by_name, createdAt: p.created_at })),
+    ...newFiles.map((f, i) => ({ id: `new-${i}`, url: URL.createObjectURL(f), isNew: true, photo: null, uploaderName: currentUser.name, createdAt: null })),
   ]
 
   const doneCount = form.checklist.filter(c => c.done).length
@@ -358,11 +373,11 @@ function TaskDrawer({
           {/* Color Label */}
           <div>
             <label className="block text-xs font-medium text-secondary mb-2">Color Label</label>
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex gap-1.5 items-center overflow-x-auto pb-0.5">
               <button
                 onClick={() => setForm(f => ({ ...f, label_color: null }))}
                 title="No color"
-                className={['w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0',
+                className={['w-7 h-7 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all',
                   !form.label_color ? 'border-brand bg-surface-elevated' : 'border-[var(--border)] hover:border-[var(--border-strong)] bg-surface-elevated',
                 ].join(' ')}
               >
@@ -375,7 +390,7 @@ function TaskDrawer({
                   key={color}
                   onClick={() => setForm(f => ({ ...f, label_color: color }))}
                   title={color}
-                  className="w-8 h-8 rounded-full flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
+                  className="w-7 h-7 rounded-full flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
                   style={{
                     backgroundColor: color,
                     outline: form.label_color === color ? `3px solid ${color}` : '2px solid transparent',
@@ -491,58 +506,71 @@ function TaskDrawer({
             />
             {loadingPhotos && <p className="text-xs text-tertiary py-2">{t('common.loading')}</p>}
             {!loadingPhotos && allPhotos.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {allPhotos.map(item => (
-                  <div key={item.id} className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.url}
-                      alt={t('admin.projectDetail.kanbanPhotoAlt')}
-                      className="w-full h-full object-cover cursor-pointer"
-                      onClick={() => setLightbox(item.url)}
-                    />
-                    {/* Actions overlay — always visible on mobile */}
-                    <div className="absolute inset-x-0 bottom-0 flex justify-between items-center p-1 bg-black/60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      {!item.isNew && item.photo && (
-                        <>
-                          <a
-                            href={item.url}
-                            download
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="text-white/70 hover:text-white transition-colors"
-                            title={t('admin.projectDetail.kanbanDownloadPhoto')}
-                          >
-                            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                              <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.72-1.72a.75.75 0 111.06 1.06L8 10.81 4.47 7.28a.75.75 0 111.06-1.06l1.72 1.72V1.75A.75.75 0 018 1zM2 13.25a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
-                            </svg>
-                          </a>
+                  <div key={item.id} className="flex flex-col gap-1">
+                    <div className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.url}
+                        alt={t('admin.projectDetail.kanbanPhotoAlt')}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setLightbox(item.url)}
+                      />
+                      {/* Actions overlay */}
+                      <div className="absolute inset-x-0 bottom-0 flex justify-between items-center p-1.5 bg-black/60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        {!item.isNew && item.photo && (
+                          <>
+                            <a
+                              href={item.url}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              className="text-white/70 hover:text-white transition-colors"
+                              title={t('admin.projectDetail.kanbanDownloadPhoto')}
+                            >
+                              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.72-1.72a.75.75 0 111.06 1.06L8 10.81 4.47 7.28a.75.75 0 111.06-1.06l1.72 1.72V1.75A.75.75 0 018 1zM2 13.25a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+                              </svg>
+                            </a>
+                            <button
+                              onClick={() => deletePhoto(item.photo!)}
+                              className="text-danger/80 hover:text-danger transition-colors"
+                              title={t('admin.projectDetail.kanbanDeletePhoto')}
+                            >
+                              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L8 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                        {item.isNew && (
                           <button
-                            onClick={() => deletePhoto(item.photo!)}
-                            className="text-danger/80 hover:text-danger transition-colors"
-                            title={t('admin.projectDetail.kanbanDeletePhoto')}
+                            onClick={() => setNewFiles(prev => prev.filter((_, i) => `new-${i}` !== item.id))}
+                            className="text-danger/80 hover:text-danger transition-colors ml-auto"
                           >
                             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
                               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L8 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
                           </button>
-                        </>
-                      )}
+                        )}
+                      </div>
                       {item.isNew && (
-                        <button
-                          onClick={() => setNewFiles(prev => prev.filter((_, i) => `new-${i}` !== item.id))}
-                          className="text-danger/80 hover:text-danger transition-colors ml-auto"
-                        >
-                          <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L8 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
-                        </button>
+                        <div className="absolute top-1 left-1 px-1 py-0.5 bg-brand/80 rounded text-[10px] text-white font-medium">new</div>
                       )}
                     </div>
-                    {item.isNew && (
-                      <div className="absolute top-1 left-1 px-1 py-0.5 bg-brand/80 rounded text-[10px] text-white font-medium">new</div>
-                    )}
+                    {/* Photo metadata */}
+                    <div className="px-0.5">
+                      <p className="text-[11px] font-medium text-secondary truncate">
+                        {item.uploaderName ?? 'Unknown'}
+                      </p>
+                      <p className="text-[10px] text-tertiary">
+                        {item.createdAt
+                          ? new Date(item.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          : 'Pending upload'}
+                      </p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -562,20 +590,25 @@ function TaskDrawer({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-[var(--border)] flex-shrink-0 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 text-sm font-medium border border-[var(--border)] text-secondary hover:text-primary rounded-button transition-colors"
-          >
-            {t('admin.projectDetail.kanbanCancel')}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!form.title.trim() || saving || uploading}
-            className="flex-1 px-4 py-2.5 text-sm font-medium bg-brand hover:bg-brand/90 text-white rounded-button transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving || uploading ? t('admin.projectDetail.kanbanSaving') : task?.id ? t('admin.projectDetail.kanbanSave') : t('admin.projectDetail.kanbanCreate')}
-          </button>
+        <div className="px-5 py-4 border-t border-[var(--border)] flex-shrink-0 space-y-2">
+          {saveError && (
+            <p className="text-xs text-danger bg-danger/10 px-3 py-2 rounded-button">{saveError}</p>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 text-sm font-medium border border-[var(--border)] text-secondary hover:text-primary rounded-button transition-colors"
+            >
+              {t('admin.projectDetail.kanbanCancel')}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!form.title.trim() || saving || uploading}
+              className="flex-1 px-4 py-2.5 text-sm font-medium bg-brand hover:bg-brand/90 text-white rounded-button transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving || uploading ? t('admin.projectDetail.kanbanSaving') : task?.id ? t('admin.projectDetail.kanbanSave') : t('admin.projectDetail.kanbanCreate')}
+            </button>
+          </div>
         </div>
       </div>
 
