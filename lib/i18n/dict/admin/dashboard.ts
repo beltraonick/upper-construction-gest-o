@@ -28,6 +28,9 @@ export const dashboard = {
     statusOnHold: 'On Hold',
     statusCompleted: 'Completed',
     statusCancelled: 'Cancelled',
+    pendingApprovals: 'Employee Approval Requests',
+    pendingApprovalsBody: '{n} employee(s) awaiting approval to join your company.',
+    reviewRequests: 'Review Requests →',
   },
   pt: {
     title: 'Painel',
@@ -58,6 +61,9 @@ export const dashboard = {
     statusOnHold: 'Em Espera',
     statusCompleted: 'Concluído',
     statusCancelled: 'Cancelado',
+    pendingApprovals: 'Solicitações de Aprovação',
+    pendingApprovalsBody: '{n} funcionário(s) aguardando aprovação para entrar na sua empresa.',
+    reviewRequests: 'Revisar Solicitações →',
   },
   es: {
     title: 'Panel',
@@ -88,5 +94,8 @@ export const dashboard = {
     statusOnHold: 'En Espera',
     statusCompleted: 'Completado',
     statusCancelled: 'Cancelado',
+    pendingApprovals: 'Solicitudes de Aprobación',
+    pendingApprovalsBody: '{n} empleado(s) esperando aprobación para unirse a tu empresa.',
+    reviewRequests: 'Revisar Solicitudes →',
   },
 }

@@ -41,6 +41,7 @@ async function fetchStats(companyId: string) {
       { data: recentProjects },
       { data: recentTimeEntries },
       { data: pendingPayroll },
+      { count: pendingRequestsCount },
     ] = await Promise.all([
       supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('role', 'employee').eq('status', 'active'),
       supabase.from('projects').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'active'),
@@ -48,8 +49,9 @@ async function fetchStats(companyId: string) {
       supabase.from('projects').select('id, name, client_name, progress, status').eq('company_id', companyId).eq('status', 'active').order('updated_at', { ascending: false }).limit(5),
       supabase.from('time_entries').select('id, hours_worked, clock_in, profiles(full_name, avatar_url)').eq('company_id', companyId).gte('clock_in', weekStart.toISOString()).order('clock_in', { ascending: false }).limit(6),
       supabase.from('payroll_records').select('total_amount').eq('company_id', companyId).eq('status', 'pending'),
+      supabase.from('membership_requests').select('*', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
     ])
-    return { totalEmployees, activeProjects, todayClockedIn, recentProjects, recentTimeEntries, pendingPayroll }
+    return { totalEmployees, activeProjects, todayClockedIn, recentProjects, recentTimeEntries, pendingPayroll, pendingRequestsCount }
   } catch {
     return null
   }
@@ -95,6 +97,34 @@ export default async function AdminDashboardPage() {
               {t(locale, 'admin.dashboard.supabaseNotConnectedBody')}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Pending Approval Requests Banner */}
+      {stats && (stats.pendingRequestsCount ?? 0) > 0 && (
+        <div className="mb-5 md:mb-6 bg-brand/5 border border-brand/20 rounded-card px-4 py-3 md:px-5 md:py-4 flex items-start gap-3">
+          <div className="flex-shrink-0 w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center mt-0.5">
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-brand">
+              <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-primary">
+              {t(locale, 'admin.dashboard.pendingApprovals')}
+              <span className="ml-2 inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-brand text-white text-[11px] font-bold px-1.5">
+                {stats.pendingRequestsCount}
+              </span>
+            </p>
+            <p className="text-xs text-secondary mt-0.5">
+              {t(locale, 'admin.dashboard.pendingApprovalsBody').replace('{n}', String(stats.pendingRequestsCount))}
+            </p>
+          </div>
+          <a
+            href="/admin/members"
+            className="flex-shrink-0 text-xs font-semibold text-brand hover:text-brand-hover transition-colors whitespace-nowrap mt-0.5"
+          >
+            {t(locale, 'admin.dashboard.reviewRequests')}
+          </a>
         </div>
       )}
 

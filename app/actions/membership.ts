@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export interface MembershipRequest {
   id: string
   profile_id: string
@@ -67,7 +69,7 @@ export async function approveMember(requestId: string): Promise<{ error?: string
   // Mark request as approved.
   await supabase
     .from('membership_requests')
-    .update({ status: 'approved', reviewed_by: user.id, reviewed_at: new Date().toISOString() })
+    .update({ status: 'approved', reviewed_by: UUID_RE.test(user.id) ? user.id : null, reviewed_at: new Date().toISOString() })
     .eq('id', requestId)
 
   return {}
@@ -99,7 +101,7 @@ export async function rejectMember(requestId: string): Promise<{ error?: string 
   // Mark request as rejected.
   await supabase
     .from('membership_requests')
-    .update({ status: 'rejected', reviewed_by: user.id, reviewed_at: new Date().toISOString() })
+    .update({ status: 'rejected', reviewed_by: UUID_RE.test(user.id) ? user.id : null, reviewed_at: new Date().toISOString() })
     .eq('id', requestId)
 
   return {}

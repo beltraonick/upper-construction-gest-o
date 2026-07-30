@@ -124,7 +124,7 @@ function useNav() {
   ]
 }
 
-export function Sidebar({ user }: { user: SessionUser }) {
+export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pendingCount?: number }) {
   const pathname = usePathname()
   const { t } = useTranslation()
   const NAV = useNav()
@@ -149,6 +149,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
           {NAV.map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
+            const isMembersItem = item.href === '/admin/members'
             return (
               <Link
                 key={item.href}
@@ -162,6 +163,11 @@ export function Sidebar({ user }: { user: SessionUser }) {
               >
                 <span className={active ? 'text-white' : 'text-tertiary'}>{item.icon}</span>
                 {item.label}
+                {isMembersItem && pendingCount > 0 && (
+                  <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none">
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                )}
               </Link>
             )
           })}
@@ -219,6 +225,7 @@ export function Sidebar({ user }: { user: SessionUser }) {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-[var(--border)] flex safe-bottom">
         {BOTTOM_NAV.map(item => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          const isMembersItem = item.href === '/admin/members'
           return (
             <Link
               key={item.href}
@@ -228,7 +235,12 @@ export function Sidebar({ user }: { user: SessionUser }) {
                 active ? 'text-brand' : 'text-tertiary hover:text-secondary',
               ].join(' ')}
             >
-              <span className={active ? 'text-brand' : 'text-tertiary'}>{item.icon}</span>
+              <span className={`relative ${active ? 'text-brand' : 'text-tertiary'}`}>
+                {item.icon}
+                {isMembersItem && pendingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-brand border border-surface" />
+                )}
+              </span>
               {item.mobileLabel}
             </Link>
           )

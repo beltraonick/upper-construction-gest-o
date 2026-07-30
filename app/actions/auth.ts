@@ -34,6 +34,10 @@ export async function login(
     return { error: 'Your account has been suspended. Contact your administrator.' }
   }
 
+  if (user.status === 'pending') {
+    return { status: 'pending' }
+  }
+
   setSessionCookie(toSessionUser(user))
 
   return { role: user.role, status: user.status }
