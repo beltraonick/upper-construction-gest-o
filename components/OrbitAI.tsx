@@ -99,28 +99,24 @@ export function OrbitAI() {
 
   return (
     <>
-      {/* Floating sphere button */}
+      {/* Floating sphere button — left on mobile so it doesn't overlap right-side action buttons */}
       <button
         onClick={() => setOpen(o => !o)}
         aria-label="Open OrbitOps AI"
-        className="fixed z-50 w-14 h-14 rounded-full flex items-center justify-center orbit-ai-btn"
-        style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
-          right: '16px',
-        }}
+        className="fixed z-50 w-14 h-14 rounded-full flex items-center justify-center orbit-ai-btn left-4 md:left-auto md:right-4"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' }}
       >
         <div className={`transition-transform duration-300 ${open ? 'scale-90' : 'hover:scale-110'}`}>
           <OrbitSphere active={open} size={36} />
         </div>
       </button>
 
-      {/* Chat panel */}
+      {/* Chat panel — aligns with sphere (left on mobile, right on desktop) */}
       {open && (
         <div
-          className="fixed z-50 flex flex-col bg-surface border border-[var(--border)] rounded-card shadow-2xl overflow-hidden orbit-ai-panel"
+          className="fixed z-50 flex flex-col bg-surface border border-[var(--border)] rounded-card shadow-2xl overflow-hidden orbit-ai-panel left-3 md:left-auto md:right-3"
           style={{
             bottom: 'calc(env(safe-area-inset-bottom, 0px) + 160px)',
-            right: '12px',
             width: 'min(360px, calc(100vw - 24px))',
             maxHeight: '480px',
           }}

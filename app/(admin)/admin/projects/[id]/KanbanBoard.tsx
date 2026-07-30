@@ -34,6 +34,7 @@ interface KanbanTask {
   assigned_to: string | null
   column_id: string | null
   room_id: string | null
+  label_color: string | null
   created_at: string
   assigned_employee?: { full_name: string } | null
 }
@@ -50,6 +51,18 @@ interface Room { id: string; label: string; floor: string | null }
 const PRIORITY_DOT: Record<string, string> = {
   low: 'bg-blue', medium: 'bg-amber', high: 'bg-danger/70', urgent: 'bg-danger',
 }
+
+const LABEL_COLORS = [
+  '#EF4444', // red
+  '#F97316', // orange
+  '#EAB308', // yellow
+  '#22C55E', // green
+  '#14B8A6', // teal
+  '#3B82F6', // blue
+  '#8B5CF6', // purple
+  '#EC4899', // pink
+  '#6B7280', // gray
+]
 
 // ─── Task Drawer ──────────────────────────────────────────────────────────────
 
@@ -89,6 +102,7 @@ function TaskDrawer({
     column_id: task?.column_id ?? '',
     room_id: task?.room_id ?? '',
     checklist: task?.checklist ?? [] as ChecklistItem[],
+    label_color: task?.label_color ?? null as string | null,
   }), [task])
 
   const [form, setForm] = useState(blankForm)
@@ -155,6 +169,7 @@ function TaskDrawer({
       column_id: form.column_id || null,
       room_id: form.room_id || null,
       checklist: form.checklist,
+      label_color: form.label_color || null,
     }
 
     let savedTask: KanbanTask | null = null
@@ -339,6 +354,37 @@ function TaskDrawer({
             value={form.area}
             onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
           />
+
+          {/* Color Label */}
+          <div>
+            <label className="block text-xs font-medium text-secondary mb-2">Color Label</label>
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                onClick={() => setForm(f => ({ ...f, label_color: null }))}
+                title="No color"
+                className={['w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0',
+                  !form.label_color ? 'border-brand bg-surface-elevated' : 'border-[var(--border)] hover:border-[var(--border-strong)] bg-surface-elevated',
+                ].join(' ')}
+              >
+                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-3 h-3 text-tertiary">
+                  <path strokeLinecap="round" d="M1 1l10 10M11 1L1 11" />
+                </svg>
+              </button>
+              {LABEL_COLORS.map(color => (
+                <button
+                  key={color}
+                  onClick={() => setForm(f => ({ ...f, label_color: color }))}
+                  title={color}
+                  className="w-8 h-8 rounded-full flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
+                  style={{
+                    backgroundColor: color,
+                    outline: form.label_color === color ? `3px solid ${color}` : '2px solid transparent',
+                    outlineOffset: '2px',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
 
           {/* Description */}
           <div>
@@ -702,7 +748,8 @@ function TaskCard({
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
-      className="bg-surface rounded-button border border-[var(--border)] p-3 cursor-pointer hover:border-[var(--border-strong)] hover:bg-surface/80 transition-all active:opacity-70 select-none"
+      className="bg-surface rounded-button border border-[var(--border)] p-3 cursor-pointer hover:border-[var(--border-strong)] hover:bg-surface/80 transition-all active:opacity-70 select-none overflow-hidden"
+      style={task.label_color ? { borderLeftColor: task.label_color, borderLeftWidth: '3px' } : undefined}
     >
       {/* Priority dot + title */}
       <div className="flex items-start gap-2">
@@ -812,7 +859,7 @@ export function KanbanBoard({
 
   function openNewTask(colId: string) {
     setNewTaskColumnId(colId)
-    setDrawerTask({ id: '', title: '', description: null, area: null, priority: 'medium', status: 'pending', due_date: null, notes: null, checklist: [], assigned_to: null, column_id: colId, room_id: null, created_at: '' })
+    setDrawerTask({ id: '', title: '', description: null, area: null, priority: 'medium', status: 'pending', due_date: null, notes: null, checklist: [], assigned_to: null, column_id: colId, room_id: null, label_color: null, created_at: '' })
     setDrawerOpen(true)
   }
 
