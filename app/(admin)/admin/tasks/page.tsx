@@ -27,6 +27,7 @@ interface Task {
   project_id: string | null
   assigned_employee_id: string | null
   room_id: string | null
+  label_color: string | null
   project: { name: string } | null
   assigned_employee: { full_name: string } | null
 }
@@ -42,6 +43,18 @@ const PRIORITY_DOT: Record<string, string> = {
   urgent: 'bg-danger',
 }
 
+const LABEL_COLORS = [
+  '#EF4444',
+  '#F97316',
+  '#EAB308',
+  '#22C55E',
+  '#14B8A6',
+  '#3B82F6',
+  '#8B5CF6',
+  '#EC4899',
+  '#6B7280',
+]
+
 const STATUS_VARIANTS: Record<string, 'gray' | 'amber' | 'blue' | 'green'> = {
   pending: 'gray',
   in_progress: 'amber',
@@ -53,6 +66,7 @@ const BLANK = {
   status: 'pending', estimated_hours: '', due_date: '',
   project_id: '', assigned_employee_id: '', notes: '', room_id: '',
   checklist: [] as ChecklistItem[],
+  label_color: null as string | null,
 }
 
 export default function TasksPage() {
@@ -132,6 +146,7 @@ export default function TasksPage() {
       notes: task.notes ?? '',
       room_id: task.room_id ?? '',
       checklist: task.checklist ?? [],
+      label_color: task.label_color ?? null,
     })
     setEditPhotos([])
     setNewPhotoFiles([])
@@ -172,6 +187,7 @@ export default function TasksPage() {
       checklist: form.checklist,
       completed_at: form.status === 'completed' ? new Date().toISOString() : null,
       room_id: form.room_id || null,
+      label_color: form.label_color || null,
       updated_at: new Date().toISOString(),
     }
 
@@ -298,8 +314,17 @@ export default function TasksPage() {
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
 
     return (
-      <div className="group px-3 py-3 flex items-start gap-2.5 hover:bg-surface-elevated/70 rounded-button transition-colors">
-        <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[task.priority] ?? 'bg-secondary'}`} />
+      <div
+        className={[
+          'group px-3 py-3 flex items-start gap-2.5 rounded-button transition-colors',
+          task.label_color ? '' : 'hover:bg-surface-elevated/70',
+        ].join(' ')}
+        style={task.label_color ? { backgroundColor: task.label_color + '18' } : undefined}
+      >
+        <div
+          className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${task.label_color ? '' : (PRIORITY_DOT[task.priority] ?? 'bg-secondary')}`}
+          style={task.label_color ? { backgroundColor: task.label_color } : undefined}
+        />
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-medium leading-snug ${task.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
             {task.title}
@@ -587,6 +612,39 @@ export default function TasksPage() {
                   value={form.due_date}
                   onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
                 />
+
+                <div>
+                  <label className="block text-xs font-medium text-secondary mb-2">Color Label</label>
+                  <div className="flex gap-1.5 items-center overflow-x-auto pb-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, label_color: null }))}
+                      title="No color"
+                      className={[
+                        'w-7 h-7 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-all',
+                        !form.label_color ? 'border-brand bg-surface-elevated' : 'border-[var(--border)] hover:border-[var(--border-strong)] bg-surface-elevated',
+                      ].join(' ')}
+                    >
+                      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-3 h-3 text-tertiary">
+                        <path strokeLinecap="round" d="M1 1l10 10M11 1L1 11" />
+                      </svg>
+                    </button>
+                    {LABEL_COLORS.map(color => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, label_color: color }))}
+                        title={color}
+                        className="w-7 h-7 rounded-full flex-shrink-0 transition-transform hover:scale-110 active:scale-95"
+                        style={{
+                          backgroundColor: color,
+                          outline: form.label_color === color ? `3px solid ${color}` : '2px solid transparent',
+                          outlineOffset: '2px',
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-1.5">{t('admin.tasks.description')}</label>

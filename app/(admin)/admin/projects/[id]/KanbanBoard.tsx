@@ -781,12 +781,22 @@ function TaskCard({
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
-      className="bg-surface rounded-button border border-[var(--border)] p-3 cursor-pointer hover:border-[var(--border-strong)] hover:bg-surface/80 transition-all active:opacity-70 select-none overflow-hidden"
-      style={task.label_color ? { borderLeftColor: task.label_color, borderLeftWidth: '3px' } : undefined}
+      className={[
+        'rounded-button border border-[var(--border)] p-3 cursor-pointer hover:border-[var(--border-strong)] transition-all active:opacity-70 select-none overflow-hidden',
+        task.label_color ? '' : 'bg-surface hover:bg-surface/80',
+      ].join(' ')}
+      style={task.label_color ? {
+        backgroundColor: task.label_color + '18',
+        borderLeftColor: task.label_color,
+        borderLeftWidth: '3px',
+      } : undefined}
     >
       {/* Priority dot + title */}
       <div className="flex items-start gap-2">
-        <span className={['w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', PRIORITY_DOT[task.priority] ?? 'bg-tertiary'].join(' ')} />
+        <span
+          className={['w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', task.label_color ? '' : (PRIORITY_DOT[task.priority] ?? 'bg-tertiary')].join(' ')}
+          style={task.label_color ? { backgroundColor: task.label_color } : undefined}
+        />
         <p className="text-xs font-medium text-primary leading-snug line-clamp-3 flex-1">{task.title}</p>
       </div>
 
