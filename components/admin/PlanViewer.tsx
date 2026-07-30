@@ -175,7 +175,7 @@ export function PlanViewer({
       <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 z-20">
         <button
           onClick={e => { e.stopPropagation(); setZoom(z => Math.min(5, z * 1.3)) }}
-          className="w-8 h-8 rounded-button bg-surface/80 border border-[rgba(255,255,255,0.1)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm transition-colors"
+          className="w-8 h-8 rounded-button bg-surface/80 border border-[var(--border)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm transition-colors"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
@@ -183,7 +183,7 @@ export function PlanViewer({
         </button>
         <button
           onClick={e => { e.stopPropagation(); setZoom(z => Math.max(0.3, z * 0.77)) }}
-          className="w-8 h-8 rounded-button bg-surface/80 border border-[rgba(255,255,255,0.1)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm transition-colors"
+          className="w-8 h-8 rounded-button bg-surface/80 border border-[var(--border)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm transition-colors"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
             <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -191,7 +191,7 @@ export function PlanViewer({
         </button>
         <button
           onClick={e => { e.stopPropagation(); resetView() }}
-          className="w-8 h-8 rounded-button bg-surface/80 border border-[rgba(255,255,255,0.1)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm transition-colors text-[11px] font-bold"
+          className="w-8 h-8 rounded-button bg-surface/80 border border-[var(--border)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm transition-colors text-[11px] font-bold"
           title="Reset view"
         >
           ↺
@@ -199,7 +199,7 @@ export function PlanViewer({
       </div>
 
       {/* Zoom badge */}
-      <div className="absolute bottom-3 left-3 z-20 bg-surface/70 border border-[rgba(255,255,255,0.08)] rounded-button px-2 py-1 text-[11px] text-secondary backdrop-blur-sm">
+      <div className="absolute bottom-3 left-3 z-20 bg-surface/70 border border-[var(--border)] rounded-button px-2 py-1 text-[11px] text-secondary backdrop-blur-sm">
         {Math.round(zoom * 100)}%
       </div>
 

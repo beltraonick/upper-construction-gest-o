@@ -23,10 +23,10 @@ function fmtDate(iso: string, locale: 'en' | 'pt' | 'es') {
 
 function roomDotColor(roomId: string, tasks: { room_id: string | null; status: string }[]) {
   const linked = tasks.filter(t => t.room_id === roomId)
-  if (linked.length === 0) return 'bg-[rgba(255,255,255,0.15)]'
+  if (linked.length === 0) return 'bg-tertiary/30'
   if (linked.every(t => t.status === 'completed')) return 'bg-green'
   if (linked.some(t => t.status !== 'pending')) return 'bg-amber'
-  return 'bg-[rgba(255,255,255,0.15)]'
+  return 'bg-tertiary/30'
 }
 
 export default async function ClientPortalPage() {
@@ -231,7 +231,7 @@ export default async function ClientPortalPage() {
                   key={p.id}
                   title={p.title}
                   className={`absolute w-4 h-4 -ml-2 -mt-2 rounded-full border-2 border-white shadow-lg ${
-                    p.status === 'completed' ? 'bg-green' : p.status === 'in_progress' ? 'bg-amber' : 'bg-[rgba(255,255,255,0.5)]'
+                    p.status === 'completed' ? 'bg-green' : p.status === 'in_progress' ? 'bg-amber' : 'bg-[var(--border)]'
                   }`}
                   style={{ left: `${p.pin_x * 100}%`, top: `${p.pin_y * 100}%` }}
                 />
@@ -249,7 +249,7 @@ export default async function ClientPortalPage() {
             <div className="flex items-center gap-4 mb-4 text-xs text-secondary">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green" /> {t(locale, 'client.overview.done')}</span>
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber" /> {t(locale, 'client.overview.inProgress')}</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[rgba(255,255,255,0.15)]" /> {t(locale, 'client.overview.notStarted')}</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-tertiary/30" /> {t(locale, 'client.overview.notStarted')}</span>
             </div>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
               {rooms.map(r => (

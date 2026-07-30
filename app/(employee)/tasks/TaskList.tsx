@@ -262,11 +262,11 @@ export function TaskList({
           onClick={() => setSelected(null)}
         >
           <div
-            className="bg-surface rounded-t-card border-t border-l border-r border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-t-card border-t border-l border-r border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-[rgba(255,255,255,0.15)]" />
+              <div className="w-10 h-1 rounded-full bg-tertiary/40" />
             </div>
 
             <div className="px-5 py-4">
@@ -300,7 +300,7 @@ export function TaskList({
                             'w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 transition-all',
                             item.done
                               ? 'bg-green border-green'
-                              : 'border-[rgba(255,255,255,0.2)] group-hover:border-green/50',
+                              : 'border-[var(--border-strong)] group-hover:border-green/50',
                           ].join(' ')}
                           onClick={() => toggleCheck(selected.id, i, !item.done)}
                         >
@@ -349,7 +349,7 @@ export function TaskList({
                         <button
                           onClick={() => beforeRef.current?.click()}
                           disabled={uploadingPhoto}
-                          className="w-full aspect-square rounded-button bg-surface-elevated border border-dashed border-[rgba(255,255,255,0.12)] flex flex-col items-center justify-center gap-1.5 hover:bg-[rgba(255,255,255,0.05)] transition-colors disabled:opacity-50"
+                          className="w-full aspect-square rounded-button bg-surface-elevated border border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-1.5 hover:bg-black/[0.04] transition-colors disabled:opacity-50"
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-tertiary">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
@@ -385,7 +385,7 @@ export function TaskList({
                         <button
                           onClick={() => afterRef.current?.click()}
                           disabled={uploadingPhoto}
-                          className="w-full aspect-square rounded-button bg-surface-elevated border border-dashed border-[rgba(255,255,255,0.12)] flex flex-col items-center justify-center gap-1.5 hover:bg-[rgba(255,255,255,0.05)] transition-colors disabled:opacity-50"
+                          className="w-full aspect-square rounded-button bg-surface-elevated border border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-1.5 hover:bg-black/[0.04] transition-colors disabled:opacity-50"
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-tertiary">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
@@ -427,7 +427,7 @@ export function TaskList({
                   onChange={e => setNotes(e.target.value)}
                   onBlur={() => saveNotes(selected.id)}
                   placeholder={t('employee.tasks.notesPlaceholder')}
-                  className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none resize-none transition-colors"
+                  className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none transition-colors"
                 />
               </div>
 

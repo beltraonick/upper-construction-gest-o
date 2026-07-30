@@ -37,7 +37,7 @@ export default function ActivatePage({
           <p className="text-sm text-secondary mt-1">Set a password to access your client portal</p>
         </div>
 
-        <div className="bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-6">
+        <div className="bg-surface rounded-card border border-[var(--border)] p-6">
           <ActivateForm token={token} />
         </div>
 

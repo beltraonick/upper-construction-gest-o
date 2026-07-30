@@ -86,7 +86,7 @@ export default async function PontoPage() {
       </div>
 
       <Card padding="none">
-        <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
+        <div className="px-5 py-4 border-b border-[var(--border)]">
           <h2 className="text-sm font-semibold text-primary">{t(locale, 'employee.ponto.recentEntries')}</h2>
         </div>
 
@@ -95,7 +95,7 @@ export default async function PontoPage() {
             {supabaseReady ? t(locale, 'employee.ponto.noEntriesYet') : t(locale, 'employee.ponto.connectSupabase')}
           </p>
         ) : (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
+          <div className="divide-y divide-[var(--border)]">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {entries.map((e: any) => {
               const hours = calcHours(e.clock_in, e.clock_out)

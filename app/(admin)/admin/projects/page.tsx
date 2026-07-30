@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
 import { checkProjectLimit } from '@/lib/plan-limits'
-import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -42,10 +41,123 @@ const BLANK = {
   hotel_name: '', leader_id: '', budget: '', client_name: '', client_email: '',
 }
 
+const STATUS_COLORS: Record<string, { bg: string; dot: string }> = {
+  active:    { bg: 'bg-green/10',  dot: 'bg-green' },
+  completed: { bg: 'bg-blue/10',   dot: 'bg-blue' },
+  on_hold:   { bg: 'bg-amber/10',  dot: 'bg-amber' },
+}
+
 function statusBadge(s: string, t: (key: string) => string) {
   if (s === 'active') return <Badge variant="green">{t('common.active')}</Badge>
   if (s === 'completed') return <Badge variant="blue">{t('common.completed')}</Badge>
   return <Badge variant="amber">{t('admin.projects.statusOnHold')}</Badge>
+}
+
+function ProjectCard({
+  project,
+  leader,
+  onEdit,
+  t,
+}: {
+  project: Project
+  leader: Profile | undefined
+  onEdit: (p: Project) => void
+  t: (key: string) => string
+}) {
+  const colors = STATUS_COLORS[project.status] ?? STATUS_COLORS.on_hold
+  const location = [project.city, project.state].filter(Boolean).join(', ')
+
+  return (
+    <div className="group relative bg-surface border border-[var(--border)] rounded-card overflow-hidden hover:border-[var(--border-strong)] transition-all duration-200 hover:shadow-lg hover:shadow-black/20 flex flex-col">
+      {/* Color bar accent */}
+      <div className={`h-1 w-full ${colors.dot} opacity-70`} />
+
+      {/* Card body */}
+      <div className="p-4 flex flex-col gap-3 flex-1">
+        {/* Name + status row */}
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-semibold text-primary leading-snug line-clamp-2 flex-1">
+            {project.name}
+          </h3>
+          {statusBadge(project.status, t)}
+        </div>
+
+        {/* Meta */}
+        <div className="space-y-1.5 flex-1">
+          {location && (
+            <div className="flex items-center gap-1.5">
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-tertiary flex-shrink-0">
+                <path fillRule="evenodd" d="M8 1.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9zM2 6a6 6 0 1110.89 3.176l3.42 3.42a.75.75 0 01-1.06 1.06l-3.42-3.42A6 6 0 012 6z" clipRule="evenodd" />
+              </svg>
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-tertiary flex-shrink-0 -ml-1">
+                <path fillRule="evenodd" d="M8 1a5 5 0 00-5 5c0 2.76 2.13 5.3 4.35 7.1a1 1 0 001.3 0C10.87 11.3 13 8.76 13 6A5 5 0 008 1zm0 6.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" clipRule="evenodd" />
+              </svg>
+              <span className="text-xs text-secondary truncate">{location}</span>
+            </div>
+          )}
+          {project.hotel_name && (
+            <div className="flex items-center gap-1.5">
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-tertiary flex-shrink-0">
+                <path d="M2 2a2 2 0 012-2h8a2 2 0 012 2v12H2V2zm4 1v2H4V3h2zm0 3v2H4V6h2zm0 3v2H4V9h2zm4-6v2H8V3h2zm0 3v2H8V6h2zm0 3v2H8V9h2zM6 13v1H4v-1h2zm6 1h-2v-1h2v1z"/>
+              </svg>
+              <span className="text-xs text-secondary truncate">{project.hotel_name}</span>
+            </div>
+          )}
+          {leader && (
+            <div className="flex items-center gap-1.5">
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-tertiary flex-shrink-0">
+                <path fillRule="evenodd" d="M8 8a3 3 0 100-6 3 3 0 000 6zm-5 6a5 5 0 0110 0H3z" clipRule="evenodd" />
+              </svg>
+              <span className="text-xs text-secondary truncate">{leader.full_name}</span>
+            </div>
+          )}
+          {project.client_name && (
+            <div className="flex items-center gap-1.5">
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-tertiary flex-shrink-0">
+                <path fillRule="evenodd" d="M3 2a2 2 0 012-2h6a2 2 0 012 2v12a1 1 0 01-1 1H4a1 1 0 01-1-1V2zm3 1h4v1H6V3zm2 5a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <span className="text-xs text-secondary truncate">{project.client_name}</span>
+            </div>
+          )}
+          {project.budget != null && (
+            <div className="flex items-center gap-1.5">
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-tertiary flex-shrink-0">
+                <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm.75 4.75V5h-1.5v.75H6a.75.75 0 000 1.5h.75v1H6a.75.75 0 000 1.5h.75V10h1.5v-.25H10a.75.75 0 000-1.5h-.75v-1H10a.75.75 0 000-1.5H8.75z"/>
+              </svg>
+              <span className="text-xs font-semibold text-primary">${Number(project.budget).toLocaleString()}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] mt-auto">
+          <span className="text-[11px] text-tertiary">
+            {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(project) }}
+              className="p-1.5 rounded-button text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
+              title={t('admin.projects.editTooltip')}
+            >
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                <path d="M11.013 2.508a1.75 1.75 0 012.475 2.474L5.87 12.6l-3.371.749.749-3.371 7.765-7.47z"/>
+              </svg>
+            </button>
+            <a
+              href={`/admin/projects/${project.id}`}
+              className="p-1.5 rounded-button text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
+              title={t('admin.projects.viewDetailTooltip')}
+            >
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                <path fillRule="evenodd" d="M5.293 2.293a1 1 0 011.414 0l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414-1.414L9.586 8 5.293 3.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function ProjectsPage() {
@@ -100,6 +212,7 @@ export default function ProjectsPage() {
       client_name: p.client_name ?? '',
       client_email: p.client_email ?? '',
     })
+    setError('')
     setShowModal(true)
   }
 
@@ -165,7 +278,7 @@ export default function ProjectsPage() {
         <Button onClick={openAdd}>{t('admin.projects.addProject')}</Button>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-5">
         <Input
           placeholder={t('admin.projects.searchPlaceholder')}
           value={search}
@@ -173,73 +286,39 @@ export default function ProjectsPage() {
         />
       </div>
 
-      <Card padding="none">
-        {loading ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">{t('common.loading')}</p>
-        ) : filtered.length === 0 ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-surface border border-[var(--border)] rounded-card h-44 animate-pulse" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-14 h-14 rounded-full bg-brand/10 flex items-center justify-center mb-4">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 text-brand">
+              <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-primary mb-1">
             {projects.length === 0 ? t('admin.projects.noProjectsYet') : t('admin.projects.noResults')}
           </p>
-        ) : (
-          <div className="divide-y divide-[rgba(255,255,255,0.05)]">
-            {filtered.map(p => {
-              const leader = employees.find(e => e.id === p.leader_id)
-              return (
-                <div key={p.id} className="flex items-center gap-3 px-5 py-4">
-                  <div className="w-10 h-10 rounded-button bg-brand/10 flex items-center justify-center flex-shrink-0">
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-brand">
-                      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-primary truncate">{p.name}</p>
-                      {statusBadge(p.status, t)}
-                    </div>
-                    <p className="text-xs text-secondary truncate">
-                      {[p.city, p.state].filter(Boolean).join(', ') || t('admin.projects.noLocation')}
-                      {p.hotel_name ? ` · ${p.hotel_name}` : ''}
-                    </p>
-                    {leader && (
-                      <p className="text-xs text-tertiary truncate">{t('admin.projects.leaderPrefix').replace('{n}', leader.full_name)}</p>
-                    )}
-                    {p.client_email ? (
-                      <p className="text-xs text-tertiary truncate">{t('admin.projects.clientPrefix').replace('{n}', p.client_name || p.client_email)}</p>
-                    ) : (
-                      <p className="text-xs text-amber truncate">{t('admin.projects.noClientLinked')}</p>
-                    )}
-                  </div>
-                  <div className="hidden md:flex flex-col items-end flex-shrink-0 mr-4">
-                    {p.budget != null && (
-                      <p className="text-sm font-semibold text-primary">
-                        ${Number(p.budget).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                  <a
-                    href={`/admin/projects/${p.id}`}
-                    className="p-1.5 rounded-button text-secondary hover:text-primary hover:bg-surface-elevated transition-colors flex-shrink-0"
-                    title={t('admin.projects.viewDetailTooltip')}
-                  >
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </a>
-                  <button
-                    onClick={() => openEdit(p)}
-                    className="p-1.5 rounded-button text-secondary hover:text-primary hover:bg-surface-elevated transition-colors flex-shrink-0"
-                    title={t('admin.projects.editTooltip')}
-                  >
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                    </svg>
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </Card>
+          {projects.length === 0 && (
+            <Button onClick={openAdd} className="mt-4">{t('admin.projects.addProject')}</Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map(p => (
+            <ProjectCard
+              key={p.id}
+              project={p}
+              leader={employees.find(e => e.id === p.leader_id)}
+              onEdit={openEdit}
+              t={t}
+            />
+          ))}
+        </div>
+      )}
 
       {showModal && (
         <div
@@ -247,7 +326,7 @@ export default function ProjectsPage() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-surface rounded-card border border-[rgba(255,255,255,0.08)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
@@ -307,7 +386,7 @@ export default function ProjectsPage() {
                       onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
                     />
                   </div>
-                  <div className="col-span-2 pt-2 border-t border-[rgba(255,255,255,0.07)]">
+                  <div className="col-span-2 pt-2 border-t border-[var(--border)]">
                     <p className="text-xs font-medium text-secondary mb-3">{t('admin.projects.clientAccess')}</p>
                   </div>
                   <Input

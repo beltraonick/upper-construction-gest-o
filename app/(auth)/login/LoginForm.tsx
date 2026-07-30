@@ -119,7 +119,7 @@ export function LoginForm({ locale, showOwnerRole = false }: { locale: Locale; s
                 'flex flex-col items-center gap-1.5 px-2 py-3 rounded-button border transition-all duration-150 text-center',
                 selectedRole === r.id
                   ? 'bg-brand/10 border-brand/50 text-brand'
-                  : 'bg-surface-elevated border-[rgba(255,255,255,0.07)] text-tertiary hover:text-secondary hover:border-[rgba(255,255,255,0.15)]',
+                  : 'bg-surface-elevated border-[var(--border)] text-tertiary hover:text-secondary hover:border-[var(--border-strong)]',
               ].join(' ')}
             >
               {r.icon}

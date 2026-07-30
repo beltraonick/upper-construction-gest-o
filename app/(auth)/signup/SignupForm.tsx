@@ -60,11 +60,11 @@ export function SignupForm() {
         <select
           name="language"
           defaultValue="en"
-          className="h-11 w-full rounded-input bg-surface-elevated border border-[rgba(255,255,255,0.08)] px-4 text-sm text-primary transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60 hover:border-[rgba(255,255,255,0.14)]"
+          className="h-11 w-full rounded-input bg-surface-elevated border border-[var(--border)] px-4 text-sm text-primary transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60 hover:border-[var(--border-strong)]"
         >
-          <option value="en" className="bg-[#222]">English</option>
-          <option value="pt" className="bg-[#222]">Português</option>
-          <option value="es" className="bg-[#222]">Español</option>
+          <option value="en" className="bg-surface-elevated">English</option>
+          <option value="pt" className="bg-surface-elevated">Português</option>
+          <option value="es" className="bg-surface-elevated">Español</option>
         </select>
       </div>
 
@@ -83,7 +83,7 @@ export function SignupForm() {
                 'flex items-center justify-between gap-3 rounded-input border px-4 py-3 text-left transition-colors duration-150',
                 plan === p.key
                   ? 'bg-brand/10 border-brand/50'
-                  : 'bg-surface-elevated border-[rgba(255,255,255,0.08)] hover:border-[rgba(255,255,255,0.16)]',
+                  : 'bg-surface-elevated border-[var(--border)] hover:border-[var(--border-strong)]',
               ].join(' ')}
             >
               <div>

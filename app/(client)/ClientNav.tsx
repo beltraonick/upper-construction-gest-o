@@ -14,7 +14,7 @@ export function ClientNav() {
   ]
 
   return (
-    <nav className="flex gap-1 px-4 border-b border-[rgba(255,255,255,0.07)] bg-surface">
+    <nav className="flex gap-1 px-4 border-b border-[var(--border)] bg-surface">
       {TABS.map(tab => {
         const active = pathname === tab.href
         return (

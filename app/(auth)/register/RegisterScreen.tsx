@@ -33,7 +33,7 @@ export function RegisterScreen() {
         </div>
 
         {/* Company redirect callout */}
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-input border border-[rgba(255,255,255,0.10)] bg-surface px-4 py-3">
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-input border border-[var(--border)] bg-surface px-4 py-3">
           <p className="text-xs text-secondary">{t(locale, 'registerCompanyHint')}</p>
           <Link
             href="/signup"
@@ -44,7 +44,7 @@ export function RegisterScreen() {
         </div>
 
         {/* Card */}
-        <div className="bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-6">
+        <div className="bg-surface rounded-card border border-[var(--border)] p-6">
           <RegisterForm locale={locale} />
         </div>
 

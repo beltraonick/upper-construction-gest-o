@@ -12,7 +12,7 @@ export default function ForgotPasswordPage() {
           <p className="text-sm text-secondary mt-1">We&apos;ll send you a link to reset your password</p>
         </div>
 
-        <div className="bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-6">
+        <div className="bg-surface rounded-card border border-[var(--border)] p-6">
           <ForgotPasswordForm />
         </div>
 

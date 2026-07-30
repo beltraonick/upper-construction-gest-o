@@ -117,7 +117,7 @@ export function OrbitAI() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed z-50 flex flex-col bg-surface border border-[rgba(255,255,255,0.1)] rounded-card shadow-2xl overflow-hidden orbit-ai-panel"
+          className="fixed z-50 flex flex-col bg-surface border border-[var(--border)] rounded-card shadow-2xl overflow-hidden orbit-ai-panel"
           style={{
             bottom: 'calc(env(safe-area-inset-bottom, 0px) + 160px)',
             right: '12px',
@@ -126,7 +126,7 @@ export function OrbitAI() {
           }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-[rgba(255,255,255,0.07)] flex-shrink-0">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] flex-shrink-0">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
               style={{ background: 'radial-gradient(circle at 35% 35%, #1c1c1e, #0a0a0a)', boxShadow: '0 0 12px rgba(193,18,31,0.3)' }}
@@ -160,7 +160,7 @@ export function OrbitAI() {
                     <button
                       key={s}
                       onClick={() => send(s)}
-                      className="w-full text-left text-xs text-secondary bg-surface-elevated hover:text-primary hover:bg-[rgba(255,255,255,0.05)] px-3 py-2 rounded-button transition-colors border border-[rgba(255,255,255,0.05)]"
+                      className="w-full text-left text-xs text-secondary bg-surface-elevated hover:text-primary hover:bg-black/[0.04] px-3 py-2 rounded-button transition-colors border border-[var(--border)]"
                     >
                       {s}
                     </button>
@@ -175,7 +175,7 @@ export function OrbitAI() {
                       'max-w-[85%] text-xs rounded-card px-3 py-2 leading-relaxed whitespace-pre-wrap',
                       m.role === 'user'
                         ? 'bg-brand text-white'
-                        : 'bg-surface-elevated text-primary border border-[rgba(255,255,255,0.05)]',
+                        : 'bg-surface-elevated text-primary border border-[var(--border)]',
                     ].join(' ')}
                   >
                     {m.content === '' && loading && i === messages.length - 1
@@ -189,7 +189,7 @@ export function OrbitAI() {
           </div>
 
           {/* Input */}
-          <div className="flex gap-2 p-3 border-t border-[rgba(255,255,255,0.07)] flex-shrink-0">
+          <div className="flex gap-2 p-3 border-t border-[var(--border)] flex-shrink-0">
             <input
               ref={inputRef}
               value={input}
@@ -197,7 +197,7 @@ export function OrbitAI() {
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
               placeholder="Ask OrbitOps AI…"
               disabled={loading}
-              className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[rgba(255,255,255,0.07)] focus:border-brand/50 outline-none transition-colors disabled:opacity-60"
+              className="flex-1 bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2 border border-[var(--border)] focus:border-brand/50 outline-none transition-colors disabled:opacity-60"
             />
             <button
               onClick={() => send()}

@@ -51,7 +51,7 @@ export function PendingScreen({ justRegistered }: { justRegistered: boolean }) {
           {t(locale, 'pendingBody2')}
         </p>
 
-        <div className="mt-8 bg-surface rounded-card border border-[rgba(255,255,255,0.07)] p-5 text-left">
+        <div className="mt-8 bg-surface rounded-card border border-[var(--border)] p-5 text-left">
           <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">{t(locale, 'whatHappensNext')}</p>
           <ul className="space-y-3">
             {steps.map((step, i) => (
