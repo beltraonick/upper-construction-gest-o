@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/Select'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { PlanViewer } from '@/components/admin/PlanViewer'
 import type { PlanMarker } from '@/components/admin/PlanViewer'
+import { KanbanBoard } from './KanbanBoard'
 import { useCompanyId } from '@/lib/company-context'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
 
@@ -134,8 +135,11 @@ export default function ProjectDetailPage() {
   const [uploadingPlan, setUploadingPlan] = useState(false)
   const planFileRef = useRef<HTMLInputElement>(null)
 
-  // Tasks
-  const [tasks, setTasks] = useState<Task[]>([])
+  // Employees (for kanban assignee)
+  const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([])
+
+  // Tasks (legacy state kept to avoid refactoring fetchTasks callback)
+  const [_tasks, setTasks] = useState<Task[]>([])
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [tasksFetched, setTasksFetched] = useState(false)
 
@@ -147,11 +151,14 @@ export default function ProjectDetailPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const photoFileRef = useRef<HTMLInputElement>(null)
 
-  // Load project
+  // Load project + employees
   useEffect(() => {
     if (!supabaseReady) { setLoading(false); return }
     const supabase = createClient()
-    supabase.from('projects').select('*').eq('id', projectId).single().then(({ data }) => {
+    Promise.all([
+      supabase.from('projects').select('*').eq('id', projectId).single(),
+      supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('status', 'active').order('full_name'),
+    ]).then(([{ data }, { data: emps }]) => {
       if (data) {
         setProject(data as Project)
         setEditForm({
@@ -169,9 +176,10 @@ export default function ProjectDetailPage() {
       } else {
         router.push('/admin/projects')
       }
+      setEmployees(emps ?? [])
       setLoading(false)
     })
-  }, [projectId, router])
+  }, [projectId, companyId, router])
 
   const fetchPlans = useCallback(async () => {
     if (!supabaseReady || loadingPlans || plansFetched) return
@@ -216,17 +224,10 @@ export default function ProjectDetailPage() {
   const fetchTasks = useCallback(async () => {
     if (!supabaseReady || loadingTasks || tasksFetched) return
     setLoadingTasks(true)
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('tasks')
-      .select('*, assigned_employee:assigned_to(full_name)')
-      .eq('project_id', projectId)
-      .neq('status', 'completed')
-      .order('created_at', { ascending: false })
-    setTasks((data ?? []) as Task[])
+    setTasks([])
     setTasksFetched(true)
     setLoadingTasks(false)
-  }, [projectId, loadingTasks, tasksFetched])
+  }, [loadingTasks, tasksFetched])
 
   const fetchPhotos = useCallback(async () => {
     if (!supabaseReady || loadingPhotos || photosFetched) return
@@ -426,7 +427,7 @@ export default function ProjectDetailPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-[1000px]">
+    <div className="p-4 md:p-8 max-w-[1400px]">
       {/* Header */}
       <div className="mb-5 md:mb-6">
         <button
@@ -719,36 +720,13 @@ export default function ProjectDetailPage() {
         </div>
       )}
 
-      {/* ── TASKS ── */}
+      {/* ── TASKS (Kanban) ── */}
       {activeTab === 'tasks' && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-primary">{t('admin.projectDetail.openTasks').replace('{n}', String(tasks.length)).replace(/\{plural\}/g, tasks.length !== 1 ? 's' : '')}</h2>
-          </div>
-          {loadingTasks && <p className="text-sm text-secondary text-center py-8">{t('admin.projectDetail.loadingTasks')}</p>}
-          {!loadingTasks && tasks.length === 0 && (
-            <Card>
-              <p className="text-sm text-secondary text-center py-8">{t('admin.projectDetail.noOpenTasks')}</p>
-            </Card>
-          )}
-          <div className="space-y-2">
-            {tasks.map(task => (
-              <Card key={task.id}>
-                <div className="flex items-start gap-3">
-                  <div className={['w-2 h-2 rounded-full flex-shrink-0 mt-1.5', task.priority === 'urgent' ? 'bg-danger' : task.priority === 'high' ? 'bg-danger/60' : task.priority === 'medium' ? 'bg-amber' : 'bg-blue'].join(' ')} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-primary">{task.title}</p>
-                    {task.assigned_employee?.full_name && (
-                      <p className="text-xs text-secondary mt-0.5">{task.assigned_employee.full_name}</p>
-                    )}
-                    {task.area && <p className="text-xs text-tertiary">{task.area}</p>}
-                  </div>
-                  {statusBadge(task.status, t)}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+        <KanbanBoard
+          projectId={projectId}
+          companyId={companyId}
+          employees={employees}
+        />
       )}
 
       {/* ── PHOTOS ── */}
