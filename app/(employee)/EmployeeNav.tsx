@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export function EmployeeNav() {
   const pathname = usePathname()
@@ -66,6 +67,7 @@ export function EmployeeNav() {
           </Link>
         )
       })}
+      <ThemeToggle layout="nav" />
     </nav>
   )
 }

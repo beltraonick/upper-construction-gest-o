@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import './globals.css'
+import { ThemeProvider } from '@/lib/theme-context'
 
 export const metadata: Metadata = {
   title: 'OrbitOps',
@@ -27,13 +28,24 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#F5F5F7',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F5F5F7' },
+    { media: '(prefers-color-scheme: dark)', color: '#111113' },
+  ],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    // suppressHydrationWarning because the inline script may add class="dark"
+    // before React hydrates, causing a server/client class mismatch.
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        {/* Apply saved theme before first paint to prevent flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem('orbit-theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`,
+          }}
+        />
         <meta name="apple-mobile-web-app-title" content="OrbitOps" />
         <meta name="application-name" content="OrbitOps" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -41,7 +53,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" sizes="512x512" href="/icon-512.png" type="image/png" />
       </head>
       <body className="antialiased">
-        {children}
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
         <Script id="sw" strategy="afterInteractive">{`
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js').catch(() => {});

@@ -27,10 +27,65 @@
   --amber: #A05A00;
   --red-system: #D60014;
 
+  /* ── RGB channels — Tailwind opacity modifier support (bg-brand/10, etc.) ── */
+  --color-brand:      193 18 31;
+  --color-brand-hover: 165 15 26;
+  --color-green:      28 122 46;
+  --color-amber:      160 90 0;
+  --color-blue:       0 113 227;
+  --color-danger:     214 0 20;
+
   /* ── Shape ── */
   --radius-card: 16px;
   --radius-button: 10px;
   --radius-input: 10px;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   DARK MODE — applied when <html class="dark"> is set by ThemeProvider
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+html.dark {
+  /* Surfaces — deep charcoal layering, not pure black */
+  --background: #111113;
+  --surface: #1C1C1E;
+  --surface-elevated: #2C2C2E;
+
+  /* Borders — white-based alpha so they stay subtle */
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.15);
+
+  /* Typography — inverted hierarchy */
+  --text-primary: #F5F5F7;
+  --text-secondary: #98989D;
+  --text-tertiary: #636366;
+
+  /* System colors — brighter Apple-style versions for dark backgrounds */
+  --color-green:  48 209 88;    /* #30D158 — Apple system green dark */
+  --color-amber:  255 179 64;   /* #FFB340 — Apple system yellow dark */
+  --color-blue:   10 132 255;   /* #0A84FF — Apple system blue dark */
+  --color-danger: 255 69 58;    /* #FF453A — Apple system red dark */
+  /* brand stays the same red across both modes */
+}
+
+/* Dark mode scrollbar */
+html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+html.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+/* Dark mode text selection */
+html.dark ::selection { background: rgba(193,18,31,0.3); color: #F5F5F7; }
+
+/* Dark mode autofill override */
+html.dark input:-webkit-autofill,
+html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #2C2C2E inset;
+  -webkit-text-fill-color: #F5F5F7;
+  caret-color: #F5F5F7;
+}
+
+/* Dark mode orbit AI panel — deeper shadow on dark bg */
+html.dark .orbit-ai-panel {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 -4px 40px rgba(0,0,0,0.5), 0 0 60px rgba(0,0,0,0.3);
 }
 
 * {

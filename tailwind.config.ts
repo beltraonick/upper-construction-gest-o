@@ -6,21 +6,24 @@ const config: Config = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        background: '#F5F5F7',
-        surface: '#FFFFFF',
-        'surface-elevated': '#F0F0F5',
-        primary: '#1D1D1F',
-        secondary: '#6E6E73',
-        tertiary: '#AEAEB2',
-        brand: '#C1121F',
-        'brand-hover': '#a50f1a',
-        blue: '#0071E3',
-        green: '#1C7A2E',
-        amber: '#A05A00',
-        danger: '#D60014',
+        // Semantic tokens — driven by CSS variables so they flip in dark mode automatically
+        background: 'var(--background)',
+        surface: 'var(--surface)',
+        'surface-elevated': 'var(--surface-elevated)',
+        primary: 'var(--text-primary)',
+        secondary: 'var(--text-secondary)',
+        tertiary: 'var(--text-tertiary)',
+        // RGB-channel format enables opacity modifiers (bg-brand/10, text-green/80, etc.)
+        brand: 'rgb(var(--color-brand) / <alpha-value>)',
+        'brand-hover': 'rgb(var(--color-brand-hover) / <alpha-value>)',
+        green: 'rgb(var(--color-green) / <alpha-value>)',
+        amber: 'rgb(var(--color-amber) / <alpha-value>)',
+        blue: 'rgb(var(--color-blue) / <alpha-value>)',
+        danger: 'rgb(var(--color-danger) / <alpha-value>)',
       },
       borderRadius: {
         card: '16px',

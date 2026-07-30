@@ -5,6 +5,7 @@ import { logout } from '@/app/actions/auth'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { t } from '@/lib/i18n/translate'
 import { ClientNav } from './ClientNav'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
@@ -30,11 +31,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             <p className="text-[10px] text-tertiary leading-tight">{t(user.language, 'client.portalLabel')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Link href="/profile" className="text-right hidden sm:block hover:opacity-80 transition-opacity">
             <p className="text-xs font-medium text-primary leading-tight">{user.full_name}</p>
             <p className="text-[10px] text-tertiary">{t(user.language, 'common.role.client')}</p>
           </Link>
+          <ThemeToggle />
           <form action={logout}>
             <button
               type="submit"

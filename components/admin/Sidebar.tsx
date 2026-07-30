@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/ui/Avatar'
 import { logout } from '@/app/actions/auth'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import type { SessionUser } from '@/lib/auth/types'
 
 function useNav() {
@@ -173,7 +174,7 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
           })}
         </nav>
 
-        {/* User + Logout */}
+        {/* User + Theme + Logout */}
         <div className="px-3 py-4 border-t border-[var(--border)] space-y-1">
           <Link href="/profile" className="flex items-center gap-3 px-3 py-2 rounded-button hover:bg-surface-elevated transition-colors">
             <Avatar name={user.full_name} size="sm" />
@@ -181,6 +182,7 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
               <p className="text-sm font-medium text-primary truncate leading-tight">{user.full_name}</p>
               <p className="text-[11px] text-tertiary truncate capitalize">{user.role}</p>
             </div>
+            <ThemeToggle />
           </Link>
           <form action={logout}>
             <button
@@ -203,7 +205,8 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
           <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />
           <span className="text-sm font-semibold text-primary">OrbitOps</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
           <Link href="/profile" aria-label="Profile & Settings">
             <Avatar name={user.full_name} size="sm" />
           </Link>

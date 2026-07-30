@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { logout } from '@/app/actions/auth'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { t } from '@/lib/i18n/translate'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
@@ -28,8 +29,9 @@ export default function OwnerLayout({ children }: { children: React.ReactNode })
             <p className="text-[10px] text-tertiary leading-tight">{t(user.language, 'owner.platformOwner')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Link href="/profile" className="text-xs text-secondary hidden sm:inline hover:text-primary transition-colors">{user.full_name}</Link>
+          <ThemeToggle />
           <form action={logout}>
             <button
               type="submit"
