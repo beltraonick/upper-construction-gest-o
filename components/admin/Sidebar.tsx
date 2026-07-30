@@ -129,8 +129,8 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
   const pathname = usePathname()
   const { t } = useTranslation()
   const NAV = useNav()
-  // Mobile bottom nav: 5 items
-  const BOTTOM_NAV = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4]]
+  // Mobile bottom nav: Home, Projects, Tasks, Members, Settings
+  const BOTTOM_NAV = [NAV[0], NAV[2], NAV[3], NAV[4], NAV[10]]
 
   return (
     <>

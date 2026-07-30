@@ -30,7 +30,7 @@ export async function getPendingRequests(): Promise<{ requests?: MembershipReque
     .from('membership_requests')
     .select(`
       id, profile_id, company_id, status, created_at,
-      profiles ( full_name, email, phone, role )
+      profiles!profile_id ( full_name, email, phone, role )
     `)
     .eq('company_id', user.company_id)
     .eq('status', 'pending')
