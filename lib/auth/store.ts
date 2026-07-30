@@ -245,13 +245,18 @@ export async function createEmployeeWithInvite(
 
       if (!error && row) {
         const authUser = rowToAuthUser(row as ProfileAuthRow)
-        // Create membership request
-        await supabase.from('membership_requests').insert({
-          profile_id: authUser.id,
-          company_id,
-          invite_code_id,
-          status: 'pending',
-        })
+        // Separate try so a missing membership_requests table doesn't
+        // swallow the successful profile insert and fall to in-memory.
+        try {
+          await supabase.from('membership_requests').insert({
+            profile_id: authUser.id,
+            company_id,
+            invite_code_id,
+            status: 'pending',
+          })
+        } catch (mrErr) {
+          console.error('[register] membership_requests insert failed:', mrErr)
+        }
         return authUser
       }
     } catch {

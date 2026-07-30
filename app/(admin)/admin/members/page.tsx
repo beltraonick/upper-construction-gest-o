@@ -17,7 +17,9 @@ export default function MembersPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setError('')
     const result = await getPendingRequests()
+    if (result.error) setError(result.error)
     if (result.requests) setRequests(result.requests)
     setLoading(false)
   }, [])
