@@ -53,6 +53,13 @@ export function OrbitAI() {
     if (open) setTimeout(() => inputRef.current?.focus(), 100)
   }, [open])
 
+  // Allow the mobile bottom nav AI button to toggle the panel
+  useEffect(() => {
+    const toggle = () => setOpen(o => !o)
+    window.addEventListener('orbit-ai-toggle', toggle)
+    return () => window.removeEventListener('orbit-ai-toggle', toggle)
+  }, [])
+
   // Dashboard has its own embedded OrbitAIHub — no floating button needed there
   if (pathname === '/admin/dashboard') return null
 
@@ -99,11 +106,11 @@ export function OrbitAI() {
 
   return (
     <>
-      {/* Floating sphere button — left on mobile so it doesn't overlap right-side action buttons */}
+      {/* Floating sphere button — desktop only; mobile uses the bottom nav AI button */}
       <button
         onClick={() => setOpen(o => !o)}
         aria-label="Open OrbitOps AI"
-        className="fixed z-50 w-14 h-14 rounded-full flex items-center justify-center orbit-ai-btn left-4 md:left-auto md:right-4"
+        className="hidden md:flex fixed z-50 w-14 h-14 rounded-full items-center justify-center orbit-ai-btn md:right-4"
         style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)' }}
       >
         <div className={`transition-transform duration-300 ${open ? 'scale-90' : 'hover:scale-110'}`}>
@@ -111,16 +118,17 @@ export function OrbitAI() {
         </div>
       </button>
 
-      {/* Chat panel — aligns with sphere (left on mobile, right on desktop) */}
+      {/* Chat panel — above bottom nav on mobile, above sphere on desktop */}
       {open && (
-        <div
-          className="fixed z-50 flex flex-col bg-surface border border-[var(--border)] rounded-card shadow-2xl overflow-hidden orbit-ai-panel left-3 md:left-auto md:right-3"
-          style={{
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 160px)',
-            width: 'min(360px, calc(100vw - 24px))',
-            maxHeight: '480px',
-          }}
-        >
+        <>
+          <style>{`.orbit-ai-panel-pos{bottom:64px}@media(min-width:768px){.orbit-ai-panel-pos{bottom:calc(env(safe-area-inset-bottom,0px) + 160px)}}`}</style>
+          <div
+            className="fixed z-50 flex flex-col bg-surface border border-[var(--border)] rounded-card shadow-2xl overflow-hidden orbit-ai-panel orbit-ai-panel-pos left-3 md:left-auto md:right-3"
+            style={{
+              width: 'min(360px, calc(100vw - 24px))',
+              maxHeight: '480px',
+            }}
+          >
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] flex-shrink-0">
             <div
@@ -206,6 +214,7 @@ export function OrbitAI() {
             </button>
           </div>
         </div>
+        </>
       )}
     </>
   )
