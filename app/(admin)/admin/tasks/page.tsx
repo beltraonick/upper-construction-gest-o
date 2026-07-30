@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
-import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -36,11 +35,11 @@ interface Profile { id: string; full_name: string }
 interface Project { id: string; name: string }
 interface Room { id: string; project_id: string; floor: string | null; label: string }
 
-const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-blue/10 text-blue',
-  medium: 'bg-amber/10 text-amber',
-  high: 'bg-danger/10 text-danger',
-  urgent: 'bg-danger text-white',
+const PRIORITY_DOT: Record<string, string> = {
+  low: 'bg-blue',
+  medium: 'bg-amber',
+  high: 'bg-danger/70',
+  urgent: 'bg-danger',
 }
 
 const STATUS_VARIANTS: Record<string, 'gray' | 'amber' | 'blue' | 'green'> = {
@@ -68,12 +67,11 @@ export default function TasksPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Task | null>(null)
   const [form, setForm] = useState({ ...BLANK })
-  const [filterStatus, setFilterStatus] = useState('')
-  const [filterProject, setFilterProject] = useState('')
   const [newCheckItem, setNewCheckItem] = useState('')
   const [editPhotos, setEditPhotos] = useState<{ id: string; storage_path: string }[]>([])
   const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([])
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const PRIORITY_OPTIONS = [
     { value: 'low', label: t('common.priority.low') },
@@ -88,27 +86,20 @@ export default function TasksPage() {
     { value: 'completed', label: t('common.completed') },
   ]
 
-  const FILTER_STATUS = [
-    { value: '', label: t('admin.tasks.allStatuses') },
-    { value: 'pending', label: t('common.pending') },
-    { value: 'in_progress', label: t('common.inProgress') },
-    { value: 'completed', label: t('common.completed') },
-  ]
-
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
-    const [{ data: t }, { data: emps }, { data: projs }, { data: rms }] = await Promise.all([
+    const [{ data: td }, { data: emps }, { data: projs }, { data: rms }] = await Promise.all([
       supabase
         .from('tasks')
         .select('*, project:project_id(name), assigned_employee:assigned_to(full_name)')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('status', 'active').order('full_name'),
-      supabase.from('projects').select('id, name').eq('company_id', companyId).eq('status', 'active').order('name'),
+      supabase.from('projects').select('id, name').eq('company_id', companyId).order('name'),
       supabase.from('project_rooms').select('id, project_id, floor, label').eq('company_id', companyId),
     ])
-    setTasks((t ?? []) as unknown as Task[])
+    setTasks((td ?? []) as unknown as Task[])
     setEmployees(emps ?? [])
     setProjects(projs ?? [])
     setRooms(rms ?? [])
@@ -117,38 +108,40 @@ export default function TasksPage() {
 
   useEffect(() => { load() }, [load])
 
-  function openAdd() {
+  function openAdd(presetProjectId?: string) {
     setEditing(null)
-    setForm({ ...BLANK })
+    setForm({ ...BLANK, project_id: presetProjectId ?? '' })
     setEditPhotos([])
     setNewPhotoFiles([])
+    setSaveError('')
     setShowModal(true)
   }
 
-  async function openEdit(t: Task) {
-    setEditing(t)
+  async function openEdit(task: Task) {
+    setEditing(task)
     setForm({
-      title: t.title,
-      description: t.description ?? '',
-      area: t.area ?? '',
-      priority: t.priority,
-      status: t.status,
-      estimated_hours: t.estimated_hours != null ? String(t.estimated_hours) : '',
-      due_date: t.due_date ?? '',
-      project_id: t.project_id ?? '',
-      assigned_employee_id: t.assigned_employee_id ?? '',
-      notes: t.notes ?? '',
-      room_id: t.room_id ?? '',
-      checklist: t.checklist ?? [],
+      title: task.title,
+      description: task.description ?? '',
+      area: task.area ?? '',
+      priority: task.priority,
+      status: task.status,
+      estimated_hours: task.estimated_hours != null ? String(task.estimated_hours) : '',
+      due_date: task.due_date ?? '',
+      project_id: task.project_id ?? '',
+      assigned_employee_id: task.assigned_employee_id ?? '',
+      notes: task.notes ?? '',
+      room_id: task.room_id ?? '',
+      checklist: task.checklist ?? [],
     })
     setEditPhotos([])
     setNewPhotoFiles([])
+    setSaveError('')
     setShowModal(true)
     const supabase = createClient()
     const { data } = await supabase
       .from('task_media')
       .select('id, storage_path')
-      .eq('task_id', t.id)
+      .eq('task_id', task.id)
       .eq('media_type', 'photo')
       .order('created_at', { ascending: false })
     setEditPhotos(data ?? [])
@@ -160,64 +153,66 @@ export default function TasksPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    setSaveError('')
     setSaving(true)
     const supabase = createClient()
 
-    // Base payload uses columns guaranteed to exist in the original schema.
-    // Columns added by migration 003 (area, priority, checklist, notes, completed_at,
-    // assigned_employee_id, company_id) are included but will be silently ignored
-    // by Postgres if the column doesn't exist yet — the app retries after migration.
-    const base = {
+    const payload = {
       title: form.title,
       description: form.description || null,
       status: form.status,
       due_date: form.due_date || null,
       project_id: form.project_id || null,
-      // Use assigned_to (original column) + assigned_employee_id (post-migration column)
       assigned_to: form.assigned_employee_id || null,
+      assigned_employee_id: form.assigned_employee_id || null,
+      area: form.area || null,
+      priority: form.priority,
+      estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
+      notes: form.notes || null,
+      checklist: form.checklist,
+      completed_at: form.status === 'completed' ? new Date().toISOString() : null,
+      room_id: form.room_id || null,
       updated_at: new Date().toISOString(),
     }
 
-    // Extended columns — safe to include; Postgres ignores unknown column errors
-    // when the schema validates via PostgREST's column whitelist. We try/catch.
     let savedTaskId: string | null = editing?.id ?? null
-    try {
-      const extended = {
-        ...base,
-        area: form.area || null,
-        priority: form.priority,
-        estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
-        notes: form.notes || null,
-        checklist: form.checklist,
-        completed_at: form.status === 'completed' ? new Date().toISOString() : null,
-        assigned_employee_id: form.assigned_employee_id || null,
-        room_id: form.room_id || null,
+
+    if (editing) {
+      const { error } = await supabase.from('tasks').update(payload).eq('id', editing.id)
+      if (error) {
+        // Retry with minimal payload in case of extra column errors
+        const { error: e2 } = await supabase.from('tasks').update({
+          title: payload.title, description: payload.description, status: payload.status,
+          due_date: payload.due_date, project_id: payload.project_id,
+          assigned_to: payload.assigned_to, updated_at: payload.updated_at,
+        }).eq('id', editing.id)
+        if (e2) { setSaveError(e2.message); setSaving(false); return }
       }
-      if (editing) {
-        await supabase.from('tasks').update(extended).eq('id', editing.id)
-      } else {
-        const { data: inserted } = await supabase
+    } else {
+      const { data: inserted, error } = await supabase
+        .from('tasks')
+        .insert({ ...payload, company_id: companyId })
+        .select('id')
+        .single()
+      if (error) {
+        // Retry with minimal payload
+        const { data: ins2, error: e2 } = await supabase
           .from('tasks')
-          .insert({ ...extended, company_id: companyId })
+          .insert({
+            title: payload.title, description: payload.description, status: payload.status,
+            due_date: payload.due_date, project_id: payload.project_id,
+            assigned_to: payload.assigned_to, company_id: companyId,
+          })
           .select('id')
           .single()
-        savedTaskId = inserted?.id ?? null
-      }
-    } catch {
-      // Fall back to base-only payload (pre-migration schema)
-      if (editing) {
-        await supabase.from('tasks').update(base).eq('id', editing.id)
+        if (e2) { setSaveError(e2.message); setSaving(false); return }
+        savedTaskId = ins2?.id ?? null
       } else {
-        const { data: inserted } = await supabase
-          .from('tasks')
-          .insert(base)
-          .select('id')
-          .single()
         savedTaskId = inserted?.id ?? null
       }
     }
 
-    // Upload any new photos
+    // Upload photos
     if (newPhotoFiles.length > 0 && savedTaskId) {
       setUploadingPhotos(true)
       for (const file of newPhotoFiles) {
@@ -244,15 +239,11 @@ export default function TasksPage() {
 
   async function quickStatus(id: string, status: string) {
     const supabase = createClient()
-    try {
-      await supabase.from('tasks').update({
-        status,
-        completed_at: status === 'completed' ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      }).eq('id', id)
-    } catch {
-      await supabase.from('tasks').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
-    }
+    await supabase.from('tasks').update({
+      status,
+      completed_at: status === 'completed' ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id)
     load()
   }
 
@@ -269,19 +260,12 @@ export default function TasksPage() {
     setNewCheckItem('')
   }
 
-  function removeCheckItem(i: number) {
-    setForm(f => ({ ...f, checklist: f.checklist.filter((_, idx) => idx !== i) }))
-  }
-
-  const filtered = tasks.filter(t =>
-    (!filterStatus || t.status === filterStatus) &&
-    (!filterProject || t.project_id === filterProject)
-  )
-
-  const counts = {
-    pending: tasks.filter(t => t.status === 'pending').length,
-    in_progress: tasks.filter(t => t.status === 'in_progress').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
+  function roomOptionsFor(pid: string) {
+    const projectRooms = rooms.filter(r => r.project_id === pid)
+    return [
+      { value: '', label: t('admin.tasks.noRoom') },
+      ...projectRooms.map(r => ({ value: r.id, label: [r.floor, r.label].filter(Boolean).join(' — ') })),
+    ]
   }
 
   const empOptions = [
@@ -294,37 +278,105 @@ export default function TasksPage() {
     ...projects.map(p => ({ value: p.id, label: p.name })),
   ]
 
-  const projFilterOptions = [
-    { value: '', label: t('admin.tasks.allProjects') },
-    ...projects.map(p => ({ value: p.id, label: p.name })),
-  ]
+  // Group tasks by project for the board view
+  const projectsWithTasks = projects.map(p => ({
+    project: p,
+    tasks: tasks.filter(t => t.project_id === p.id),
+  })).filter(g => g.tasks.length > 0 || true) // show all projects even if empty
 
-  function roomOptionsFor(pid: string) {
-    return [
-      { value: '', label: t('admin.tasks.noRoom') },
-      ...rooms
-        .filter(r => r.project_id === pid)
-        .map(r => ({ value: r.id, label: [r.floor, r.label].filter(Boolean).join(' — ') })),
-    ]
+  const unassignedTasks = tasks.filter(t => !t.project_id)
+
+  const counts = {
+    pending: tasks.filter(t => t.status === 'pending').length,
+    in_progress: tasks.filter(t => t.status === 'in_progress').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+  }
+
+  function TaskRow({ task }: { task: Task }) {
+    const doneItems = (task.checklist ?? []).filter(c => c.done).length
+    const totalItems = (task.checklist ?? []).length
+    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
+
+    return (
+      <div className="group px-3 py-3 flex items-start gap-2.5 hover:bg-surface-elevated/70 rounded-button transition-colors">
+        <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[task.priority] ?? 'bg-secondary'}`} />
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium leading-snug ${task.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
+            {task.title}
+          </p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <Badge variant={STATUS_VARIANTS[task.status] ?? 'gray'} className="text-[10px]">
+              {task.status === 'in_progress' ? t('common.inProgress')
+                : task.status === 'pending' ? t('common.pending')
+                : t('common.completed')}
+            </Badge>
+            {task.assigned_employee?.full_name && (
+              <span className="text-[11px] text-secondary">
+                {task.assigned_employee.full_name.split(' ')[0]}
+              </span>
+            )}
+            {task.area && (
+              <span className="text-[11px] text-tertiary truncate max-w-[100px]">{task.area}</span>
+            )}
+            {totalItems > 0 && (
+              <span className="text-[11px] text-tertiary">{doneItems}/{totalItems}</span>
+            )}
+            {task.due_date && (
+              <span className={`text-[11px] ${isOverdue ? 'text-danger font-medium' : 'text-tertiary'}`}>
+                {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {task.status === 'pending' && (
+            <button
+              onClick={() => quickStatus(task.id, 'in_progress')}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-amber/10 text-amber hover:bg-amber/20 transition-colors"
+            >{t('admin.tasks.start')}</button>
+          )}
+          {task.status === 'in_progress' && (
+            <button
+              onClick={() => quickStatus(task.id, 'completed')}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-green/10 text-green hover:bg-green/20 transition-colors"
+            >{t('admin.tasks.complete')}</button>
+          )}
+          <button
+            onClick={() => openEdit(task)}
+            className="p-1 rounded text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+              <path d="M11.013 2.508a1.75 1.75 0 012.475 2.474L5.87 12.6l-3.371.749.749-3.371 7.765-7.47z"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => deleteTask(task.id)}
+            className="p-1 rounded text-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+              <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 000 1.5h.3l.815 8.15A1.5 1.5 0 005.357 15h5.285a1.5 1.5 0 001.493-1.35l.815-8.15h.3a.75.75 0 000-1.5H11v-.75A2.25 2.25 0 008.75 1h-1.5A2.25 2.25 0 005 3.25zm2.25-.75a.75.75 0 00-.75.75V4h3v-.75a.75.75 0 00-.75-.75h-1.5zM6.05 6a.75.75 0 01.787.713l.275 5.5a.75.75 0 01-1.498.075l-.275-5.5A.75.75 0 016.05 6zm3.9 0a.75.75 0 01.712.787l-.275 5.5a.75.75 0 01-1.498-.075l.275-5.5a.75.75 0 01.786-.711z" clipRule="evenodd"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-[1400px]">
-      <div className="mb-6 md:mb-8 flex items-start justify-between gap-4 flex-wrap">
+    <div className="p-4 md:p-8 max-w-[1600px]">
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{t('admin.tasks.title')}</h1>
           <p className="text-sm text-secondary mt-1">
             {t('admin.tasks.summary').replace('{n}', String(counts.pending)).replace('{m}', String(counts.in_progress)).replace('{k}', String(counts.completed))}
           </p>
-          <p className="text-xs text-tertiary mt-0.5">
-            {t('admin.tasks.helperText')}
-          </p>
         </div>
-        <Button onClick={openAdd}>{t('admin.tasks.addTask')}</Button>
+        <Button onClick={() => openAdd()}>{t('admin.tasks.addTask')}</Button>
       </div>
 
       {/* Summary chips */}
-      <div className="flex gap-2 mb-5 flex-wrap">
+      <div className="flex gap-2 mb-6 flex-wrap">
         {[
           { label: t('common.pending'), count: counts.pending, color: 'text-secondary' },
           { label: t('common.inProgress'), count: counts.in_progress, color: 'text-amber' },
@@ -337,119 +389,118 @@ export default function TasksPage() {
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 mb-4 flex-wrap">
-        <div className="w-40">
-          <Select options={FILTER_STATUS} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} />
+      {/* Board: one column per project */}
+      {loading ? (
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex-shrink-0 w-72 bg-surface border border-[var(--border)] rounded-card h-64 animate-pulse" />
+          ))}
         </div>
-        <div className="w-52">
-          <Select options={projFilterOptions} value={filterProject} onChange={e => setFilterProject(e.target.value)} />
+      ) : tasks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <p className="text-sm font-medium text-primary mb-1">{t('admin.tasks.noTasksYet')}</p>
+          <Button onClick={() => openAdd()} className="mt-4">{t('admin.tasks.createFirstTask')}</Button>
         </div>
-      </div>
-
-      <Card padding="none">
-        {loading ? (
-          <p className="px-5 py-10 text-sm text-secondary text-center">{t('common.loading')}</p>
-        ) : filtered.length === 0 ? (
-          <div className="px-5 py-12 text-center">
-            <p className="text-sm text-secondary mb-3">
-              {tasks.length === 0 ? t('admin.tasks.noTasksYet') : t('admin.tasks.noTasksMatchFilters')}
-            </p>
-            {tasks.length === 0 && (
-              <Button onClick={openAdd} variant="secondary">{t('admin.tasks.createFirstTask')}</Button>
-            )}
-          </div>
-        ) : (
-          <div className="divide-y divide-[var(--border)]">
-            {filtered.map(task => {
-              const doneItems = (task.checklist ?? []).filter(c => c.done).length
-              const totalItems = (task.checklist ?? []).length
-              return (
-                <div key={task.id} className="px-5 py-4 flex items-start gap-3 group">
-                  {/* Priority stripe */}
-                  <div className={`mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    task.priority === 'urgent' ? 'bg-danger' :
-                    task.priority === 'high' ? 'bg-danger/60' :
-                    task.priority === 'medium' ? 'bg-amber' : 'bg-blue'
-                  }`} />
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <p className={`text-sm font-medium ${task.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
-                        {task.title}
-                      </p>
-                      <Badge variant={STATUS_VARIANTS[task.status] ?? 'gray'}>
-                        {task.status === 'in_progress' ? t('common.inProgress')
-                          : task.status === 'pending' ? t('common.pending')
-                          : task.status === 'completed' ? t('common.completed')
-                          : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                      </Badge>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${PRIORITY_COLORS[task.priority] ?? ''}`}>
-                        {t(`common.priority.${task.priority}`).toUpperCase()}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {task.project?.name && (
-                        <p className="text-xs text-secondary truncate">📁 {task.project.name}</p>
-                      )}
-                      {task.assigned_employee?.full_name && (
-                        <p className="text-xs text-secondary">👤 {task.assigned_employee.full_name}</p>
-                      )}
-                      {task.area && (
-                        <p className="text-xs text-tertiary">📍 {task.area}</p>
-                      )}
-                      {totalItems > 0 && (
-                        <p className="text-xs text-tertiary">{t('admin.tasks.doneOfTotal').replace('{n}', String(doneItems)).replace('{m}', String(totalItems))}</p>
-                      )}
-                      {task.due_date && (
-                        <p className={`text-xs ${new Date(task.due_date) < new Date() && task.status !== 'completed' ? 'text-danger' : 'text-tertiary'}`}>
-                          {t('admin.tasks.duePrefix').replace('{date}', new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))}
-                        </p>
-                      )}
-                    </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 md:-mx-8 md:px-8">
+          {/* Project columns (only projects that have tasks) */}
+          {projectsWithTasks
+            .filter(g => g.tasks.length > 0)
+            .map(({ project, tasks: projectTasks }) => (
+              <div
+                key={project.id}
+                className="flex-shrink-0 w-72 bg-surface border border-[var(--border)] rounded-card overflow-hidden flex flex-col"
+              >
+                {/* Column header */}
+                <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-2 h-2 rounded-full bg-brand flex-shrink-0" />
+                    <h3 className="text-xs font-semibold text-primary truncate">{project.name}</h3>
                   </div>
-
-                  <div className="flex items-center gap-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {task.status === 'pending' && (
-                      <button
-                        onClick={() => quickStatus(task.id, 'in_progress')}
-                        className="text-xs px-2 py-1 rounded-button bg-amber/10 text-amber hover:bg-amber/20 transition-colors"
-                      >
-                        {t('admin.tasks.start')}
-                      </button>
-                    )}
-                    {task.status === 'in_progress' && (
-                      <button
-                        onClick={() => quickStatus(task.id, 'completed')}
-                        className="text-xs px-2 py-1 rounded-button bg-green/10 text-green hover:bg-green/20 transition-colors"
-                      >
-                        {t('admin.tasks.complete')}
-                      </button>
-                    )}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-[10px] text-tertiary bg-surface-elevated rounded-full px-1.5 py-0.5">
+                      {projectTasks.length}
+                    </span>
                     <button
-                      onClick={() => openEdit(task)}
-                      className="p-1.5 rounded-button text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
+                      onClick={() => openAdd(project.id)}
+                      className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
+                      title={t('admin.tasks.addTask')}
                     >
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => deleteTask(task.id)}
-                      className="p-1.5 rounded-button text-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
-                    >
-                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                        <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5H2.75a.75.75 0 010-1.5h4.5V2.75A.75.75 0 018 2z"/>
                       </svg>
                     </button>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </Card>
+
+                {/* Tasks list */}
+                <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
+                  {projectTasks.map(task => (
+                    <TaskRow key={task.id} task={task} />
+                  ))}
+                </div>
+              </div>
+            ))}
+
+          {/* Unassigned column */}
+          {unassignedTasks.length > 0 && (
+            <div className="flex-shrink-0 w-72 bg-surface border border-[var(--border)] rounded-card overflow-hidden flex flex-col">
+              <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-2 h-2 rounded-full bg-tertiary flex-shrink-0" />
+                  <h3 className="text-xs font-semibold text-secondary truncate">{t('admin.tasks.noProject')}</h3>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-[10px] text-tertiary bg-surface-elevated rounded-full px-1.5 py-0.5">
+                    {unassignedTasks.length}
+                  </span>
+                  <button
+                    onClick={() => openAdd()}
+                    className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                      <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5H2.75a.75.75 0 010-1.5h4.5V2.75A.75.75 0 018 2z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
+                {unassignedTasks.map(task => (
+                  <TaskRow key={task.id} task={task} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Add to any project buttons for projects with 0 tasks */}
+          {projectsWithTasks
+            .filter(g => g.tasks.length === 0)
+            .map(({ project }) => (
+              <div
+                key={project.id}
+                className="flex-shrink-0 w-72 border-2 border-dashed border-[var(--border)] rounded-card overflow-hidden flex flex-col"
+              >
+                <div className="px-3 py-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-2 h-2 rounded-full bg-tertiary/40 flex-shrink-0" />
+                    <h3 className="text-xs font-semibold text-tertiary truncate">{project.name}</h3>
+                  </div>
+                  <button
+                    onClick={() => openAdd(project.id)}
+                    className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
+                  >
+                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                      <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5H2.75a.75.75 0 010-1.5h4.5V2.75A.75.75 0 018 2z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 flex items-center justify-center pb-6">
+                  <p className="text-xs text-tertiary">{t('admin.tasks.noTasksYet')}</p>
+                </div>
+              </div>
+            ))}
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {showModal && (
@@ -492,7 +543,7 @@ export default function TasksPage() {
                     label={t('admin.tasks.project')}
                     options={projOptions}
                     value={form.project_id}
-                    onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
+                    onChange={e => setForm(f => ({ ...f, project_id: e.target.value, room_id: '' }))}
                   />
                   <Select
                     label={t('admin.tasks.assignedTo')}
@@ -503,20 +554,25 @@ export default function TasksPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Select
-                    label={t('admin.tasks.room')}
-                    options={roomOptionsFor(form.project_id)}
-                    value={form.room_id}
-                    onChange={e => {
-                      const roomId = e.target.value
-                      const room = rooms.find(r => r.id === roomId)
-                      setForm(f => ({
-                        ...f,
-                        room_id: roomId,
-                        area: room ? [room.floor, room.label].filter(Boolean).join(' — ') : f.area,
-                      }))
-                    }}
-                  />
+                  <div>
+                    <Select
+                      label={t('admin.tasks.room')}
+                      options={roomOptionsFor(form.project_id)}
+                      value={form.room_id}
+                      onChange={e => {
+                        const roomId = e.target.value
+                        const room = rooms.find(r => r.id === roomId)
+                        setForm(f => ({
+                          ...f,
+                          room_id: roomId,
+                          area: room ? [room.floor, room.label].filter(Boolean).join(' — ') : f.area,
+                        }))
+                      }}
+                    />
+                    {form.project_id && roomOptionsFor(form.project_id).length === 1 && (
+                      <p className="text-[10px] text-tertiary mt-1">No rooms for this project yet</p>
+                    )}
+                  </div>
                   <Input
                     label={t('admin.tasks.areaLocation')}
                     placeholder={t('admin.tasks.areaPlaceholder')}
@@ -525,14 +581,12 @@ export default function TasksPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label={t('admin.tasks.dueDate')}
-                    type="date"
-                    value={form.due_date}
-                    onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
-                  />
-                </div>
+                <Input
+                  label={t('admin.tasks.dueDate')}
+                  type="date"
+                  value={form.due_date}
+                  onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+                />
 
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-1.5">{t('admin.tasks.description')}</label>
@@ -552,12 +606,7 @@ export default function TasksPage() {
                     <div className="grid grid-cols-5 gap-2 mb-2">
                       {editPhotos.map(p => (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={p.id}
-                          src={editPhotoUrl(p.storage_path)}
-                          alt={t('admin.tasks.taskPhotoAlt')}
-                          className="aspect-square object-cover rounded-button bg-surface-elevated"
-                        />
+                        <img key={p.id} src={editPhotoUrl(p.storage_path)} alt="" className="aspect-square object-cover rounded-button bg-surface-elevated" />
                       ))}
                     </div>
                   )}
@@ -565,12 +614,7 @@ export default function TasksPage() {
                     <div className="grid grid-cols-5 gap-2 mb-2">
                       {newPhotoFiles.map((f, i) => (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          key={i}
-                          src={URL.createObjectURL(f)}
-                          alt={t('admin.tasks.newPhotoAlt')}
-                          className="aspect-square object-cover rounded-button bg-surface-elevated"
-                        />
+                        <img key={i} src={URL.createObjectURL(f)} alt="" className="aspect-square object-cover rounded-button bg-surface-elevated" />
                       ))}
                     </div>
                   )}
@@ -579,7 +623,9 @@ export default function TasksPage() {
                       <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                     </svg>
                     <span className="text-xs text-secondary">
-                      {newPhotoFiles.length > 0 ? t('admin.tasks.photosSelected').replace('{n}', String(newPhotoFiles.length)).replace(/\{plural\}/g, newPhotoFiles.length > 1 ? 's' : '') : t('admin.tasks.addPhotos')}
+                      {newPhotoFiles.length > 0
+                        ? t('admin.tasks.photosSelected').replace('{n}', String(newPhotoFiles.length)).replace(/\{plural\}/g, newPhotoFiles.length > 1 ? 's' : '')
+                        : t('admin.tasks.addPhotos')}
                     </span>
                     <input
                       type="file"
@@ -593,9 +639,6 @@ export default function TasksPage() {
                       }}
                     />
                   </label>
-                  {uploadingPhotos && (
-                    <p className="text-xs text-secondary mt-1">{t('admin.tasks.uploadingPhotos')}</p>
-                  )}
                 </div>
 
                 {/* Checklist */}
@@ -614,7 +657,7 @@ export default function TasksPage() {
                         className="rounded"
                       />
                       <span className={`text-sm flex-1 ${item.done ? 'text-tertiary line-through' : 'text-primary'}`}>{item.text}</span>
-                      <button type="button" onClick={() => removeCheckItem(i)} className="text-tertiary hover:text-danger">
+                      <button type="button" onClick={() => setForm(f => ({ ...f, checklist: f.checklist.filter((_, idx) => idx !== i) }))} className="text-tertiary hover:text-danger">
                         <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
                           <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
@@ -640,9 +683,17 @@ export default function TasksPage() {
                   </div>
                 </div>
 
+                {saveError && (
+                  <div className="bg-danger/10 border border-danger/20 rounded-input px-3 py-2 text-xs text-danger">
+                    {saveError}
+                  </div>
+                )}
+
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="secondary" onClick={() => setShowModal(false)} className="flex-1">{t('common.cancel')}</Button>
-                  <Button type="submit" loading={saving || uploadingPhotos} className="flex-1">{editing ? t('admin.tasks.save') : t('admin.tasks.createTask')}</Button>
+                  <Button type="submit" loading={saving || uploadingPhotos} className="flex-1">
+                    {editing ? t('admin.tasks.save') : t('admin.tasks.createTask')}
+                  </Button>
                 </div>
               </form>
             </div>
