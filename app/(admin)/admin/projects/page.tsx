@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
 import { checkProjectLimit } from '@/lib/plan-limits'
@@ -29,6 +29,7 @@ interface Project {
   client_name: string | null
   client_email: string | null
   created_at: string
+  cover_image_path: string | null
 }
 
 interface Profile {
@@ -41,16 +42,20 @@ const BLANK = {
   hotel_name: '', leader_id: '', budget: '', client_name: '', client_email: '',
 }
 
-const STATUS_COLORS: Record<string, { bg: string; dot: string }> = {
-  active:    { bg: 'bg-green/10',  dot: 'bg-green' },
-  completed: { bg: 'bg-blue/10',   dot: 'bg-blue' },
-  on_hold:   { bg: 'bg-amber/10',  dot: 'bg-amber' },
+const STATUS_COLORS: Record<string, { bar: string }> = {
+  active:    { bar: 'bg-green' },
+  completed: { bar: 'bg-blue' },
+  on_hold:   { bar: 'bg-amber' },
 }
 
 function statusBadge(s: string, t: (key: string) => string) {
   if (s === 'active') return <Badge variant="green">{t('common.active')}</Badge>
   if (s === 'completed') return <Badge variant="blue">{t('common.completed')}</Badge>
   return <Badge variant="amber">{t('admin.projects.statusOnHold')}</Badge>
+}
+
+function coverUrl(path: string) {
+  return createClient().storage.from('project-photos').getPublicUrl(path).data.publicUrl
 }
 
 function ProjectCard({
@@ -66,30 +71,45 @@ function ProjectCard({
 }) {
   const colors = STATUS_COLORS[project.status] ?? STATUS_COLORS.on_hold
   const location = [project.city, project.state].filter(Boolean).join(', ')
+  const hasCover = !!project.cover_image_path
 
   return (
-    <div className="group relative bg-surface border border-[var(--border)] rounded-card overflow-hidden hover:border-[var(--border-strong)] transition-all duration-200 hover:shadow-lg hover:shadow-black/20 flex flex-col">
-      {/* Color bar accent */}
-      <div className={`h-1 w-full ${colors.dot} opacity-70`} />
+    <div className="group relative bg-surface border border-[var(--border)] rounded-card overflow-hidden hover:border-[var(--border-strong)] transition-all duration-200 hover:shadow-md flex flex-col">
+      {/* Cover image or color bar */}
+      {hasCover ? (
+        <div className="relative h-28 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverUrl(project.cover_image_path!)}
+            alt={project.name}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between gap-2">
+            <h3 className="text-sm font-bold text-white leading-snug line-clamp-1 drop-shadow">
+              {project.name}
+            </h3>
+            {statusBadge(project.status, t)}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className={`h-1 w-full ${colors.bar} opacity-70`} />
+          <div className="px-4 pt-3 pb-1 flex items-start justify-between gap-2">
+            <h3 className="text-sm font-semibold text-primary leading-snug line-clamp-2 flex-1">
+              {project.name}
+            </h3>
+            {statusBadge(project.status, t)}
+          </div>
+        </>
+      )}
 
       {/* Card body */}
-      <div className="p-4 flex flex-col gap-3 flex-1">
-        {/* Name + status row */}
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-sm font-semibold text-primary leading-snug line-clamp-2 flex-1">
-            {project.name}
-          </h3>
-          {statusBadge(project.status, t)}
-        </div>
-
-        {/* Meta */}
-        <div className="space-y-1.5 flex-1">
+      <div className={`px-4 flex flex-col gap-2.5 flex-1 ${hasCover ? 'pt-3' : 'pt-1'}`}>
+        <div className="space-y-1.5">
           {location && (
             <div className="flex items-center gap-1.5">
               <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5 text-tertiary flex-shrink-0">
-                <path fillRule="evenodd" d="M8 1.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9zM2 6a6 6 0 1110.89 3.176l3.42 3.42a.75.75 0 01-1.06 1.06l-3.42-3.42A6 6 0 012 6z" clipRule="evenodd" />
-              </svg>
-              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 text-tertiary flex-shrink-0 -ml-1">
                 <path fillRule="evenodd" d="M8 1a5 5 0 00-5 5c0 2.76 2.13 5.3 4.35 7.1a1 1 0 001.3 0C10.87 11.3 13 8.76 13 6A5 5 0 008 1zm0 6.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" clipRule="evenodd" />
               </svg>
               <span className="text-xs text-secondary truncate">{location}</span>
@@ -128,32 +148,32 @@ function ProjectCard({
             </div>
           )}
         </div>
+      </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] mt-auto">
-          <span className="text-[11px] text-tertiary">
-            {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(project) }}
-              className="p-1.5 rounded-button text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
-              title={t('admin.projects.editTooltip')}
-            >
-              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                <path d="M11.013 2.508a1.75 1.75 0 012.475 2.474L5.87 12.6l-3.371.749.749-3.371 7.765-7.47z"/>
-              </svg>
-            </button>
-            <a
-              href={`/admin/projects/${project.id}`}
-              className="p-1.5 rounded-button text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
-              title={t('admin.projects.viewDetailTooltip')}
-            >
-              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                <path fillRule="evenodd" d="M5.293 2.293a1 1 0 011.414 0l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414-1.414L9.586 8 5.293 3.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </a>
-          </div>
+      {/* Footer */}
+      <div className="px-4 py-3 flex items-center justify-between border-t border-[var(--border)] mt-2">
+        <span className="text-[11px] text-tertiary">
+          {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(project) }}
+            className="p-1.5 rounded-button text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
+            title={t('admin.projects.editTooltip')}
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+              <path d="M11.013 2.508a1.75 1.75 0 012.475 2.474L5.87 12.6l-3.371.749.749-3.371 7.765-7.47z"/>
+            </svg>
+          </button>
+          <a
+            href={`/admin/projects/${project.id}`}
+            className="p-1.5 rounded-button text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
+            title={t('admin.projects.viewDetailTooltip')}
+          >
+            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+              <path fillRule="evenodd" d="M5.293 2.293a1 1 0 011.414 0l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414-1.414L9.586 8 5.293 3.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </a>
         </div>
       </div>
     </div>
@@ -173,6 +193,11 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
 
+  // Cover photo
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
+
   const STATUS_OPTIONS = [
     { value: 'active', label: t('common.active') },
     { value: 'completed', label: t('common.completed') },
@@ -182,10 +207,10 @@ export default function ProjectsPage() {
   const load = useCallback(async () => {
     const supabase = createClient()
     const [{ data: projs }, { data: emps }] = await Promise.all([
-      supabase.from('projects').select('id, name, status, city, state, hotel_name, leader_id, budget, client_name, client_email, created_at').eq('company_id', companyId).order('created_at', { ascending: false }),
+      supabase.from('projects').select('id, name, status, city, state, hotel_name, leader_id, budget, client_name, client_email, created_at, cover_image_path').eq('company_id', companyId).order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('status', 'active').order('full_name'),
     ])
-    setProjects(projs ?? [])
+    setProjects((projs ?? []) as Project[])
     setEmployees(emps ?? [])
     setLoading(false)
   }, [companyId])
@@ -196,6 +221,8 @@ export default function ProjectsPage() {
     setEditing(null)
     setForm({ ...BLANK })
     setError('')
+    setCoverFile(null)
+    setCoverPreview(null)
     setShowModal(true)
   }
 
@@ -213,7 +240,17 @@ export default function ProjectsPage() {
       client_email: p.client_email ?? '',
     })
     setError('')
+    setCoverFile(null)
+    setCoverPreview(p.cover_image_path ? coverUrl(p.cover_image_path) : null)
     setShowModal(true)
+  }
+
+  function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
+    e.target.value = ''
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -221,7 +258,21 @@ export default function ProjectsPage() {
     setError('')
     setSaving(true)
     const supabase = createClient()
-    const payload = {
+
+    let coverImagePath: string | undefined = undefined
+
+    // Upload cover photo first if selected
+    if (coverFile) {
+      const projectId = editing?.id ?? crypto.randomUUID()
+      const ext = coverFile.name.split('.').pop() ?? 'jpg'
+      const path = `covers/${projectId}.${ext}`
+      const { error: upErr } = await supabase.storage.from('project-photos').upload(path, coverFile, { upsert: true })
+      if (!upErr) {
+        coverImagePath = path
+      }
+    }
+
+    const payload: Record<string, unknown> = {
       name: form.name,
       status: form.status,
       city: form.city || null,
@@ -232,8 +283,11 @@ export default function ProjectsPage() {
       client_name: form.client_name || null,
       client_email: form.client_email ? form.client_email.trim().toLowerCase() : null,
     }
+    if (coverImagePath !== undefined) payload.cover_image_path = coverImagePath
+
     if (editing) {
-      await supabase.from('projects').update(payload).eq('id', editing.id)
+      const { error: saveErr } = await supabase.from('projects').update(payload).eq('id', editing.id)
+      if (saveErr) { setError(saveErr.message); setSaving(false); return }
     } else {
       const { allowed, limit } = await checkProjectLimit(supabase, companyId)
       if (!allowed) {
@@ -241,7 +295,8 @@ export default function ProjectsPage() {
         setSaving(false)
         return
       }
-      await supabase.from('projects').insert({ ...payload, company_id: companyId })
+      const { error: saveErr } = await supabase.from('projects').insert({ ...payload, company_id: companyId })
+      if (saveErr) { setError(saveErr.message); setSaving(false); return }
     }
     setSaving(false)
     setShowModal(false)
@@ -289,7 +344,7 @@ export default function ProjectsPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-surface border border-[var(--border)] rounded-card h-44 animate-pulse" />
+            <div key={i} className="bg-surface border border-[var(--border)] rounded-card h-52 animate-pulse" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -334,6 +389,40 @@ export default function ProjectsPage() {
                 {editing ? t('admin.projects.editProject') : t('admin.projects.addProjectTitle')}
               </h2>
               <form onSubmit={handleSave} className="space-y-4">
+
+                {/* Cover photo */}
+                <div>
+                  <label className="block text-xs font-medium text-secondary mb-2">Cover Photo</label>
+                  {coverPreview ? (
+                    <div className="relative rounded-input overflow-hidden h-32 bg-surface-elevated">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={coverPreview} alt="cover" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => { setCoverFile(null); setCoverPreview(null) }}
+                        className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-black/80 transition-colors"
+                      >✕</button>
+                      <button
+                        type="button"
+                        onClick={() => coverInputRef.current?.click()}
+                        className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-button hover:bg-black/80 transition-colors"
+                      >Change</button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => coverInputRef.current?.click()}
+                      className="w-full h-24 border-2 border-dashed border-[var(--border)] rounded-input flex flex-col items-center justify-center gap-1.5 hover:border-brand/40 transition-colors bg-surface-elevated/50"
+                    >
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-tertiary">
+                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-xs text-tertiary">Add cover photo</span>
+                    </button>
+                  )}
+                  <input ref={coverInputRef} type="file" accept="image/*" className="sr-only" onChange={handleCoverChange} />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <Input
