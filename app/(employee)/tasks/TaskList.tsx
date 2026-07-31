@@ -232,6 +232,19 @@ export function TaskList({
     }
   }
 
+  const projectGroups = useMemo(() => {
+    const map = new Map<string, { name: string; tasks: Task[] }>()
+    for (const task of tasks) {
+      const key = task.project_id ?? '__none__'
+      const name = task.project?.name ?? 'Tasks'
+      if (!map.has(key)) map.set(key, { name, tasks: [] })
+      map.get(key)!.tasks.push(task)
+    }
+    return Array.from(map.values())
+  }, [tasks])
+
+  const taskStarted = liveStatus === 'in_progress' || liveStatus === 'completed'
+
   if (!supabaseReady) {
     return (
       <Card>
@@ -255,19 +268,6 @@ export function TaskList({
       </Card>
     )
   }
-
-  const taskStarted = liveStatus === 'in_progress' || liveStatus === 'completed'
-
-  const projectGroups = useMemo(() => {
-    const map = new Map<string, { name: string; tasks: Task[] }>()
-    for (const task of tasks) {
-      const key = task.project_id ?? '__none__'
-      const name = task.project?.name ?? 'Tasks'
-      if (!map.has(key)) map.set(key, { name, tasks: [] })
-      map.get(key)!.tasks.push(task)
-    }
-    return Array.from(map.values())
-  }, [tasks])
 
   return (
     <>
