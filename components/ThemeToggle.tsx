@@ -60,8 +60,8 @@ export function ThemeToggle({ className = '', layout = 'icon' }: ThemeToggleProp
           className,
         ].join(' ')}
       >
-        <span className="text-tertiary flex-shrink-0">{icon}</span>
-        {mounted ? (isDark ? 'Light mode' : 'Dark mode') : ''}
+        <span className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center text-tertiary">{icon}</span>
+        {isDark ? 'Light mode' : 'Dark mode'}
       </button>
     )
   }
