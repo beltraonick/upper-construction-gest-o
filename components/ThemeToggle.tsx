@@ -5,8 +5,8 @@ import { useTheme } from '@/lib/theme-context'
 
 interface ThemeToggleProps {
   className?: string
-  /** 'icon' = compact icon button (sidebar/header); 'nav' = vertical icon+label (bottom nav) */
-  layout?: 'icon' | 'nav'
+  /** 'icon' = compact icon button (header); 'nav' = vertical icon+label (bottom nav); 'sidebar' = horizontal icon+label (desktop sidebar) */
+  layout?: 'icon' | 'nav' | 'sidebar'
 }
 
 function SunIcon() {
@@ -46,6 +46,22 @@ export function ThemeToggle({ className = '', layout = 'icon' }: ThemeToggleProp
       >
         <span className="text-tertiary">{icon}</span>
         {label}
+      </button>
+    )
+  }
+
+  if (layout === 'sidebar') {
+    return (
+      <button
+        onClick={toggleTheme}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        className={[
+          'w-full flex items-center gap-3 px-3 py-2.5 rounded-button text-sm font-medium text-secondary hover:text-primary hover:bg-surface-elevated transition-colors duration-150',
+          className,
+        ].join(' ')}
+      >
+        <span className="text-tertiary flex-shrink-0">{icon}</span>
+        {mounted ? (isDark ? 'Light mode' : 'Dark mode') : ''}
       </button>
     )
   }

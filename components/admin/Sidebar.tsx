@@ -182,8 +182,8 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
               <p className="text-sm font-medium text-primary truncate leading-tight">{user.full_name}</p>
               <p className="text-[11px] text-tertiary truncate capitalize">{user.role}</p>
             </div>
-            <ThemeToggle />
           </Link>
+          <ThemeToggle layout="sidebar" />
           <form action={logout}>
             <button
               type="submit"
