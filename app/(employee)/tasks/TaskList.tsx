@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
@@ -45,6 +45,14 @@ const PRIORITY_DOT: Record<string, string> = {
   medium: 'bg-amber',
   low: 'bg-blue',
 }
+
+const ACCENT_PALETTE = [
+  { textCls: 'text-blue',   headerBgCls: 'bg-blue/10',   borderColor: 'rgb(var(--color-blue))' },
+  { textCls: 'text-green',  headerBgCls: 'bg-green/10',  borderColor: 'rgb(var(--color-green))' },
+  { textCls: 'text-amber',  headerBgCls: 'bg-amber/10',  borderColor: 'rgb(var(--color-amber))' },
+  { textCls: 'text-brand',  headerBgCls: 'bg-brand/10',  borderColor: 'rgb(var(--color-brand))' },
+  { textCls: 'text-danger', headerBgCls: 'bg-danger/10', borderColor: 'rgb(var(--color-danger))' },
+]
 
 function CameraIcon({ className }: { className?: string }) {
   return (
@@ -250,56 +258,102 @@ export function TaskList({
 
   const taskStarted = liveStatus === 'in_progress' || liveStatus === 'completed'
 
+  const projectGroups = useMemo(() => {
+    const map = new Map<string, { name: string; tasks: Task[] }>()
+    for (const task of tasks) {
+      const key = task.project_id ?? '__none__'
+      const name = task.project?.name ?? 'Tasks'
+      if (!map.has(key)) map.set(key, { name, tasks: [] })
+      map.get(key)!.tasks.push(task)
+    }
+    return Array.from(map.values())
+  }, [tasks])
+
   return (
     <>
-      <div className="space-y-2">
-        {tasks.map((task: Task) => {
-          const checklist: ChecklistItem[] = task.checklist ?? []
-          const doneCount = checklist.filter((c: ChecklistItem) => c.done).length
-          const totalCount = checklist.length
-          const priority: string = task.priority ?? 'medium'
-          const isInProgress = task.status === 'in_progress'
+      <div className="space-y-5">
+        {projectGroups.map((group, gi) => {
+          const accent = ACCENT_PALETTE[gi % ACCENT_PALETTE.length]
           return (
-            <button
-              key={task.id}
-              onClick={() => openTask(task)}
-              className="w-full text-left"
+            <div
+              key={`proj-${gi}`}
+              className="border border-[var(--border)] rounded-card bg-surface overflow-hidden"
+              style={{
+                borderLeftWidth: '4px',
+                borderLeftColor: accent.borderColor,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.09), 0 0 0 0 transparent',
+              }}
             >
-              <Card className="hover:bg-surface-elevated transition-colors">
-                <div className="flex items-start gap-3">
-                  <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[priority] ?? 'bg-secondary'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-primary">{task.title}</p>
-                    {task.project?.name && (
-                      <p className="text-xs text-secondary mt-0.5 truncate">{task.project.name}</p>
-                    )}
-                    {task.area && (
-                      <p className="text-xs text-tertiary truncate">{task.area}</p>
-                    )}
-                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      {isInProgress && (
-                        <span className="text-[11px] font-medium text-blue bg-blue/10 px-2 py-0.5 rounded-full">
-                          {t('common.inProgress')}
-                        </span>
-                      )}
-                      {priority === 'urgent' && <Badge variant="gray">{t('common.priority.urgent')}</Badge>}
-                      {priority === 'high' && <Badge variant="gray">{t('common.priority.high')}</Badge>}
-                      {totalCount > 0 && (
-                        <span className="text-[11px] text-secondary">{t('employee.tasks.stepsProgress').replace('{done}', String(doneCount)).replace('{total}', String(totalCount))}</span>
-                      )}
-                      {task.due_date && (
-                        <span className={`text-[11px] ${new Date(task.due_date) < new Date() ? 'text-danger' : 'text-tertiary'}`}>
-                          {t('employee.tasks.dueDatePrefix')} {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      )}
+              {/* Project header */}
+              <div className={`px-5 pt-4 pb-3.5 border-b border-[var(--border)] ${accent.headerBgCls}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div
+                      className="w-9 h-9 rounded-button flex-shrink-0 flex items-center justify-center text-sm font-bold text-white select-none"
+                      style={{ backgroundColor: accent.borderColor }}
+                    >
+                      {group.name.charAt(0).toUpperCase()}
                     </div>
+                    <h2 className="text-xl font-bold text-primary leading-tight truncate">
+                      {group.name}
+                    </h2>
                   </div>
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0 mt-1">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
+                  <span className="flex-shrink-0 text-xs font-semibold text-secondary bg-surface px-2.5 py-1 rounded-full border border-[var(--border)]">
+                    {group.tasks.length} {group.tasks.length === 1 ? 'task' : 'tasks'}
+                  </span>
                 </div>
-              </Card>
-            </button>
+              </div>
+
+              {/* Task rows */}
+              <div className="divide-y divide-[var(--border)]">
+                {group.tasks.map((task: Task) => {
+                  const checklist: ChecklistItem[] = task.checklist ?? []
+                  const doneCount = checklist.filter((c: ChecklistItem) => c.done).length
+                  const totalCount = checklist.length
+                  const priority: string = task.priority ?? 'medium'
+                  const isInProgress = task.status === 'in_progress'
+                  return (
+                    <button
+                      key={task.id}
+                      onClick={() => openTask(task)}
+                      className="w-full text-left px-5 py-4 hover:bg-surface-elevated transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_DOT[priority] ?? 'bg-secondary'}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-primary">{task.title}</p>
+                          {task.area && (
+                            <p className="text-xs text-tertiary truncate mt-0.5">{task.area}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                            {isInProgress && (
+                              <span className="text-[11px] font-medium text-blue bg-blue/10 px-2 py-0.5 rounded-full">
+                                {t('common.inProgress')}
+                              </span>
+                            )}
+                            {priority === 'urgent' && <Badge variant="gray">{t('common.priority.urgent')}</Badge>}
+                            {priority === 'high' && <Badge variant="gray">{t('common.priority.high')}</Badge>}
+                            {totalCount > 0 && (
+                              <span className="text-[11px] text-secondary">
+                                {t('employee.tasks.stepsProgress').replace('{done}', String(doneCount)).replace('{total}', String(totalCount))}
+                              </span>
+                            )}
+                            {task.due_date && (
+                              <span className={`text-[11px] ${new Date(task.due_date) < new Date() ? 'text-danger' : 'text-tertiary'}`}>
+                                {t('employee.tasks.dueDatePrefix')} {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0 mt-1">
+                          <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           )
         })}
       </div>
