@@ -102,7 +102,7 @@ function TaskDrawer({
     status: task?.status ?? 'pending',
     due_date: task?.due_date ?? '',
     notes: task?.notes ?? '',
-    assigned_to: task?.assigned_to ?? '',
+    assignedIds: [] as string[],
     column_id: task?.column_id ?? '',
     room_id: task?.room_id ?? '',
     checklist: task?.checklist ?? [] as ChecklistItem[],
@@ -110,6 +110,7 @@ function TaskDrawer({
   }), [task])
 
   const [form, setForm] = useState(blankForm)
+  const [currentAssignmentIds, setCurrentAssignmentIds] = useState<string[]>([])
   const [photos, setPhotos] = useState<TaskPhoto[]>([])
   const [loadingPhotos, setLoadingPhotos] = useState(false)
   const [newFiles, setNewFiles] = useState<File[]>([])
@@ -122,6 +123,7 @@ function TaskDrawer({
 
   useEffect(() => {
     setForm(blankForm())
+    setCurrentAssignmentIds([])
     setNewFiles([])
     setPhotos([])
     setSaveError(null)
@@ -131,6 +133,17 @@ function TaskDrawer({
       supabase.from('task_media').select('id, storage_path, photo_category, uploaded_by_name, created_at').eq('task_id', task.id).order('created_at').then(({ data }) => {
         setPhotos((data ?? []) as TaskPhoto[])
         setLoadingPhotos(false)
+      })
+      // Load current assignments from join table, falling back to assigned_to
+      supabase.from('task_assignments').select('profile_id').eq('task_id', task.id).then(({ data, error }) => {
+        let ids: string[]
+        if (!error && data && data.length > 0) {
+          ids = data.map((a: { profile_id: string }) => a.profile_id)
+        } else {
+          ids = task.assigned_to ? [task.assigned_to] : []
+        }
+        setCurrentAssignmentIds(ids)
+        setForm(prev => ({ ...prev, assignedIds: ids }))
       })
     }
   }, [task, blankForm])
@@ -146,10 +159,6 @@ function TaskDrawer({
     { value: 'in_progress', label: t('common.inProgress') },
     { value: 'completed',   label: t('common.completed') },
   ]
-  const employeeOpts = [
-    { value: '', label: t('admin.projectDetail.kanbanUnassigned') },
-    ...employees.map(e => ({ value: e.id, label: e.full_name })),
-  ]
   const roomOpts = [
     { value: '', label: t('admin.projectDetail.kanbanRoom') },
     ...rooms.map(r => ({ value: r.id, label: r.floor ? `${r.floor} · ${r.label}` : r.label })),
@@ -164,6 +173,7 @@ function TaskDrawer({
     setSaving(true)
     setSaveError(null)
     const supabase = createClient()
+    const primaryAssignee = form.assignedIds[0] ?? null
     const payload = {
       title: form.title.trim(),
       description: form.description || null,
@@ -172,7 +182,8 @@ function TaskDrawer({
       status: form.status,
       due_date: form.due_date || null,
       notes: form.notes || null,
-      assigned_to: form.assigned_to || null,
+      assigned_to: primaryAssignee,
+      assigned_employee_id: primaryAssignee,
       column_id: form.column_id || null,
       room_id: form.room_id || null,
       checklist: form.checklist,
@@ -190,6 +201,24 @@ function TaskDrawer({
       if (error) { setSaveError(error.message); setSaving(false); return }
       savedTask = data as KanbanTask
     }
+
+    // Sync task_assignments join table
+    const taskId = savedTask.id
+    const toRemove = currentAssignmentIds.filter(id => !form.assignedIds.includes(id))
+    const toAdd = form.assignedIds.filter(id => !currentAssignmentIds.includes(id))
+
+    if (toRemove.length > 0) {
+      await supabase.from('task_assignments').delete()
+        .eq('task_id', taskId)
+        .in('profile_id', toRemove)
+    }
+    for (const profileId of toAdd) {
+      await supabase.from('task_assignments').upsert(
+        { task_id: taskId, profile_id: profileId },
+        { onConflict: 'task_id,profile_id' }
+      )
+    }
+    setCurrentAssignmentIds(form.assignedIds)
 
     // Upload new photos
     if (newFiles.length > 0 && savedTask?.id) {
@@ -343,19 +372,64 @@ function TaskDrawer({
           </div>
 
           {/* Column + Assignee */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <Select
               label="Column"
               options={columnOpts}
               value={form.column_id}
               onChange={e => setForm(f => ({ ...f, column_id: e.target.value }))}
             />
-            <Select
-              label={t('admin.projectDetail.kanbanAssignee')}
-              options={employeeOpts}
-              value={form.assigned_to}
-              onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
-            />
+            {/* Multi-employee selector */}
+            <div>
+              <label className="block text-xs font-medium text-secondary mb-1.5">
+                {t('admin.projectDetail.kanbanAssignee')}
+              </label>
+              {form.assignedIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {form.assignedIds.map(id => {
+                    const emp = employees.find(e => e.id === id)
+                    if (!emp) return null
+                    return (
+                      <div key={id} className="flex items-center gap-1 px-2.5 py-1 bg-surface-elevated rounded-full border border-[var(--border)] text-xs">
+                        <span className="text-primary font-medium">{emp.full_name.split(' ')[0]}</span>
+                        <button
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, assignedIds: f.assignedIds.filter(x => x !== id) }))}
+                          className="text-tertiary hover:text-danger transition-colors ml-0.5 flex-shrink-0"
+                          aria-label={`Remove ${emp.full_name}`}
+                        >
+                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-2.5 h-2.5">
+                            <path d="M1 1l10 10M11 1L1 11"/>
+                          </svg>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              <select
+                className="w-full bg-surface-elevated text-sm text-primary rounded-input px-3 py-2 border border-[var(--border)] focus:border-brand/50 outline-none"
+                value=""
+                onChange={e => {
+                  const id = e.target.value
+                  if (id && !form.assignedIds.includes(id)) {
+                    setForm(f => ({ ...f, assignedIds: [...f.assignedIds, id] }))
+                  }
+                  e.target.value = ''
+                }}
+              >
+                <option value="">
+                  {form.assignedIds.length === 0
+                    ? t('admin.projectDetail.kanbanUnassigned')
+                    : `+ ${t('admin.projectDetail.kanbanAssignee')}`}
+                </option>
+                {employees
+                  .filter(e => !form.assignedIds.includes(e.id))
+                  .map(e => (
+                    <option key={e.id} value={e.id}>{e.full_name}</option>
+                  ))}
+              </select>
+            </div>
           </div>
 
           {/* Room + Due Date */}

@@ -25,6 +25,7 @@ interface Task {
   completed_at: string | null
   created_at: string
   project_id: string | null
+  assigned_to: string | null
   assigned_employee_id: string | null
   room_id: string | null
   label_color: string | null
@@ -109,7 +110,7 @@ export default function TasksPage() {
         .select('*, project:project_id(name), assigned_employee:assigned_to(full_name)')
         .eq('company_id', companyId)
         .order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('status', 'active').order('full_name'),
+      supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('auth_status', 'approved').order('full_name'),
       supabase.from('projects').select('id, name').eq('company_id', companyId).order('name'),
       supabase.from('project_rooms').select('id, project_id, floor, label').eq('company_id', companyId),
     ])
@@ -142,7 +143,7 @@ export default function TasksPage() {
       estimated_hours: task.estimated_hours != null ? String(task.estimated_hours) : '',
       due_date: task.due_date ?? '',
       project_id: task.project_id ?? '',
-      assigned_employee_id: task.assigned_employee_id ?? '',
+      assigned_employee_id: task.assigned_to ?? task.assigned_employee_id ?? '',
       notes: task.notes ?? '',
       room_id: task.room_id ?? '',
       checklist: task.checklist ?? [],
@@ -225,6 +226,18 @@ export default function TasksPage() {
         savedTaskId = ins2?.id ?? null
       } else {
         savedTaskId = inserted?.id ?? null
+      }
+    }
+
+    // Sync task_assignments join table
+    if (savedTaskId) {
+      const assigneeId = form.assigned_employee_id || null
+      await supabase.from('task_assignments').delete().eq('task_id', savedTaskId)
+      if (assigneeId) {
+        await supabase.from('task_assignments').upsert(
+          { task_id: savedTaskId, profile_id: assigneeId },
+          { onConflict: 'task_id,profile_id' }
+        )
       }
     }
 

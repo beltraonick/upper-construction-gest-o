@@ -23,46 +23,43 @@ export default async function EmployeeTasksPage() {
     try {
       const supabase = createClient()
 
-      let { data: profile } = await supabase
+      // Add company_id filter to prevent cross-company matches on shared emails
+      const { data: profile } = await supabase
         .from('profiles')
         .select('id')
         .eq('email', user.email)
+        .eq('company_id', user.company_id)
         .maybeSingle()
-
-      if (!profile) {
-        const { data: newProfile } = await supabase
-          .from('profiles')
-          .insert({
-            company_id: user.company_id,
-            role: user.role,
-            full_name: user.full_name,
-            email: user.email,
-            status: 'active',
-          })
-          .select('id')
-          .single()
-        profile = newProfile
-      }
 
       if (profile) {
         profileId = profile.id
 
-        // Use select('*') so it works with both pre- and post-migration schema.
-        // After migration 003, the extra columns (priority, area, checklist, notes…)
-        // appear automatically. The assigned_to column is the pre-migration FK;
-        // assigned_employee_id is added by migration 003.
-        const orFilter = profile
-          ? `assigned_to.eq.${profile.id},assigned_to.is.null`
-          : `assigned_to.is.null`
+        // Query via task_assignments join table (migration 022)
+        const { data: assignments } = await supabase
+          .from('task_assignments')
+          .select('task_id')
+          .eq('profile_id', profileId)
 
-        const { data: t } = await supabase
-          .from('tasks')
-          .select('*, project:project_id(name)')
-          .or(orFilter)
-          .neq('status', 'completed')
-          .order('created_at', { ascending: false })
+        const assignedIds = (assignments ?? []).map((a: { task_id: string }) => a.task_id)
 
-        tasks = t ?? []
+        if (assignedIds.length > 0) {
+          const { data: t } = await supabase
+            .from('tasks')
+            .select('*, project:project_id(name)')
+            .in('id', assignedIds)
+            .neq('status', 'completed')
+            .order('created_at', { ascending: false })
+          tasks = t ?? []
+        } else {
+          // Fallback: if task_assignments table doesn't exist yet, use assigned_to column
+          const { data: t } = await supabase
+            .from('tasks')
+            .select('*, project:project_id(name)')
+            .eq('assigned_to', profileId)
+            .neq('status', 'completed')
+            .order('created_at', { ascending: false })
+          tasks = t ?? []
+        }
       }
     } catch {
       // silent
