@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
@@ -36,8 +36,6 @@ async function compressImage(file: File): Promise<Blob> {
 }
 
 interface ChecklistItem { text: string; done: boolean }
-
-// Accepts any task shape — works with both pre- and post-migration schema.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Task = Record<string, any> & { id: string; title: string; status: string }
 
@@ -48,19 +46,31 @@ const PRIORITY_DOT: Record<string, string> = {
   low: 'bg-blue',
 }
 
+function CameraIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+    </svg>
+  )
+}
+
 export function TaskList({
   tasks: initial,
-  profileId: _profileId,
+  profileId,
+  employeeName,
   supabaseReady,
 }: {
   tasks: Task[]
   profileId: string | null
+  employeeName: string
   supabaseReady: boolean
 }) {
   const companyId = useCompanyId()
   const { t } = useTranslation()
   const [tasks, setTasks] = useState(initial)
   const [selected, setSelected] = useState<Task | null>(null)
+  const [liveStatus, setLiveStatus] = useState<string>('pending')
   const [saving, setSaving] = useState(false)
   const [notes, setNotes] = useState('')
   const router = useRouter()
@@ -68,22 +78,49 @@ export function TaskList({
   // Before/after photo state
   const [beforePath, setBeforePath] = useState<string | null>(null)
   const [afterPath, setAfterPath] = useState<string | null>(null)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [loadingPhotos, setLoadingPhotos] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState<'before' | 'after' | null>(null)
   const beforeRef = useRef<HTMLInputElement>(null)
   const afterRef = useRef<HTMLInputElement>(null)
 
-  function openTask(t: Task) {
-    setSelected({ ...t })
-    setNotes(t.notes ?? '')
+  function openTask(task: Task) {
+    setSelected({ ...task })
+    setLiveStatus(task.status)
+    setNotes(task.notes ?? '')
     setBeforePath(null)
     setAfterPath(null)
   }
 
-  const handlePhoto = useCallback(async (e: React.ChangeEvent<HTMLInputElement>, category: 'before' | 'after') => {
+  // Load existing before/after photos for the selected task
+  useEffect(() => {
+    if (!selected?.id || !supabaseReady) return
+    setLoadingPhotos(true)
+    const supabase = createClient()
+    supabase
+      .from('task_media')
+      .select('storage_path, photo_category')
+      .eq('task_id', selected.id)
+      .in('photo_category', ['before', 'after'])
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (!data) { setLoadingPhotos(false); return }
+        const before = data.find(r => r.photo_category === 'before')
+        const after = data.find(r => r.photo_category === 'after')
+        if (before && !beforePath) setBeforePath(before.storage_path)
+        if (after && !afterPath) setAfterPath(after.storage_path)
+        setLoadingPhotos(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id])
+
+  const handlePhoto = useCallback(async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    category: 'before' | 'after',
+  ) => {
     const file = e.target.files?.[0]
     if (!file || !selected || !supabaseReady) return
     e.target.value = ''
-    setUploadingPhoto(true)
+    setUploadingPhoto(category)
     try {
       const blob = await compressImage(file)
       const path = `${selected.id}/${category}-${Date.now()}.jpg`
@@ -93,36 +130,45 @@ export function TaskList({
         .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
       if (error) throw error
 
-      // Insert task_media row; photo_category added in migration 004
-      try {
-        await supabase.from('task_media').insert({
-          task_id: selected.id,
-          project_id: selected.project_id ?? null,
-          company_id: companyId,
-          media_type: 'photo',
-          storage_path: uploaded.path,
-          photo_category: category,
-        })
-      } catch {
-        // Column may not exist yet; storage upload succeeded
-      }
+      await supabase.from('task_media').insert({
+        task_id: selected.id,
+        project_id: selected.project_id ?? null,
+        company_id: companyId,
+        employee_id: profileId,
+        media_type: 'photo',
+        storage_path: uploaded.path,
+        photo_category: category,
+        uploaded_by_name: employeeName,
+      })
 
-      if (category === 'before') setBeforePath(uploaded.path)
-      else setAfterPath(uploaded.path)
+      if (category === 'before') {
+        setBeforePath(uploaded.path)
+        // Auto-start task when before photo is uploaded
+        if (liveStatus === 'pending') {
+          await supabase.from('tasks').update({
+            status: 'in_progress',
+            updated_at: new Date().toISOString(),
+          }).eq('id', selected.id)
+          setLiveStatus('in_progress')
+          setTasks(prev => prev.map(tk => tk.id === selected.id ? { ...tk, status: 'in_progress' } : tk))
+        }
+      } else {
+        setAfterPath(uploaded.path)
+      }
     } catch {
       alert(t('employee.tasks.photoUploadFailed'))
     }
-    setUploadingPhoto(false)
-  }, [selected, supabaseReady, companyId, t])
+    setUploadingPhoto(null)
+  }, [selected, supabaseReady, companyId, profileId, employeeName, liveStatus, t])
 
   async function toggleCheck(taskId: string, index: number, done: boolean) {
-    const task = tasks.find(t => t.id === taskId)
+    const task = tasks.find(tk => tk.id === taskId)
     if (!task) return
     const checklist: ChecklistItem[] = (task.checklist ?? [])
     const newChecklist = checklist.map((item: ChecklistItem, i: number) =>
       i === index ? { ...item, done } : item
     )
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, checklist: newChecklist } : t))
+    setTasks(prev => prev.map(tk => tk.id === taskId ? { ...tk, checklist: newChecklist } : tk))
     if (selected?.id === taskId) setSelected(s => s ? { ...s, checklist: newChecklist } : s)
 
     if (supabaseReady) {
@@ -138,12 +184,7 @@ export function TaskList({
   }
 
   async function completeTask(taskId: string) {
-    // Photo requirements check
-    if (selected?.before_photo_required && !beforePath) {
-      alert(t('employee.tasks.beforePhotoRequired'))
-      return
-    }
-    if (selected?.after_photo_required && !afterPath) {
+    if (!afterPath) {
       alert(t('employee.tasks.afterPhotoRequired'))
       return
     }
@@ -163,7 +204,7 @@ export function TaskList({
         await queueIfOffline({ table: 'tasks', type: 'update', match: { id: taskId }, payload: update }, err)
       }
     }
-    setTasks(prev => prev.filter(t => t.id !== taskId))
+    setTasks(prev => prev.filter(tk => tk.id !== taskId))
     setSelected(null)
     setSaving(false)
     router.refresh()
@@ -176,9 +217,9 @@ export function TaskList({
       const supabase = createClient()
       const { error } = await supabase.from('tasks').update(payload).eq('id', taskId)
       if (error) throw error
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes } : t))
+      setTasks(prev => prev.map(tk => tk.id === taskId ? { ...tk, notes } : tk))
     } catch (err) {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes } : t))
+      setTasks(prev => prev.map(tk => tk.id === taskId ? { ...tk, notes } : tk))
       await queueIfOffline({ table: 'tasks', type: 'update', match: { id: taskId }, payload }, err)
     }
   }
@@ -207,6 +248,8 @@ export function TaskList({
     )
   }
 
+  const taskStarted = liveStatus === 'in_progress' || liveStatus === 'completed'
+
   return (
     <>
       <div className="space-y-2">
@@ -215,6 +258,7 @@ export function TaskList({
           const doneCount = checklist.filter((c: ChecklistItem) => c.done).length
           const totalCount = checklist.length
           const priority: string = task.priority ?? 'medium'
+          const isInProgress = task.status === 'in_progress'
           return (
             <button
               key={task.id}
@@ -233,6 +277,11 @@ export function TaskList({
                       <p className="text-xs text-tertiary truncate">{task.area}</p>
                     )}
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      {isInProgress && (
+                        <span className="text-[11px] font-medium text-blue bg-blue/10 px-2 py-0.5 rounded-full">
+                          {t('common.inProgress')}
+                        </span>
+                      )}
                       {priority === 'urgent' && <Badge variant="gray">{t('common.priority.urgent')}</Badge>}
                       {priority === 'high' && <Badge variant="gray">{t('common.priority.high')}</Badge>}
                       {totalCount > 0 && (
@@ -262,7 +311,7 @@ export function TaskList({
           onClick={() => setSelected(null)}
         >
           <div
-            className="bg-surface rounded-t-card border-t border-l border-r border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-t-card border-t border-l border-r border-[var(--border)] w-full max-w-lg max-h-[92vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-center pt-3 pb-1">
@@ -270,6 +319,7 @@ export function TaskList({
             </div>
 
             <div className="px-5 py-4">
+              {/* Header */}
               <div className="flex items-start gap-3 mb-4">
                 <div className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[selected.priority ?? 'medium'] ?? 'bg-secondary'}`} />
                 <div className="flex-1 min-w-0">
@@ -288,9 +338,131 @@ export function TaskList({
                 <p className="text-sm text-secondary mb-4 leading-relaxed">{selected.description}</p>
               )}
 
-              {/* Checklist */}
-              {selected.checklist && selected.checklist.length > 0 && (
+              {/* ── Before Photo — required to start ── */}
+              {supabaseReady && (
                 <div className="mb-5">
+                  {/* Before */}
+                  <div className={[
+                    'rounded-card border p-3 mb-3',
+                    !beforePath ? 'border-amber/40 bg-amber/5' : 'border-green/30 bg-green/5',
+                  ].join(' ')}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={['text-xs font-semibold uppercase tracking-wide', !beforePath ? 'text-amber' : 'text-green'].join(' ')}>
+                        {t('employee.tasks.beforeLabel')}
+                      </span>
+                      {!beforePath && (
+                        <span className="text-[10px] font-bold text-white bg-amber px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                          {t('employee.tasks.requiredToStart')}
+                        </span>
+                      )}
+                      {beforePath && (
+                        <span className="text-[10px] font-bold text-white bg-green px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                          ✓ {t('employee.tasks.done')}
+                        </span>
+                      )}
+                    </div>
+
+                    {loadingPhotos ? (
+                      <div className="h-24 rounded-button bg-surface-elevated animate-pulse" />
+                    ) : beforePath ? (
+                      <div className="relative aspect-video rounded-button overflow-hidden bg-surface-elevated">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={taskPhotoUrl(beforePath)} alt="Before" className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setBeforePath(null)}
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center text-white"
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => beforeRef.current?.click()}
+                        disabled={uploadingPhoto !== null}
+                        className="w-full h-24 rounded-button bg-surface-elevated border-2 border-dashed border-amber/40 flex flex-col items-center justify-center gap-2 hover:bg-amber/5 transition-colors disabled:opacity-50"
+                      >
+                        {uploadingPhoto === 'before' ? (
+                          <svg className="animate-spin w-5 h-5 text-amber" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <>
+                            <CameraIcon className="w-6 h-6 text-amber" />
+                            <span className="text-xs font-medium text-amber">{t('employee.tasks.takeBeforePhoto')}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* After */}
+                  <div className={[
+                    'rounded-card border p-3',
+                    !taskStarted ? 'opacity-40 pointer-events-none' : '',
+                    !afterPath ? 'border-[var(--border)] bg-surface-elevated/50' : 'border-green/30 bg-green/5',
+                  ].join(' ')}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={['text-xs font-semibold uppercase tracking-wide', afterPath ? 'text-green' : 'text-secondary'].join(' ')}>
+                        {t('employee.tasks.afterLabel')}
+                      </span>
+                      {taskStarted && !afterPath && (
+                        <span className="text-[10px] font-bold text-white bg-brand px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                          {t('employee.tasks.requiredToFinish')}
+                        </span>
+                      )}
+                      {afterPath && (
+                        <span className="text-[10px] font-bold text-white bg-green px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                          ✓ {t('employee.tasks.done')}
+                        </span>
+                      )}
+                    </div>
+
+                    {afterPath ? (
+                      <div className="relative aspect-video rounded-button overflow-hidden bg-surface-elevated">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={taskPhotoUrl(afterPath)} alt="After" className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setAfterPath(null)}
+                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center text-white"
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => afterRef.current?.click()}
+                        disabled={uploadingPhoto !== null || !taskStarted}
+                        className="w-full h-24 rounded-button bg-surface-elevated border-2 border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-2 hover:bg-black/[0.03] transition-colors disabled:opacity-50"
+                      >
+                        {uploadingPhoto === 'after' ? (
+                          <svg className="animate-spin w-5 h-5 text-secondary" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
+                          </svg>
+                        ) : (
+                          <>
+                            <CameraIcon className="w-6 h-6 text-tertiary" />
+                            <span className="text-xs text-tertiary">{t('employee.tasks.addAfter')}</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Hidden file inputs with camera capture for mobile */}
+                  <input ref={beforeRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhoto(e, 'before')} />
+                  <input ref={afterRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhoto(e, 'after')} />
+                </div>
+              )}
+
+              {/* Checklist — locked until started */}
+              {selected.checklist && selected.checklist.length > 0 && (
+                <div className={['mb-5', !taskStarted ? 'opacity-40 pointer-events-none' : ''].join(' ')}>
                   <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{t('employee.tasks.checklistLabel')}</p>
                   <div className="space-y-2">
                     {(selected.checklist as ChecklistItem[]).map((item, i) => (
@@ -319,137 +491,47 @@ export function TaskList({
                 </div>
               )}
 
-              {/* Before / After Photos */}
-              {supabaseReady && (
-                <div className="mb-5">
-                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-3">{t('employee.tasks.photosLabel')}</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Before photo */}
-                    <div>
-                      <p className="text-[11px] text-secondary mb-1.5 flex items-center gap-1">
-                        {t('employee.tasks.beforeLabel')}
-                        {selected?.before_photo_required && (
-                          <span className="text-danger font-semibold">*</span>
-                        )}
-                      </p>
-                      {beforePath ? (
-                        <div className="aspect-square rounded-button overflow-hidden bg-surface-elevated relative">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={taskPhotoUrl(beforePath)} alt="Before" className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => setBeforePath(null)}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-white"
-                          >
-                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => beforeRef.current?.click()}
-                          disabled={uploadingPhoto}
-                          className="w-full aspect-square rounded-button bg-surface-elevated border border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-1.5 hover:bg-black/[0.04] transition-colors disabled:opacity-50"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-tertiary">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                          </svg>
-                          <span className="text-[11px] text-tertiary">{t('employee.tasks.addBefore')}</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {/* After photo */}
-                    <div>
-                      <p className="text-[11px] text-secondary mb-1.5 flex items-center gap-1">
-                        {t('employee.tasks.afterLabel')}
-                        {selected?.after_photo_required && (
-                          <span className="text-danger font-semibold">*</span>
-                        )}
-                      </p>
-                      {afterPath ? (
-                        <div className="aspect-square rounded-button overflow-hidden bg-surface-elevated relative">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={taskPhotoUrl(afterPath)} alt="After" className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => setAfterPath(null)}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center text-white"
-                          >
-                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => afterRef.current?.click()}
-                          disabled={uploadingPhoto}
-                          className="w-full aspect-square rounded-button bg-surface-elevated border border-dashed border-[var(--border)] flex flex-col items-center justify-center gap-1.5 hover:bg-black/[0.04] transition-colors disabled:opacity-50"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-6 h-6 text-tertiary">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                          </svg>
-                          <span className="text-[11px] text-tertiary">{t('employee.tasks.addAfter')}</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {uploadingPhoto && (
-                    <p className="text-[11px] text-secondary mt-2 text-center">{t('employee.tasks.uploadingPhoto')}</p>
-                  )}
-
-                  {/* Hidden file inputs */}
-                  <input
-                    ref={beforeRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={e => handlePhoto(e, 'before')}
-                  />
-                  <input
-                    ref={afterRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={e => handlePhoto(e, 'after')}
-                  />
-                </div>
-              )}
-
-              {/* Notes */}
-              <div className="mb-5">
+              {/* Notes — locked until started */}
+              <div className={['mb-5', !taskStarted ? 'opacity-40 pointer-events-none' : ''].join(' ')}>
                 <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{t('employee.tasks.notesLabel')}</p>
                 <textarea
                   rows={3}
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  onBlur={() => saveNotes(selected.id)}
+                  onBlur={() => taskStarted && saveNotes(selected.id)}
                   placeholder={t('employee.tasks.notesPlaceholder')}
-                  className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none transition-colors"
+                  disabled={!taskStarted}
+                  className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none resize-none transition-colors disabled:opacity-50"
                 />
               </div>
 
-              <button
-                onClick={() => completeTask(selected.id)}
-                disabled={saving}
-                className="w-full flex items-center justify-center gap-2 h-12 rounded-button bg-green text-white font-semibold text-base hover:bg-green/90 transition-colors disabled:opacity-60"
-              >
-                {saving ? (
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
-                  </svg>
-                ) : (
-                  <>
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              {/* CTA */}
+              {!taskStarted ? (
+                <div className="w-full flex items-center justify-center gap-2 h-12 rounded-button bg-amber/10 border border-amber/30 text-amber font-medium text-sm">
+                  <CameraIcon className="w-5 h-5" />
+                  {t('employee.tasks.takeBeforeToStart')}
+                </div>
+              ) : (
+                <button
+                  onClick={() => completeTask(selected.id)}
+                  disabled={saving || !afterPath}
+                  className="w-full flex items-center justify-center gap-2 h-12 rounded-button bg-green text-white font-semibold text-base hover:bg-green/90 transition-colors disabled:opacity-60"
+                >
+                  {saving ? (
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
                     </svg>
-                    {t('employee.tasks.markComplete')}
-                  </>
-                )}
-              </button>
+                  ) : (
+                    <>
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      {!afterPath ? t('employee.tasks.afterPhotoRequiredBtn') : t('employee.tasks.markComplete')}
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
             <div className="safe-bottom" />

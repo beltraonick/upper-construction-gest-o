@@ -85,6 +85,7 @@ export default async function EmployeeTasksPage() {
       <TaskList
         tasks={tasks}
         profileId={profileId}
+        employeeName={user.full_name ?? ''}
         supabaseReady={!!supabaseReady}
       />
     </div>

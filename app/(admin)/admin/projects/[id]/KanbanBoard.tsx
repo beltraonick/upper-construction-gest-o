@@ -44,6 +44,7 @@ interface TaskPhoto {
   id: string
   storage_path: string
   tag: string
+  photo_category: string | null
   uploaded_by_name: string | null
   created_at: string
 }
@@ -128,7 +129,7 @@ function TaskDrawer({
     if (task?.id) {
       setLoadingPhotos(true)
       const supabase = createClient()
-      supabase.from('task_media').select('id, storage_path, tag, uploaded_by_name, created_at').eq('task_id', task.id).order('created_at').then(({ data }) => {
+      supabase.from('task_media').select('id, storage_path, tag, photo_category, uploaded_by_name, created_at').eq('task_id', task.id).order('created_at').then(({ data }) => {
         setPhotos((data ?? []) as TaskPhoto[])
         setLoadingPhotos(false)
       })
@@ -210,7 +211,7 @@ function TaskDrawer({
       }
       setUploading(false)
       setNewFiles([])
-      const { data: updatedPhotos } = await supabase.from('task_media').select('id, storage_path, tag, uploaded_by_name, created_at').eq('task_id', savedTask.id).order('created_at')
+      const { data: updatedPhotos } = await supabase.from('task_media').select('id, storage_path, tag, photo_category, uploaded_by_name, created_at').eq('task_id', savedTask.id).order('created_at')
       setPhotos((updatedPhotos ?? []) as TaskPhoto[])
     }
 
@@ -257,9 +258,21 @@ function TaskDrawer({
   }
 
   const allPhotos = [
-    ...photos.map(p => ({ id: p.id, url: taskPhotoUrl(p.storage_path), isNew: false, photo: p, uploaderName: p.uploaded_by_name, createdAt: p.created_at })),
-    ...newFiles.map((f, i) => ({ id: `new-${i}`, url: URL.createObjectURL(f), isNew: true, photo: null, uploaderName: currentUser.name, createdAt: null })),
+    ...photos.map(p => ({ id: p.id, url: taskPhotoUrl(p.storage_path), isNew: false, photo: p, uploaderName: p.uploaded_by_name, createdAt: p.created_at, category: p.photo_category ?? p.tag ?? 'progress' })),
+    ...newFiles.map((f, i) => ({ id: `new-${i}`, url: URL.createObjectURL(f), isNew: true, photo: null, uploaderName: currentUser.name, createdAt: null, category: 'progress' })),
   ]
+
+  const photosByCategory = {
+    before: allPhotos.filter(p => p.category === 'before'),
+    progress: allPhotos.filter(p => p.category === 'progress' || (p.category !== 'before' && p.category !== 'after')),
+    after: allPhotos.filter(p => p.category === 'after'),
+  }
+
+  const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+    before: { label: 'Before', color: 'text-amber' },
+    progress: { label: 'Progress', color: 'text-blue' },
+    after: { label: 'After', color: 'text-green' },
+  }
 
   const doneCount = form.checklist.filter(c => c.done).length
 
@@ -506,73 +519,83 @@ function TaskDrawer({
             />
             {loadingPhotos && <p className="text-xs text-tertiary py-2">{t('common.loading')}</p>}
             {!loadingPhotos && allPhotos.length > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                {allPhotos.map(item => (
-                  <div key={item.id} className="flex flex-col gap-1">
-                    <div className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={item.url}
-                        alt={t('admin.projectDetail.kanbanPhotoAlt')}
-                        className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => setLightbox(item.url)}
-                      />
-                      {/* Actions overlay */}
-                      <div className="absolute inset-x-0 bottom-0 flex justify-between items-center p-1.5 bg-black/60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        {!item.isNew && item.photo && (
-                          <>
-                            <a
-                              href={item.url}
-                              download
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={e => e.stopPropagation()}
-                              className="text-white/70 hover:text-white transition-colors"
-                              title={t('admin.projectDetail.kanbanDownloadPhoto')}
-                            >
-                              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                                <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.72-1.72a.75.75 0 111.06 1.06L8 10.81 4.47 7.28a.75.75 0 111.06-1.06l1.72 1.72V1.75A.75.75 0 018 1zM2 13.25a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
-                              </svg>
-                            </a>
-                            <button
-                              onClick={() => deletePhoto(item.photo!)}
-                              className="text-danger/80 hover:text-danger transition-colors"
-                              title={t('admin.projectDetail.kanbanDeletePhoto')}
-                            >
-                              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L8 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-                          </>
-                        )}
-                        {item.isNew && (
-                          <button
-                            onClick={() => setNewFiles(prev => prev.filter((_, i) => `new-${i}` !== item.id))}
-                            className="text-danger/80 hover:text-danger transition-colors ml-auto"
-                          >
-                            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L8 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        )}
+              <div className="space-y-4">
+                {(['before', 'progress', 'after'] as const).map(cat => {
+                  const items = photosByCategory[cat]
+                  if (items.length === 0) return null
+                  const { label, color } = CATEGORY_LABELS[cat]
+                  return (
+                    <div key={cat}>
+                      <p className={`text-[11px] font-semibold uppercase tracking-wide mb-1.5 ${color}`}>{label}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {items.map(item => (
+                          <div key={item.id} className="flex flex-col gap-1">
+                            <div className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated group">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={item.url}
+                                alt={t('admin.projectDetail.kanbanPhotoAlt')}
+                                className="w-full h-full object-cover cursor-pointer"
+                                onClick={() => setLightbox(item.url)}
+                              />
+                              <div className="absolute inset-x-0 bottom-0 flex justify-between items-center p-1.5 bg-black/60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                {!item.isNew && item.photo && (
+                                  <>
+                                    <a
+                                      href={item.url}
+                                      download
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={e => e.stopPropagation()}
+                                      className="text-white/70 hover:text-white transition-colors"
+                                      title={t('admin.projectDetail.kanbanDownloadPhoto')}
+                                    >
+                                      <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                        <path fillRule="evenodd" d="M8 1a.75.75 0 01.75.75v6.19l1.72-1.72a.75.75 0 111.06 1.06L8 10.81 4.47 7.28a.75.75 0 111.06-1.06l1.72 1.72V1.75A.75.75 0 018 1zM2 13.25a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
+                                      </svg>
+                                    </a>
+                                    <button
+                                      onClick={() => deletePhoto(item.photo!)}
+                                      className="text-danger/80 hover:text-danger transition-colors"
+                                      title={t('admin.projectDetail.kanbanDeletePhoto')}
+                                    >
+                                      <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L8 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
+                                {item.isNew && (
+                                  <button
+                                    onClick={() => setNewFiles(prev => prev.filter((_, i) => `new-${i}` !== item.id))}
+                                    className="text-danger/80 hover:text-danger transition-colors ml-auto"
+                                  >
+                                    <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L8 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                              {item.isNew && (
+                                <div className="absolute top-1 left-1 px-1 py-0.5 bg-brand/80 rounded text-[10px] text-white font-medium">new</div>
+                              )}
+                            </div>
+                            <div className="px-0.5">
+                              <p className="text-[11px] font-medium text-secondary truncate">
+                                {item.uploaderName ?? 'Unknown'}
+                              </p>
+                              <p className="text-[10px] text-tertiary">
+                                {item.createdAt
+                                  ? new Date(item.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                  : 'Pending upload'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      {item.isNew && (
-                        <div className="absolute top-1 left-1 px-1 py-0.5 bg-brand/80 rounded text-[10px] text-white font-medium">new</div>
-                      )}
                     </div>
-                    {/* Photo metadata */}
-                    <div className="px-0.5">
-                      <p className="text-[11px] font-medium text-secondary truncate">
-                        {item.uploaderName ?? 'Unknown'}
-                      </p>
-                      <p className="text-[10px] text-tertiary">
-                        {item.createdAt
-                          ? new Date(item.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                          : 'Pending upload'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
             {!loadingPhotos && allPhotos.length === 0 && (
