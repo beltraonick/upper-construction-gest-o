@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Avatar } from '@/components/ui/Avatar'
 import { logout } from '@/app/actions/auth'
@@ -129,8 +130,11 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
   const pathname = usePathname()
   const { t } = useTranslation()
   const NAV = useNav()
-  // Mobile bottom nav: Home, Projects, Tasks, Members, Settings
-  const BOTTOM_NAV = [NAV[0], NAV[2], NAV[3], NAV[4], NAV[10]]
+  const [moreOpen, setMoreOpen] = useState(false)
+  // Mobile bottom nav: Dashboard, Projects, Tasks, Members + More
+  const BOTTOM_NAV = [NAV[0], NAV[2], NAV[3], NAV[4]]
+  // Items shown in the "More" sheet
+  const MORE_NAV = [NAV[1], NAV[5], NAV[6], NAV[7], NAV[8], NAV[9], NAV[10]]
 
   return (
     <>
@@ -248,17 +252,76 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
             </Link>
           )
         })}
-        {/* OrbitAI trigger — replaces the floating sphere on mobile */}
+        {/* More button */}
         <button
-          onClick={() => window.dispatchEvent(new CustomEvent('orbit-ai-toggle'))}
+          onClick={() => setMoreOpen(true)}
           className="flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[10px] font-medium text-tertiary hover:text-secondary transition-colors duration-150"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
           </svg>
-          AI
+          {t('common.nav.more')}
         </button>
       </nav>
+
+      {/* ── Mobile "More" Sheet ── */}
+      {moreOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-50 flex items-end"
+          onClick={() => setMoreOpen(false)}
+        >
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className="relative w-full bg-surface rounded-t-card border-t border-[var(--border)] safe-bottom"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 rounded-full bg-tertiary/40" />
+            </div>
+
+            <div className="px-4 pb-4">
+              <div className="grid grid-cols-2 gap-1.5 mb-3">
+                {MORE_NAV.map(item => {
+                  const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMoreOpen(false)}
+                      className={[
+                        'flex items-center gap-3 px-4 py-3 rounded-button transition-colors',
+                        active
+                          ? 'bg-brand/10 text-brand'
+                          : 'hover:bg-surface-elevated text-secondary hover:text-primary',
+                      ].join(' ')}
+                    >
+                      <span className={active ? 'text-brand' : 'text-tertiary'}>{item.icon}</span>
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </Link>
+                  )
+                })}
+
+                {/* OrbitAI */}
+                <button
+                  onClick={() => {
+                    setMoreOpen(false)
+                    window.dispatchEvent(new CustomEvent('orbit-ai-toggle'))
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-button hover:bg-surface-elevated text-secondary hover:text-primary transition-colors"
+                >
+                  <span className="text-tertiary">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-[18px] h-[18px]">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  </span>
+                  <span className="text-sm font-medium">OrbitAI</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
