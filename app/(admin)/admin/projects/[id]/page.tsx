@@ -157,7 +157,7 @@ export default function ProjectDetailPage() {
     const supabase = createClient()
     Promise.all([
       supabase.from('projects').select('*').eq('id', projectId).single(),
-      supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('status', 'active').order('full_name'),
+      supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('auth_status', 'approved').order('full_name'),
     ]).then(([{ data }, { data: emps }]) => {
       if (data) {
         setProject(data as Project)
@@ -678,42 +678,59 @@ export default function ProjectDetailPage() {
                 </Card>
               )}
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {plans.map(plan => (
-                  <button
-                    key={plan.id}
-                    onClick={() => { setSelectedPlan(plan); setSheetIndex(0); setAddMarkerMode(false) }}
-                    className="text-left"
-                  >
-                    <Card className="hover:bg-surface-elevated transition-colors" padding="none">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {plans.map(plan => {
+                  const firstSheet = plan.sheets[0]
+                  const isPdf = firstSheet?.file_type === 'pdf'
+                  return (
+                    <div key={plan.id} className="rounded-card border border-[var(--border)] bg-surface overflow-hidden flex flex-col">
                       {/* Thumbnail */}
-                      <div className="aspect-[4/3] bg-surface-elevated rounded-t-card overflow-hidden">
-                        {plan.sheets[0] && plan.sheets[0].file_type !== 'pdf' ? (
+                      <div className="aspect-[4/3] bg-surface-elevated relative">
+                        {firstSheet && !isPdf ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={planUrl(plan.sheets[0].storage_path)}
+                            src={planUrl(firstSheet.storage_path)}
                             alt={plan.name}
                             className="w-full h-full object-contain"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-8 h-8 text-tertiary">
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-10 h-10 text-brand/40">
                               <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
                             </svg>
+                            {isPdf && <span className="text-xs font-semibold text-tertiary tracking-wider uppercase">PDF</span>}
                           </div>
                         )}
+                        {/* Marker badge */}
+                        {plan.markers.length > 0 && (
+                          <span className="absolute top-2 right-2 bg-brand text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                            {plan.markers.length} pin{plan.markers.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
-                      <div className="p-3">
-                        <p className="text-sm font-medium text-primary truncate">{plan.name}</p>
-                        <p className="text-xs text-secondary mt-0.5">
-                          {t('admin.projectDetail.sheetsAndMarkers')
-                            .replace('{n}', String(plan.sheets.length)).replace('{sheetPlural}', plan.sheets.length !== 1 ? 's' : '')
-                            .replace('{m}', String(plan.markers.length)).replace('{markerPlural}', plan.markers.length !== 1 ? 's' : '')}
-                        </p>
+                      {/* Info + View button */}
+                      <div className="p-3 flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-primary truncate">{plan.name}</p>
+                          <p className="text-xs text-tertiary mt-0.5">
+                            {new Date(plan.created_at).toLocaleDateString()}
+                            {plan.sheets.length > 1 && ` · ${plan.sheets.length} sheets`}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => { setSelectedPlan(plan); setSheetIndex(0); setAddMarkerMode(false) }}
+                          className="flex-shrink-0 flex items-center gap-1 text-xs font-medium text-brand hover:text-brand/80 bg-brand/10 hover:bg-brand/20 px-3 py-1.5 rounded-button transition-colors"
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                          </svg>
+                          {t('admin.projectDetail.viewPlan') || 'View'}
+                        </button>
                       </div>
-                    </Card>
-                  </button>
-                ))}
+                    </div>
+                  )
+                })}
               </div>
             </>
           )}
