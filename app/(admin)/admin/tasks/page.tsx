@@ -236,12 +236,14 @@ export default function TasksPage() {
         const path = `tasks/${savedTaskId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
         const { error: upErr } = await supabase.storage.from('task-photos').upload(path, file, { upsert: false })
         if (!upErr) {
-          await supabase.from('task_media').insert({
+          const { error: mediaErr } = await supabase.from('task_media').insert({
             task_id: savedTaskId,
             company_id: companyId,
             storage_path: path,
             media_type: 'photo',
+            photo_category: 'progress',
           })
+          if (mediaErr) console.error('[task_media insert]', mediaErr.message)
         }
       }
       setUploadingPhotos(false)

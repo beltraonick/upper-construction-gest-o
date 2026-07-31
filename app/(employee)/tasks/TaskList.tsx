@@ -138,7 +138,7 @@ export function TaskList({
         .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
       if (error) throw error
 
-      await supabase.from('task_media').insert({
+      const mediaRow = {
         task_id: selected.id,
         project_id: selected.project_id ?? null,
         company_id: companyId,
@@ -147,7 +147,14 @@ export function TaskList({
         storage_path: uploaded.path,
         photo_category: category,
         uploaded_by_name: employeeName,
-      })
+      }
+      const { error: dbError } = await supabase.from('task_media').insert(mediaRow)
+      if (dbError) {
+        // Retry without optional columns that may not exist on older schema versions
+        const { uploaded_by_name: _n, ...coreRow } = mediaRow
+        const { error: retryError } = await supabase.from('task_media').insert(coreRow)
+        if (retryError) throw new Error(retryError.message)
+      }
 
       if (category === 'before') {
         setBeforePath(uploaded.path)
