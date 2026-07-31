@@ -43,7 +43,6 @@ interface KanbanTask {
 interface TaskPhoto {
   id: string
   storage_path: string
-  tag: string
   photo_category: string | null
   uploaded_by_name: string | null
   created_at: string
@@ -129,7 +128,7 @@ function TaskDrawer({
     if (task?.id) {
       setLoadingPhotos(true)
       const supabase = createClient()
-      supabase.from('task_media').select('id, storage_path, tag, photo_category, uploaded_by_name, created_at').eq('task_id', task.id).order('created_at').then(({ data }) => {
+      supabase.from('task_media').select('id, storage_path, photo_category, uploaded_by_name, created_at').eq('task_id', task.id).order('created_at').then(({ data }) => {
         setPhotos((data ?? []) as TaskPhoto[])
         setLoadingPhotos(false)
       })
@@ -202,16 +201,18 @@ function TaskDrawer({
         if (!error) {
           await supabase.from('task_media').insert({
             task_id: savedTask.id,
+            project_id: projectId,
             company_id: companyId,
+            media_type: 'photo',
             storage_path: path,
-            tag: 'progress',
+            photo_category: 'progress',
             uploaded_by_name: currentUser.name,
           })
         }
       }
       setUploading(false)
       setNewFiles([])
-      const { data: updatedPhotos } = await supabase.from('task_media').select('id, storage_path, tag, photo_category, uploaded_by_name, created_at').eq('task_id', savedTask.id).order('created_at')
+      const { data: updatedPhotos } = await supabase.from('task_media').select('id, storage_path, photo_category, uploaded_by_name, created_at').eq('task_id', savedTask.id).order('created_at')
       setPhotos((updatedPhotos ?? []) as TaskPhoto[])
     }
 
@@ -258,7 +259,7 @@ function TaskDrawer({
   }
 
   const allPhotos = [
-    ...photos.map(p => ({ id: p.id, url: taskPhotoUrl(p.storage_path), isNew: false, photo: p, uploaderName: p.uploaded_by_name, createdAt: p.created_at, category: p.photo_category ?? p.tag ?? 'progress' })),
+    ...photos.map(p => ({ id: p.id, url: taskPhotoUrl(p.storage_path), isNew: false, photo: p, uploaderName: p.uploaded_by_name, createdAt: p.created_at, category: p.photo_category ?? 'progress' })),
     ...newFiles.map((f, i) => ({ id: `new-${i}`, url: URL.createObjectURL(f), isNew: true, photo: null, uploaderName: currentUser.name, createdAt: null, category: 'progress' })),
   ]
 
