@@ -14,6 +14,8 @@ import type { PlanMarker } from '@/components/admin/PlanViewer'
 import { KanbanBoard } from './KanbanBoard'
 import { useCompanyId } from '@/lib/company-context'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
+import { PhotoPicker } from '@/components/ui/PhotoPicker'
+import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -147,9 +149,9 @@ export default function ProjectDetailPage() {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [loadingPhotos, setLoadingPhotos] = useState(false)
   const [photosFetched, setPhotosFetched] = useState(false)
-  const [lightbox, setLightbox] = useState<Photo | null>(null)
+  const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const photoFileRef = useRef<HTMLInputElement>(null)
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
 
   // Load project + employees
   useEffect(() => {
@@ -384,22 +386,52 @@ export default function ProjectDetailPage() {
     setSavingMarker(false)
   }
 
-  async function uploadPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !supabaseReady) return
-    e.target.value = ''
+  async function handlePhotoUpload(files: File[]) {
+    if (files.length === 0 || !supabaseReady) return
     setUploadingPhoto(true)
+    setUploadProgress({ done: 0, total: files.length })
     const supabase = createClient()
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const path = `${projectId}/misc-${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('project-photos').upload(path, file, { contentType: file.type, upsert: true })
-    if (error) { alert(t('admin.projectDetail.uploadFailedPhotoBucket')); setUploadingPhoto(false); return }
-    const { data: row } = await supabase
-      .from('project_photos')
-      .insert({ project_id: projectId, company_id: companyId, storage_path: path, tag: 'progress' })
-      .select().single()
-    if (row) setPhotos(prev => [row as Photo, ...prev])
+    const newRows: Photo[] = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${projectId}/misc-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('project-photos').upload(path, file, { contentType: file.type, upsert: true })
+      if (!error) {
+        const { data: row } = await supabase
+          .from('project_photos')
+          .insert({ project_id: projectId, company_id: companyId, storage_path: path, tag: 'progress' })
+          .select().single()
+        if (row) newRows.push(row as Photo)
+      }
+      setUploadProgress({ done: i + 1, total: files.length })
+    }
+    if (newRows.length > 0) setPhotos(prev => [...newRows.reverse(), ...prev])
+    setUploadProgress(null)
     setUploadingPhoto(false)
+  }
+
+  async function deletePhoto(photo: Photo) {
+    if (!window.confirm(t('admin.photos.deleteConfirm'))) return
+    const supabase = createClient()
+    await Promise.all([
+      supabase.storage.from('project-photos').remove([photo.storage_path]),
+      supabase.from('project_photos').delete().eq('id', photo.id),
+    ])
+    setPhotos(prev => prev.filter(p => p.id !== photo.id))
+    setLightbox(null)
+  }
+
+  function openLightbox(index: number) {
+    const lbPhotos: LightboxPhoto[] = photos.map(p => ({
+      url: photoUrl(p.storage_path),
+      category: null,
+      uploaderName: null,
+      createdAt: p.created_at ?? null,
+      projectName: null,
+      taskTitle: null,
+    }))
+    setLightbox({ photos: lbPhotos, index })
   }
 
   const currentSheet = selectedPlan?.sheets[sheetIndex]
@@ -751,21 +783,31 @@ export default function ProjectDetailPage() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-primary">{t('admin.projectDetail.photosHeading')}</h2>
-            <Button
-              onClick={() => photoFileRef.current?.click()}
-              loading={uploadingPhoto}
+            <PhotoPicker
+              onFiles={handlePhotoUpload}
+              multiple
               disabled={!supabaseReady || uploadingPhoto}
-            >
-              {uploadingPhoto ? t('admin.projectDetail.uploading') : t('admin.projectDetail.addPhoto')}
-            </Button>
+              trigger={open => (
+                <button
+                  onClick={open}
+                  disabled={!supabaseReady || uploadingPhoto}
+                  className="flex items-center gap-2 px-4 py-2 rounded-button bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors disabled:opacity-60"
+                >
+                  {uploadProgress ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
+                      </svg>
+                      {uploadProgress.done}/{uploadProgress.total}
+                    </>
+                  ) : (
+                    <>+ {t('admin.projectDetail.addPhoto')}</>
+                  )}
+                </button>
+              )}
+            />
           </div>
-          <input
-            ref={photoFileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={uploadPhoto}
-          />
 
           {loadingPhotos && <p className="text-sm text-secondary text-center py-8">{t('admin.projectDetail.loadingPhotos')}</p>}
           {!loadingPhotos && photos.length === 0 && (
@@ -775,19 +817,25 @@ export default function ProjectDetailPage() {
           )}
 
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-            {photos.map(p => (
-              <button
-                key={p.id}
-                onClick={() => setLightbox(p)}
-                className="aspect-square rounded-button overflow-hidden bg-surface-elevated"
-              >
+            {photos.map((p, idx) => (
+              <div key={p.id} className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photoUrl(p.storage_path)}
                   alt={t('admin.projectDetail.projectPhotoAlt')}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                  onClick={() => openLightbox(idx)}
                 />
-              </button>
+                <button
+                  onClick={() => deletePhoto(p)}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-red-500/80 transition-colors"
+                  title={t('common.delete')}
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
         </div>
@@ -946,26 +994,15 @@ export default function ProjectDetailPage() {
 
       {/* ── Photo Lightbox ── */}
       {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setLightbox(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={photoUrl(lightbox.storage_path)}
-            alt={t('admin.projectDetail.projectPhotoAlt')}
-            className="max-w-full max-h-full object-contain rounded-card"
-            onClick={e => e.stopPropagation()}
-          />
-          <button
-            onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface/80 border border-[var(--border)] flex items-center justify-center text-secondary hover:text-primary backdrop-blur-sm"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
+        <PhotoLightbox
+          photos={lightbox.photos}
+          initialIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onDelete={idx => {
+            const photo = photos[idx]
+            if (photo) deletePhoto(photo)
+          }}
+        />
       )}
     </div>
   )
