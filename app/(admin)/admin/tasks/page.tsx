@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
+import { PhotoPicker } from '@/components/ui/PhotoPicker'
+import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
 
 interface ChecklistItem { text: string; done: boolean }
 
@@ -87,6 +89,7 @@ export default function TasksPage() {
   const [newPhotoFiles, setNewPhotoFiles] = useState<File[]>([])
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [photoLightbox, setPhotoLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null)
 
   const PRIORITY_OPTIONS = [
     { value: 'low', label: t('common.priority.low') },
@@ -676,42 +679,68 @@ export default function TasksPage() {
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-2">{t('admin.tasks.photos')}</label>
                   {editPhotos.length > 0 && (
-                    <div className="grid grid-cols-5 gap-2 mb-2">
-                      {editPhotos.map(p => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img key={p.id} src={editPhotoUrl(p.storage_path)} alt="" className="aspect-square object-cover rounded-button bg-surface-elevated" />
+                    <div className="flex gap-2 overflow-x-auto pb-1 mb-2">
+                      {editPhotos.map((p, i) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setPhotoLightbox({
+                            photos: editPhotos.map(ep => ({
+                              url: editPhotoUrl(ep.storage_path),
+                              category: null,
+                              uploaderName: null,
+                              createdAt: null,
+                              projectName: null,
+                              taskTitle: editing?.title ?? null,
+                            })),
+                            index: i,
+                          })}
+                          className="flex-shrink-0 w-16 h-16 rounded-button overflow-hidden bg-surface-elevated"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={editPhotoUrl(p.storage_path)} alt="" className="w-full h-full object-cover" />
+                        </button>
                       ))}
                     </div>
                   )}
                   {newPhotoFiles.length > 0 && (
-                    <div className="grid grid-cols-5 gap-2 mb-2">
+                    <div className="flex gap-2 overflow-x-auto pb-1 mb-2">
                       {newPhotoFiles.map((f, i) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img key={i} src={URL.createObjectURL(f)} alt="" className="aspect-square object-cover rounded-button bg-surface-elevated" />
+                        <div key={i} className="flex-shrink-0 w-16 h-16 rounded-button overflow-hidden bg-surface-elevated relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setNewPhotoFiles(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center"
+                          >
+                            <svg viewBox="0 0 20 20" fill="currentColor" className="w-2.5 h-2.5 text-white">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}
-                  <label className="flex items-center gap-2 cursor-pointer w-full border border-dashed border-[var(--border)] rounded-input px-3 py-2.5 hover:border-brand/40 transition-colors">
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0">
-                      <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-xs text-secondary">
-                      {newPhotoFiles.length > 0
-                        ? t('admin.tasks.photosSelected').replace('{n}', String(newPhotoFiles.length)).replace(/\{plural\}/g, newPhotoFiles.length > 1 ? 's' : '')
-                        : t('admin.tasks.addPhotos')}
-                    </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="sr-only"
-                      onChange={e => {
-                        const files = Array.from(e.target.files ?? [])
-                        setNewPhotoFiles(prev => [...prev, ...files])
-                        e.target.value = ''
-                      }}
-                    />
-                  </label>
+                  <PhotoPicker
+                    onFiles={files => setNewPhotoFiles(prev => [...prev, ...files])}
+                    trigger={open => (
+                      <button
+                        type="button"
+                        onClick={open}
+                        className="flex items-center gap-2 w-full border border-dashed border-[var(--border)] rounded-input px-3 py-2.5 hover:border-brand/40 transition-colors text-left"
+                      >
+                        <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0">
+                          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-xs text-secondary">
+                          {newPhotoFiles.length > 0
+                            ? t('admin.tasks.photosSelected').replace('{n}', String(newPhotoFiles.length)).replace(/\{plural\}/g, newPhotoFiles.length > 1 ? 's' : '')
+                            : t('admin.tasks.addPhotos')}
+                        </span>
+                      </button>
+                    )}
+                  />
                 </div>
 
                 {/* Checklist */}
@@ -772,6 +801,14 @@ export default function TasksPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {photoLightbox && (
+        <PhotoLightbox
+          photos={photoLightbox.photos}
+          initialIndex={photoLightbox.index}
+          onClose={() => setPhotoLightbox(null)}
+        />
       )}
     </div>
   )

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
+import { PhotoPicker } from '@/components/ui/PhotoPicker'
+import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
 
 const BUCKET = 'project-photos'
 
@@ -30,11 +31,10 @@ export default function PhotosPage() {
   const [photos, setPhotos] = useState<PhotoRecord[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
   const [projectFilter, setProjectFilter] = useState('')
   const [selectedProject, setSelectedProject] = useState('')
-  const [lightbox, setLightbox] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -63,12 +63,13 @@ export default function PhotosPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function handleUpload(files: FileList | null) {
-    if (!files || files.length === 0) return
-    setUploading(true)
+  async function handleUpload(files: File[]) {
+    if (files.length === 0) return
+    setUploadProgress({ done: 0, total: files.length })
     const supabase = createClient()
 
-    for (const file of Array.from(files)) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
       const ext = file.name.split('.').pop()
       const path = `${companyId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { error: uploadErr } = await supabase.storage.from(BUCKET).upload(path, file)
@@ -79,10 +80,10 @@ export default function PhotosPage() {
           storage_path: path,
         })
       }
+      setUploadProgress({ done: i + 1, total: files.length })
     }
 
-    setUploading(false)
-    if (fileRef.current) fileRef.current.value = ''
+    setUploadProgress(null)
     load()
   }
 
@@ -93,6 +94,8 @@ export default function PhotosPage() {
       supabase.storage.from(BUCKET).remove([photo.storage_path]),
       supabase.from('project_photos').delete().eq('id', photo.id),
     ])
+    // Also close lightbox if the deleted photo was open
+    setLightbox(null)
     load()
   }
 
@@ -106,6 +109,18 @@ export default function PhotosPage() {
   ]
 
   const filtered = projectFilter ? photos.filter(p => p.project_id === projectFilter) : photos
+
+  function openLightbox(index: number) {
+    const lbPhotos: LightboxPhoto[] = filtered.map(p => ({
+      url: p.url ?? '',
+      category: null,
+      uploaderName: (p.profile as unknown as { full_name: string } | null)?.full_name ?? null,
+      createdAt: p.created_at ?? null,
+      projectName: (p.project as unknown as { name: string } | null)?.name ?? null,
+      taskTitle: null,
+    }))
+    setLightbox({ photos: lbPhotos, index })
+  }
 
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
@@ -122,16 +137,28 @@ export default function PhotosPage() {
               onChange={e => setSelectedProject(e.target.value)}
             />
           </div>
-          <Button onClick={() => fileRef.current?.click()} loading={uploading}>
-            + {t('admin.photos.uploadPhotos')}
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={e => handleUpload(e.target.files)}
+          <PhotoPicker
+            onFiles={handleUpload}
+            disabled={uploadProgress !== null}
+            trigger={open => (
+              <button
+                onClick={open}
+                disabled={uploadProgress !== null}
+                className="flex items-center gap-2 px-4 py-2 rounded-button bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors disabled:opacity-60"
+              >
+                {uploadProgress ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
+                    </svg>
+                    {uploadProgress.done}/{uploadProgress.total}
+                  </>
+                ) : (
+                  <>+ {t('admin.photos.uploadPhotos')}</>
+                )}
+              </button>
+            )}
           />
         </div>
       </div>
@@ -156,60 +183,60 @@ export default function PhotosPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          {filtered.map(photo => (
-            <div key={photo.id} className="group relative aspect-square rounded-card overflow-hidden bg-surface-elevated">
-              {photo.url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={photo.url}
-                  alt={photo.caption ?? t('admin.photos.photoAlt')}
-                  className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-200"
-                  onClick={() => setLightbox(photo.url ?? null)}
-                />
-              )}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <p className="text-[10px] text-white/80 truncate">
-                  {(photo.project as unknown as { name: string } | null)?.name ?? t('admin.photos.noProject')}
-                </p>
-                <p className="text-[10px] text-white/60 truncate">
-                  {new Date(photo.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </p>
+          {filtered.map((photo, idx) => {
+            const projectName = (photo.project as unknown as { name: string } | null)?.name
+            const uploaderName = (photo.profile as unknown as { full_name: string } | null)?.full_name
+            return (
+              <div key={photo.id} className="flex flex-col gap-1">
+                <div className="relative aspect-square rounded-card overflow-hidden bg-surface-elevated">
+                  {photo.url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={photo.url}
+                      alt={photo.caption ?? t('admin.photos.photoAlt')}
+                      className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-200"
+                      onClick={() => openLightbox(idx)}
+                    />
+                  )}
+                  {/* Always-visible delete button */}
+                  <button
+                    onClick={() => deletePhoto(photo)}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-danger/80 transition-colors"
+                    title={t('common.delete')}
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                {/* Always-visible metadata below card */}
+                <div className="px-0.5">
+                  {projectName && (
+                    <p className="text-[11px] font-medium text-secondary truncate">{projectName}</p>
+                  )}
+                  {uploaderName && (
+                    <p className="text-[11px] text-secondary truncate">{uploaderName}</p>
+                  )}
+                  <p className="text-[10px] text-tertiary">
+                    {new Date(photo.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                </div>
               </div>
-              <button
-                onClick={() => deletePhoto(photo)}
-                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-danger/80"
-                title={t('common.delete')}
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
       {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setLightbox(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightbox}
-            alt={t('admin.photos.previewAlt')}
-            className="max-w-full max-h-full object-contain rounded-card"
-            onClick={e => e.stopPropagation()}
-          />
-          <button
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-            onClick={() => setLightbox(null)}
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
+        <PhotoLightbox
+          photos={lightbox.photos}
+          initialIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onDelete={idx => {
+            const photo = filtered[idx]
+            if (photo) deletePhoto(photo)
+          }}
+        />
       )}
     </div>
   )

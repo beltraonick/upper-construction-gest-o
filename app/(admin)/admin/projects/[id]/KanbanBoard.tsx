@@ -7,6 +7,8 @@ import { useCurrentUser } from '@/lib/user-context'
 import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { PhotoPicker } from '@/components/ui/PhotoPicker'
+import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -118,8 +120,7 @@ function TaskDrawer({
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [checkInput, setCheckInput] = useState('')
-  const [lightbox, setLightbox] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null)
 
   useEffect(() => {
     setForm(blankForm())
@@ -572,26 +573,18 @@ function TaskDrawer({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-medium text-secondary">{t('admin.projectDetail.kanbanPhotos')}</label>
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="text-xs text-brand hover:text-brand/80 font-medium transition-colors"
-              >
-                {t('admin.projectDetail.kanbanAddPhotos')}
-              </button>
+              <PhotoPicker
+                onFiles={files => setNewFiles(prev => [...prev, ...files])}
+                trigger={open => (
+                  <button
+                    onClick={open}
+                    className="text-xs text-brand hover:text-brand/80 font-medium transition-colors"
+                  >
+                    {t('admin.projectDetail.kanbanAddPhotos')}
+                  </button>
+                )}
+              />
             </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              className="hidden"
-              onChange={e => {
-                const files = Array.from(e.target.files ?? [])
-                setNewFiles(prev => [...prev, ...files])
-                e.target.value = ''
-              }}
-            />
             {loadingPhotos && <p className="text-xs text-tertiary py-2">{t('common.loading')}</p>}
             {!loadingPhotos && allPhotos.length > 0 && (
               <div className="space-y-4">
@@ -603,17 +596,28 @@ function TaskDrawer({
                     <div key={cat}>
                       <p className={`text-[11px] font-semibold uppercase tracking-wide mb-1.5 ${color}`}>{label}</p>
                       <div className="grid grid-cols-2 gap-3">
-                        {items.map(item => (
+                        {items.map((item, itemIdx) => (
                           <div key={item.id} className="flex flex-col gap-1">
-                            <div className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated group">
+                            <div className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={item.url}
                                 alt={t('admin.projectDetail.kanbanPhotoAlt')}
                                 className="w-full h-full object-cover cursor-pointer"
-                                onClick={() => setLightbox(item.url)}
+                                onClick={() => {
+                                  const catPhotos = items.map(p => ({
+                                    url: p.url,
+                                    category: p.category,
+                                    uploaderName: p.uploaderName ?? null,
+                                    createdAt: p.createdAt ?? null,
+                                    projectName: null,
+                                    taskTitle: task?.title ?? null,
+                                  } as LightboxPhoto))
+                                  setLightbox({ photos: catPhotos, index: itemIdx })
+                                }}
                               />
-                              <div className="absolute inset-x-0 bottom-0 flex justify-between items-center p-1.5 bg-black/60 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                              {/* Always-visible action bar */}
+                              <div className="absolute inset-x-0 bottom-0 flex justify-between items-center p-1.5 bg-black/60">
                                 {!item.isNew && item.photo && (
                                   <>
                                     <a
@@ -674,15 +678,20 @@ function TaskDrawer({
               </div>
             )}
             {!loadingPhotos && allPhotos.length === 0 && (
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="w-full border-2 border-dashed border-[var(--border)] rounded-card py-6 text-center hover:border-brand/40 transition-colors group"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-8 h-8 mx-auto text-tertiary group-hover:text-brand/60 mb-1">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                <p className="text-xs text-tertiary group-hover:text-secondary transition-colors">{t('admin.projectDetail.kanbanAddPhotos')}</p>
-              </button>
+              <PhotoPicker
+                onFiles={files => setNewFiles(prev => [...prev, ...files])}
+                trigger={open => (
+                  <button
+                    onClick={open}
+                    className="w-full border-2 border-dashed border-[var(--border)] rounded-card py-6 text-center hover:border-brand/40 transition-colors group"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-8 h-8 mx-auto text-tertiary group-hover:text-brand/60 mb-1">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    <p className="text-xs text-tertiary group-hover:text-secondary transition-colors">{t('admin.projectDetail.kanbanAddPhotos')}</p>
+                  </button>
+                )}
+              />
             )}
           </div>
         </div>
@@ -712,26 +721,11 @@ function TaskDrawer({
 
       {/* Lightbox */}
       {lightbox && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-4"
-          onClick={() => setLightbox(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightbox}
-            alt=""
-            className="max-w-full max-h-full object-contain rounded-card"
-            onClick={e => e.stopPropagation()}
-          />
-          <button
-            onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-          >
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-white">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
+        <PhotoLightbox
+          photos={lightbox.photos}
+          initialIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </>
   )
