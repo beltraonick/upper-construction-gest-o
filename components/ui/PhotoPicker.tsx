@@ -23,9 +23,10 @@ export function PhotoPicker({ onFiles, multiple = true, disabled = false, trigge
   }, [onFiles])
 
   function pick(ref: React.RefObject<HTMLInputElement>) {
+    // Click synchronously BEFORE closing — preserves the user-gesture trust on iOS.
+    // A setTimeout (even 0ms) drops the gesture context and the OS blocks the file picker.
+    ref.current?.click()
     setOpen(false)
-    // Brief delay so the sheet animation completes before the OS dialog appears
-    setTimeout(() => ref.current?.click(), 120)
   }
 
   return (

@@ -128,8 +128,24 @@ export function TaskList({
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number; category: 'before' | 'after' } | null>(null)
   const [loadingPhotos, setLoadingPhotos] = useState(false)
 
-  // Lightbox state
-  const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null)
+  // Lightbox state (includes source rows for delete)
+  const [lightbox, setLightbox] = useState<{
+    photos: LightboxPhoto[]
+    index: number
+    sourcePhotos: PhotoRow[]
+    category: 'before' | 'after'
+  } | null>(null)
+
+  // Undo-delete state
+  interface PendingDelete {
+    storagePath: string
+    taskId: string
+    category: 'before' | 'after'
+    photo: PhotoRow
+    timer: ReturnType<typeof setTimeout>
+  }
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
+  const pendingDeleteRef = useRef<PendingDelete | null>(null)
 
   // Refs for stable closures in async callbacks
   const selectedRef = useRef<Task | null>(null)
@@ -236,21 +252,60 @@ export function TaskList({
     setUploadProgress(null)
   }, [supabaseReady, doUpload])
 
-  // Delete a saved photo
-  const handleDelete = useCallback(async (storagePath: string, category: 'before' | 'after') => {
+  // Execute the actual DB/storage delete (used after undo window expires)
+  const execDelete = useCallback(async (storagePath: string, taskId: string) => {
+    const supabase = createClient()
+    await Promise.all([
+      supabase.storage.from('task-photos').remove([storagePath]),
+      supabase.from('task_media').delete().eq('task_id', taskId).eq('storage_path', storagePath),
+    ])
+  }, [])
+
+  // Delete with confirmation → undo toast (5s window before actual DB delete)
+  const handleDelete = useCallback((photo: PhotoRow, category: 'before' | 'after') => {
     const task = selectedRef.current
     if (!task || !supabaseReady) return
-    const supabase = createClient()
-    await supabase.storage.from('task-photos').remove([storagePath])
-    await supabase.from('task_media').delete()
-      .eq('task_id', task.id)
-      .eq('storage_path', storagePath)
-    if (category === 'before') {
-      setBeforePhotos(prev => prev.filter(p => p.storage_path !== storagePath))
-    } else {
-      setAfterPhotos(prev => prev.filter(p => p.storage_path !== storagePath))
+    if (!window.confirm('Apagar esta foto?')) return
+
+    // Flush any existing pending delete immediately
+    if (pendingDeleteRef.current) {
+      const prev = pendingDeleteRef.current
+      clearTimeout(prev.timer)
+      pendingDeleteRef.current = null
+      setPendingDelete(null)
+      execDelete(prev.storagePath, prev.taskId)
     }
-  }, [supabaseReady])
+
+    // Remove from UI instantly
+    if (category === 'before') {
+      setBeforePhotos(prev => prev.filter(p => p.storage_path !== photo.storage_path))
+    } else {
+      setAfterPhotos(prev => prev.filter(p => p.storage_path !== photo.storage_path))
+    }
+
+    // Schedule actual delete after 5 seconds
+    const taskId = task.id
+    const timer = setTimeout(() => {
+      pendingDeleteRef.current = null
+      setPendingDelete(null)
+      execDelete(photo.storage_path, taskId)
+    }, 5000)
+
+    const pd: PendingDelete = { storagePath: photo.storage_path, taskId, category, photo, timer }
+    pendingDeleteRef.current = pd
+    setPendingDelete(pd)
+  }, [supabaseReady, execDelete])
+
+  // Undo the pending delete
+  function undoDelete() {
+    const pd = pendingDeleteRef.current
+    if (!pd) return
+    clearTimeout(pd.timer)
+    pendingDeleteRef.current = null
+    setPendingDelete(null)
+    if (pd.category === 'before') setBeforePhotos(prev => [pd.photo, ...prev])
+    else setAfterPhotos(prev => [pd.photo, ...prev])
+  }
 
   // Open lightbox for a category's photos
   function openLightbox(photos: PhotoRow[], startIndex: number, category: 'before' | 'after') {
@@ -262,7 +317,7 @@ export function TaskList({
       projectName: selected?.project?.name ?? null,
       taskTitle: selected?.title ?? null,
     }))
-    setLightbox({ photos: lbPhotos, index: startIndex })
+    setLightbox({ photos: lbPhotos, index: startIndex, sourcePhotos: photos, category })
   }
 
   function openTask(task: Task) {
@@ -564,23 +619,31 @@ export function TaskList({
                         {(beforePhotos.length > 0 || pendingBefore.length > 0) && (
                           <div className="flex gap-2 overflow-x-auto pb-2 mb-2 -mx-0.5 px-0.5">
                             {beforePhotos.map((photo, i) => (
-                              <div key={photo.storage_path} className="flex-shrink-0 relative w-20 h-20">
-                                <button
-                                  onClick={() => openLightbox(beforePhotos, i, 'before')}
-                                  className="w-full h-full rounded-lg overflow-hidden block"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={taskPhotoUrl(photo.storage_path)} alt="Before" className="w-full h-full object-cover" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(photo.storage_path, 'before')}
-                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"
-                                  title="Delete"
-                                >
-                                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                  </svg>
-                                </button>
+                              <div key={photo.storage_path} className="flex-shrink-0 flex flex-col items-center" style={{ width: 80 }}>
+                                <div className="relative w-20 h-20">
+                                  <button
+                                    onClick={() => openLightbox(beforePhotos, i, 'before')}
+                                    className="w-full h-full rounded-lg overflow-hidden block"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={taskPhotoUrl(photo.storage_path)} alt="Before" className="w-full h-full object-cover" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(photo, 'before')}
+                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"
+                                    title="Apagar foto"
+                                  >
+                                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                {photo.created_at && (
+                                  <p className="text-[9px] text-tertiary mt-0.5 text-center leading-tight w-full">
+                                    {new Date(photo.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                    {' '}{new Date(photo.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                )}
                               </div>
                             ))}
                             {pendingBefore.map(p => (
@@ -662,23 +725,31 @@ export function TaskList({
                         {(afterPhotos.length > 0 || pendingAfter.length > 0) && (
                           <div className="flex gap-2 overflow-x-auto pb-2 mb-2 -mx-0.5 px-0.5">
                             {afterPhotos.map((photo, i) => (
-                              <div key={photo.storage_path} className="flex-shrink-0 relative w-20 h-20">
-                                <button
-                                  onClick={() => openLightbox(afterPhotos, i, 'after')}
-                                  className="w-full h-full rounded-lg overflow-hidden block"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={taskPhotoUrl(photo.storage_path)} alt="After" className="w-full h-full object-cover" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(photo.storage_path, 'after')}
-                                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"
-                                  title="Delete"
-                                >
-                                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                  </svg>
-                                </button>
+                              <div key={photo.storage_path} className="flex-shrink-0 flex flex-col items-center" style={{ width: 80 }}>
+                                <div className="relative w-20 h-20">
+                                  <button
+                                    onClick={() => openLightbox(afterPhotos, i, 'after')}
+                                    className="w-full h-full rounded-lg overflow-hidden block"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={taskPhotoUrl(photo.storage_path)} alt="After" className="w-full h-full object-cover" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(photo, 'after')}
+                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"
+                                    title="Apagar foto"
+                                  >
+                                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                {photo.created_at && (
+                                  <p className="text-[9px] text-tertiary mt-0.5 text-center leading-tight w-full">
+                                    {new Date(photo.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                                    {' '}{new Date(photo.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                )}
                               </div>
                             ))}
                             {pendingAfter.map(p => (
@@ -777,6 +848,24 @@ export function TaskList({
                 />
               </div>
 
+              {/* Undo delete toast */}
+              {pendingDelete && (
+                <div className="mb-3 flex items-center justify-between px-4 py-3 rounded-card bg-surface-elevated border border-[var(--border)] shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-danger flex-shrink-0">
+                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-secondary">Foto apagada</p>
+                  </div>
+                  <button
+                    onClick={undoDelete}
+                    className="text-sm font-semibold text-brand hover:text-brand/80 transition-colors"
+                  >
+                    Desfazer
+                  </button>
+                </div>
+              )}
+
               {/* CTA */}
               {!taskStarted ? (
                 <div className="w-full flex items-center justify-center gap-2 h-12 rounded-button bg-amber/10 border border-amber/30 text-amber font-medium text-sm">
@@ -814,6 +903,13 @@ export function TaskList({
           photos={lightbox.photos}
           initialIndex={lightbox.index}
           onClose={() => setLightbox(null)}
+          onDelete={idx => {
+            const photo = lightbox.sourcePhotos[idx]
+            if (photo) {
+              setLightbox(null)
+              handleDelete(photo, lightbox.category)
+            }
+          }}
         />
       )}
     </>

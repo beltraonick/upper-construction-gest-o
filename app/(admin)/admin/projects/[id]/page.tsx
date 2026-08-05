@@ -152,6 +152,12 @@ export default function ProjectDetailPage() {
   const [lightbox, setLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
+  // Undo-delete
+  const [pendingPhotoDelete, setPendingPhotoDelete] = useState<{
+    photo: Photo
+    timer: ReturnType<typeof setTimeout>
+  } | null>(null)
+  const pendingPhotoDeleteRef = useRef<typeof pendingPhotoDelete>(null)
 
   // Load project + employees
   useEffect(() => {
@@ -411,15 +417,43 @@ export default function ProjectDetailPage() {
     setUploadingPhoto(false)
   }
 
-  async function deletePhoto(photo: Photo) {
+  function deletePhoto(photo: Photo) {
     if (!window.confirm(t('admin.photos.deleteConfirm'))) return
-    const supabase = createClient()
-    await Promise.all([
-      supabase.storage.from('project-photos').remove([photo.storage_path]),
-      supabase.from('project_photos').delete().eq('id', photo.id),
-    ])
+
+    // Flush any existing pending delete first
+    if (pendingPhotoDeleteRef.current) {
+      const prev = pendingPhotoDeleteRef.current
+      clearTimeout(prev.timer)
+      pendingPhotoDeleteRef.current = null
+      setPendingPhotoDelete(null)
+      const supabase = createClient()
+      supabase.storage.from('project-photos').remove([prev.photo.storage_path])
+      supabase.from('project_photos').delete().eq('id', prev.photo.id)
+    }
+
     setPhotos(prev => prev.filter(p => p.id !== photo.id))
     setLightbox(null)
+
+    const timer = setTimeout(() => {
+      pendingPhotoDeleteRef.current = null
+      setPendingPhotoDelete(null)
+      const supabase = createClient()
+      supabase.storage.from('project-photos').remove([photo.storage_path])
+      supabase.from('project_photos').delete().eq('id', photo.id)
+    }, 5000)
+
+    const pd = { photo, timer }
+    pendingPhotoDeleteRef.current = pd
+    setPendingPhotoDelete(pd)
+  }
+
+  function undoPhotoDelete() {
+    const pd = pendingPhotoDeleteRef.current
+    if (!pd) return
+    clearTimeout(pd.timer)
+    pendingPhotoDeleteRef.current = null
+    setPendingPhotoDelete(null)
+    setPhotos(prev => [pd.photo, ...prev])
   }
 
   function openLightbox(index: number) {
@@ -818,26 +852,47 @@ export default function ProjectDetailPage() {
 
           <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {photos.map((p, idx) => (
-              <div key={p.id} className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photoUrl(p.storage_path)}
-                  alt={t('admin.projectDetail.projectPhotoAlt')}
-                  className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
-                  onClick={() => openLightbox(idx)}
-                />
-                <button
-                  onClick={() => deletePhoto(p)}
-                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-red-500/80 transition-colors"
-                  title={t('common.delete')}
-                >
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
+              <div key={p.id} className="flex flex-col gap-1">
+                <div className="relative aspect-square rounded-button overflow-hidden bg-surface-elevated">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photoUrl(p.storage_path)}
+                    alt={t('admin.projectDetail.projectPhotoAlt')}
+                    className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                    onClick={() => openLightbox(idx)}
+                  />
+                  <button
+                    onClick={() => deletePhoto(p)}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center hover:bg-red-500/80 transition-colors"
+                    title={t('common.delete')}
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+                {p.created_at && (
+                  <p className="text-[10px] text-tertiary px-0.5">
+                    {new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    {' '}{new Date(p.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
             ))}
           </div>
+
+          {/* Undo delete toast */}
+          {pendingPhotoDelete && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-card bg-surface border border-[var(--border)] shadow-xl">
+              <p className="text-sm text-secondary">Foto apagada</p>
+              <button
+                onClick={undoPhotoDelete}
+                className="text-sm font-semibold text-brand hover:text-brand/80 transition-colors"
+              >
+                Desfazer
+              </button>
+            </div>
+          )}
         </div>
       )}
 
