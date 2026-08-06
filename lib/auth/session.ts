@@ -8,7 +8,7 @@ import { cookies } from 'next/headers'
 import type { SessionUser } from './types'
 
 const COOKIE_NAME = 'uc_session'
-const MAX_AGE = 60 * 60 * 24 * 7 // 7 days in seconds
+const MAX_AGE = 60 * 60 * 24 * 90 // 90 days in seconds — stay logged in like a normal app
 const SECRET = process.env.AUTH_SECRET ?? 'upper_construction_dev_secret_fallback'
 
 // ─── Token encoding/decoding ─────────────────────────────────────────────────
