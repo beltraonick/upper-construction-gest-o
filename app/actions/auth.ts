@@ -4,11 +4,13 @@ import { redirect } from 'next/navigation'
 import { findUserByEmail, createEmployeeWithInvite, findActiveInviteCode, toSessionUser } from '@/lib/auth/store'
 import { verifyPassword, hashPassword } from '@/lib/auth/crypto'
 import { setSessionCookie, clearSessionCookie } from '@/lib/auth/session'
+import { createClient } from '@/lib/supabase/server'
 import type { Language, UserRole, UserStatus } from '@/lib/auth/types'
 
 export async function login(
   email: string,
-  password: string
+  password: string,
+  locale?: Language
 ): Promise<{ error?: string; role?: UserRole; status?: UserStatus }> {
 
   if (!email?.trim() || !password) {
@@ -36,6 +38,19 @@ export async function login(
 
   if (user.status === 'pending') {
     return { status: 'pending' }
+  }
+
+  // Keep the account's saved language in sync with whatever was picked
+  // on the login screen, so it persists everywhere from here on —
+  // not just for this one session.
+  if (locale && locale !== user.language) {
+    user.language = locale
+    try {
+      const supabase = createClient()
+      await supabase.from('profiles').update({ language: locale }).eq('id', user.id)
+    } catch {
+      // best-effort — the session below still reflects the chosen locale
+    }
   }
 
   setSessionCookie(toSessionUser(user))
