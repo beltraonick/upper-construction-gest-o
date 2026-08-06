@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 import { checkChatLimit } from '@/lib/plan-limits'
+import { generateBriefing } from '@/lib/orbit-ai'
 
 export async function GET() {
   const user = getCurrentUser()
@@ -41,5 +42,14 @@ export async function POST() {
     .single()
 
   if (error || !data) return Response.json({ error: error?.message ?? 'Could not start a new chat.' }, { status: 500 })
+
+  // Best-effort proactive greeting — never blocks the new chat if it fails.
+  if (process.env.GROQ_API_KEY) {
+    const briefing = await generateBriefing(user.company_id as string, user.language)
+    if (briefing) {
+      await supabase.from('ai_messages').insert({ conversation_id: data.id, role: 'assistant', content: briefing })
+    }
+  }
+
   return Response.json({ conversation: data })
 }

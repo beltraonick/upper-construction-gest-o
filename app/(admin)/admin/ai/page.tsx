@@ -3,10 +3,20 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
 
+interface ActionInfo {
+  tool: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  args: any
+  summary: string
+  status: 'proposed' | 'confirmed' | 'cancelled' | 'failed'
+  result?: string
+}
+
 interface Message {
   id?: string
   role: 'user' | 'assistant'
   content: string
+  action?: ActionInfo | null
 }
 
 interface Conversation {
@@ -44,6 +54,44 @@ const SUGGESTIONS_KEY = [
   'admin.aiChat.suggestion4',
 ]
 
+function ActionCard({ message, onDecide, t }: {
+  message: Message
+  onDecide: (messageId: string, decision: 'confirm' | 'cancel') => void
+  t: (key: string) => string
+}) {
+  const action = message.action!
+  return (
+    <div className="max-w-[85%] md:max-w-[70%] rounded-card border border-brand/25 bg-brand/5 px-3.5 py-3 space-y-2">
+      <p className="text-sm text-primary">{action.summary}</p>
+      {action.status === 'proposed' && (
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={() => onDecide(message.id!, 'confirm')}
+            className="px-3 py-1.5 rounded-button bg-brand text-white text-xs font-medium hover:bg-brand-hover transition-colors"
+          >
+            {t('admin.aiChat.confirm')}
+          </button>
+          <button
+            onClick={() => onDecide(message.id!, 'cancel')}
+            className="px-3 py-1.5 rounded-button bg-surface-elevated border border-[var(--border)] text-xs font-medium text-secondary hover:text-primary transition-colors"
+          >
+            {t('common.cancel')}
+          </button>
+        </div>
+      )}
+      {action.status === 'confirmed' && (
+        <p className="text-xs text-green flex items-center gap-1.5">✓ {action.result ?? t('admin.aiChat.actionDone')}</p>
+      )}
+      {action.status === 'failed' && (
+        <p className="text-xs text-danger">⚠ {action.result ?? t('admin.aiChat.actionFailed')}</p>
+      )}
+      {action.status === 'cancelled' && (
+        <p className="text-xs text-tertiary">{t('admin.aiChat.actionCancelled')}</p>
+      )}
+    </div>
+  )
+}
+
 export default function AdminAIPage() {
   const { t } = useTranslation()
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -51,6 +99,7 @@ export default function AdminAIPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
   const [quotaError, setQuotaError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -74,7 +123,7 @@ export default function AdminAIPage() {
     const res = await fetch(`/api/orbit-ai/conversations/${id}/messages`)
     if (!res.ok) { setMessages([]); return }
     const data = await res.json()
-    setMessages((data.messages ?? []).map((m: Message) => ({ id: m.id, role: m.role, content: m.content })))
+    setMessages((data.messages ?? []).map((m: Message) => ({ id: m.id, role: m.role, content: m.content, action: m.action })))
   }, [])
 
   useEffect(() => {
@@ -91,15 +140,17 @@ export default function AdminAIPage() {
 
   async function newConversation() {
     setQuotaError('')
+    setCreating(true)
     const res = await fetch('/api/orbit-ai/conversations', { method: 'POST' })
     const data = await res.json()
     if (!res.ok) {
       setQuotaError(data.error ?? t('admin.aiChat.limitReached'))
+      setCreating(false)
       return null
     }
     setConversations(prev => [data.conversation, ...prev])
-    setActiveId(data.conversation.id)
-    setMessages([])
+    await selectConversation(data.conversation.id)
+    setCreating(false)
     return data.conversation.id as string
   }
 
@@ -110,6 +161,20 @@ export default function AdminAIPage() {
     if (activeId === id) {
       setActiveId(null)
       setMessages([])
+    }
+  }
+
+  async function decideAction(messageId: string, decision: 'confirm' | 'cancel') {
+    const convId = activeIdRef.current
+    if (!convId) return
+    const res = await fetch(`/api/orbit-ai/conversations/${convId}/messages/${messageId}/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision }),
+    })
+    const data = await res.json()
+    if (data.message) {
+      setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, action: data.message.action } : m)))
     }
   }
 
@@ -135,23 +200,12 @@ export default function AdminAIPage() {
         body: JSON.stringify({ content: q }),
       })
 
-      if (!res.ok) {
-        const err = await res.text()
-        setMessages(m => [...m, { role: 'assistant', content: err || t('admin.aiChat.somethingWrong') }])
-        setLoading(false)
-        return
-      }
+      const data = await res.json().catch(() => null)
 
-      const reader = res.body?.getReader()
-      const decoder = new TextDecoder()
-      let text = ''
-      setMessages(m => [...m, { role: 'assistant', content: '' }])
-
-      while (reader) {
-        const { done, value } = await reader.read()
-        if (done) break
-        text += decoder.decode(value, { stream: true })
-        setMessages(m => [...m.slice(0, -1), { role: 'assistant', content: text }])
+      if (!res.ok || data?.error) {
+        setMessages(m => [...m, { role: 'assistant', content: data?.error || t('admin.aiChat.somethingWrong') }])
+      } else if (data?.message) {
+        setMessages(m => [...m, { id: data.message.id, role: 'assistant', content: data.message.content, action: data.message.action }])
       }
 
       loadConversations()
@@ -172,7 +226,7 @@ export default function AdminAIPage() {
           className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
           style={{ background: 'radial-gradient(circle at 35% 35%, #1c1c1e, #0a0a0a)', boxShadow: '0 0 12px rgba(193,18,31,0.3)' }}
         >
-          <OrbitSphere active={loading} size={24} />
+          <OrbitSphere active={loading || creating} size={24} />
         </div>
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">OrbitOps AI</h1>
@@ -187,7 +241,8 @@ export default function AdminAIPage() {
       <div className="flex items-center gap-2 overflow-x-auto pb-3 flex-shrink-0" style={{ scrollbarWidth: 'none' }}>
         <button
           onClick={newConversation}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-brand text-white hover:bg-brand-hover transition-colors"
+          disabled={creating}
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-brand text-white hover:bg-brand-hover transition-colors disabled:opacity-60"
         >
           + {t('admin.aiChat.newChat')}
         </button>
@@ -224,7 +279,7 @@ export default function AdminAIPage() {
       <div className="flex-1 min-h-0 flex flex-col bg-surface border border-[var(--border)] rounded-card overflow-hidden">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 min-h-0">
-          {messages.length === 0 ? (
+          {messages.length === 0 && !creating ? (
             <div className="h-full flex flex-col items-center justify-center text-center px-4">
               <p className="text-sm text-secondary mb-4">{t('admin.aiChat.askAnything')}</p>
               <div className="flex flex-wrap gap-2 justify-center max-w-md">
@@ -242,20 +297,29 @@ export default function AdminAIPage() {
           ) : (
             messages.map((m, i) => (
               <div key={m.id ?? i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={[
-                    'max-w-[85%] md:max-w-[70%] text-sm rounded-card px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap',
-                    m.role === 'user'
-                      ? 'bg-brand text-white'
-                      : 'bg-surface-elevated text-primary border border-[var(--border)]',
-                  ].join(' ')}
-                >
-                  {m.content === '' && loading && i === messages.length - 1
-                    ? <TypingDots />
-                    : m.content}
-                </div>
+                {m.action ? (
+                  <ActionCard message={m} onDecide={decideAction} t={t} />
+                ) : (
+                  <div
+                    className={[
+                      'max-w-[85%] md:max-w-[70%] text-sm rounded-card px-3.5 py-2.5 leading-relaxed whitespace-pre-wrap',
+                      m.role === 'user'
+                        ? 'bg-brand text-white'
+                        : 'bg-surface-elevated text-primary border border-[var(--border)]',
+                    ].join(' ')}
+                  >
+                    {m.content}
+                  </div>
+                )}
               </div>
             ))
+          )}
+          {(loading || creating) && (
+            <div className="flex justify-start">
+              <div className="max-w-[85%] md:max-w-[70%] text-sm rounded-card px-3.5 py-2.5 bg-surface-elevated text-primary border border-[var(--border)]">
+                <TypingDots />
+              </div>
+            </div>
           )}
           <div ref={bottomRef} />
         </div>
