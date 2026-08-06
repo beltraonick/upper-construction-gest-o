@@ -169,9 +169,9 @@ const errorTranslations: Record<string, Record<Locale, string>> = {
     es: 'Correo electrónico o contraseña inválidos.',
   },
   'Your account has not been activated yet. Use the activation link sent by your administrator.': {
-    en: 'Your account has not been activated yet. Use the activation link sent by your administrator.',
-    pt: 'Sua conta ainda não foi ativada. Use o link de ativação enviado pelo seu administrador.',
-    es: 'Su cuenta aún no ha sido activada. Use el enlace de activación enviado por su administrador.',
+    en: 'Your account has no password set yet. Ask your administrator to set one from the Employees screen.',
+    pt: 'Sua conta ainda não tem uma senha definida. Peça para o seu administrador definir uma na tela de Funcionários.',
+    es: 'Su cuenta aún no tiene una contraseña definida. Pida a su administrador que defina una en la pantalla de Empleados.',
   },
   'Your account has been suspended. Contact your administrator.': {
     en: 'Your account has been suspended. Contact your administrator.',
