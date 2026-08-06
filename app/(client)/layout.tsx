@@ -51,13 +51,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </div>
       </header>
 
-      <div className="pt-14 sticky top-14 z-30">
-        <ClientNav />
-      </div>
+      <div className="pt-14">
+        <div className="sticky top-14 z-30">
+          <ClientNav />
+        </div>
 
-      <main className="pb-8 min-h-screen">
-        {children}
-      </main>
+        <main className="pb-8 min-h-screen">
+          {children}
+        </main>
+      </div>
     </div>
     </LocaleProvider>
   )
