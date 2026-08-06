@@ -127,7 +127,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-secondary">OrbitOps AI</span>
                 <Badge variant={orbitAiKey ? 'green' : 'amber'}>
-                  {orbitAiKey ? t('common.active') : t('admin.settings.addAnthropicKey')}
+                  {orbitAiKey ? t('common.active') : t('admin.settings.addApiKey')}
                 </Badge>
               </div>
             </div>
@@ -155,8 +155,8 @@ export default function SettingsPage() {
           </div>
           <div className="bg-surface-elevated rounded-input p-3 space-y-1">
             <p className="text-xs font-medium text-secondary">{t('admin.settings.enableAiTitle')}</p>
-            <p className="text-xs text-secondary">1. {t('admin.settings.aiStep1')} <span className="text-brand">console.anthropic.com</span></p>
-            <p className="text-xs text-secondary">2. {t('admin.settings.aiStep2Before')} <code className="text-amber">ANTHROPIC_API_KEY</code> {t('admin.settings.aiStep2After')}</p>
+            <p className="text-xs text-secondary">1. {t('admin.settings.aiStep1')} <span className="text-brand">console.groq.com</span></p>
+            <p className="text-xs text-secondary">2. {t('admin.settings.aiStep2Before')} <code className="text-amber">GROQ_API_KEY</code> {t('admin.settings.aiStep2After')}</p>
             <p className="text-xs text-secondary">3. {t('admin.settings.aiStep3')}</p>
           </div>
         </Card>
