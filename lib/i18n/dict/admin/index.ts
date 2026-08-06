@@ -10,6 +10,7 @@ import { payroll } from './payroll'
 import { photos } from './photos'
 import { reports } from './reports'
 import { settings } from './settings'
+import { aiChat } from './aiChat'
 
 export const admin = {
   en: {
@@ -25,6 +26,7 @@ export const admin = {
     photos: photos.en,
     reports: reports.en,
     settings: settings.en,
+    aiChat: aiChat.en,
   },
   pt: {
     dashboard: dashboard.pt,
@@ -39,6 +41,7 @@ export const admin = {
     photos: photos.pt,
     reports: reports.pt,
     settings: settings.pt,
+    aiChat: aiChat.pt,
   },
   es: {
     dashboard: dashboard.es,
@@ -53,5 +56,6 @@ export const admin = {
     photos: photos.es,
     reports: reports.es,
     settings: settings.es,
+    aiChat: aiChat.es,
   },
 }
