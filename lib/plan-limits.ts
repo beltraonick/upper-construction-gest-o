@@ -37,6 +37,20 @@ export async function checkProjectLimit(supabase: SupabaseClient, companyId: str
   return { allowed: (count ?? 0) < limit, limit }
 }
 
+// Orbit AI conversations share the project cap — same limit, different table.
+export async function checkChatLimit(supabase: SupabaseClient, companyId: string): Promise<LimitResult> {
+  const plan = await getPlanLimits(supabase, companyId)
+  const limit = plan?.project_limit ?? null
+  if (limit == null) return { allowed: true, limit: null }
+
+  const { count } = await supabase
+    .from('ai_conversations')
+    .select('*', { count: 'exact', head: true })
+    .eq('company_id', companyId)
+
+  return { allowed: (count ?? 0) < limit, limit }
+}
+
 export async function checkRoleLimit(
   supabase: SupabaseClient,
   companyId: string,
