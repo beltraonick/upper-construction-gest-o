@@ -1,12 +1,13 @@
 import { getCurrentUser } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
-import { buildCompanyContext, buildSystemPrompt, streamGroqChat, type ChatMessage } from '@/lib/orbit-ai'
+import { buildCompanyContext, buildSystemPrompt, chatWithTools } from '@/lib/orbit-ai'
+import { ORBIT_AI_TOOLS, READ_TOOL_NAMES, executeReadTool, buildActionSummary } from '@/lib/orbit-ai-tools'
 
 async function loadConversation(companyId: string, conversationId: string) {
   const supabase = createClient()
   const { data } = await supabase
     .from('ai_conversations')
-    .select('id')
+    .select('id, title')
     .eq('id', conversationId)
     .eq('company_id', companyId)
     .maybeSingle()
@@ -25,13 +26,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const supabase = createClient()
   const { data, error } = await supabase
     .from('ai_messages')
-    .select('id, role, content, created_at')
+    .select('id, role, content, action, created_at')
     .eq('conversation_id', params.id)
     .order('created_at', { ascending: true })
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
   return Response.json({ messages: data ?? [] })
 }
+
+const MAX_TOOL_ROUNDS = 4
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const user = getCurrentUser()
@@ -55,57 +58,61 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const supabase = createClient()
 
-  // Load prior history, then append the new user message.
   const { data: history } = await supabase
     .from('ai_messages')
     .select('role, content')
     .eq('conversation_id', params.id)
     .order('created_at', { ascending: true })
 
-  const messages: ChatMessage[] = [...(history ?? []), { role: 'user', content: content.trim() }]
+  await supabase.from('ai_messages').insert({ conversation_id: params.id, role: 'user', content: content.trim() })
 
-  const { data: savedUserMessage } = await supabase
-    .from('ai_messages')
-    .insert({ conversation_id: params.id, role: 'user', content: content.trim() })
-    .select('id')
-    .single()
-
-  // First message in the conversation — auto-title it from the question.
-  if (!history || history.length === 0) {
-    const title = content.trim().slice(0, 60)
-    await supabase.from('ai_conversations').update({ title, updated_at: new Date().toISOString() }).eq('id', params.id)
-  } else {
-    await supabase.from('ai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', params.id)
-  }
+  await supabase
+    .from('ai_conversations')
+    .update({ updated_at: new Date().toISOString(), ...(!conversation.title ? { title: content.trim().slice(0, 60) } : {}) })
+    .eq('id', params.id)
 
   const context = await buildCompanyContext(companyId)
   const systemPrompt = buildSystemPrompt(context)
-  const result = await streamGroqChat(systemPrompt, messages)
 
-  if ('error' in result) {
-    return Response.json({ error: result.error, userMessageId: savedUserMessage?.id }, { status: result.status })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const loopMessages: any[] = [...(history ?? []), { role: 'user', content: content.trim() }]
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const result = await chatWithTools(systemPrompt, loopMessages, ORBIT_AI_TOOLS)
+
+    if (result.type === 'error') {
+      return Response.json({ error: result.error }, { status: result.status })
+    }
+
+    if (result.type === 'text') {
+      const { data: saved } = await supabase
+        .from('ai_messages')
+        .insert({ conversation_id: params.id, role: 'assistant', content: result.content })
+        .select('id, role, content, action, created_at')
+        .single()
+      return Response.json({ message: saved })
+    }
+
+    // Tool call(s) — a write tool takes priority and pauses for confirmation.
+    const writeCall = result.calls.find(c => !READ_TOOL_NAMES.includes(c.name as (typeof READ_TOOL_NAMES)[number]))
+    if (writeCall) {
+      const { summary } = await buildActionSummary(writeCall.name, writeCall.args, companyId)
+      const action = { tool: writeCall.name, args: writeCall.args, summary, status: 'proposed' as const }
+      const { data: saved } = await supabase
+        .from('ai_messages')
+        .insert({ conversation_id: params.id, role: 'assistant', content: summary, action })
+        .select('id, role, content, action, created_at')
+        .single()
+      return Response.json({ message: saved })
+    }
+
+    // All read tools — execute and loop back with the results.
+    loopMessages.push(result.assistantMessage)
+    for (const call of result.calls) {
+      const toolResult = await executeReadTool(call.name, call.args, companyId)
+      loopMessages.push({ role: 'tool', tool_call_id: call.id, name: call.name, content: toolResult })
+    }
   }
 
-  // Forward chunks to the client while accumulating the full text, then
-  // persist the assistant's complete reply once the stream ends.
-  const decoder = new TextDecoder()
-  const reader = result.stream.getReader()
-  let fullText = ''
-
-  const relay = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        fullText += decoder.decode(value, { stream: true })
-        controller.enqueue(value)
-      }
-      controller.close()
-      if (fullText.trim()) {
-        await supabase.from('ai_messages').insert({ conversation_id: params.id, role: 'assistant', content: fullText })
-      }
-    },
-  })
-
-  return new Response(relay, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+  return Response.json({ error: 'Took too many steps to answer that. Try rephrasing your question.' }, { status: 500 })
 }
