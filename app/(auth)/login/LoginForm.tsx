@@ -79,7 +79,7 @@ export function LoginForm({ locale, showOwnerRole = false }: { locale: Locale; s
     const password = fd.get('password') as string
 
     try {
-      const result = await login(email, password)
+      const result = await login(email, password, locale)
 
       if (result.error) {
         setError(translateError(locale, result.error))
