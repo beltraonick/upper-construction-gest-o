@@ -22,6 +22,72 @@ function StatCard({ label, value, sub, color = 'default' }: {
   )
 }
 
+const QUICK_ACTIONS = [
+  {
+    href: '/admin/members',
+    labelKey: 'common.nav.members',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/change-orders',
+    labelKey: 'common.nav.changeOrders',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm7 4a1 1 0 10-2 0v1H8a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V8z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/time',
+    labelKey: 'common.nav.time',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/payroll',
+    labelKey: 'common.nav.payroll',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/photos',
+    labelKey: 'common.nav.photos',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/reports',
+    labelKey: 'common.nav.reports',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm2 10a1 1 0 10-2 0v3a1 1 0 102 0v-3zm2-3a1 1 0 011 1v5a1 1 0 11-2 0v-5a1 1 0 011-1zm4-1a1 1 0 10-2 0v6a1 1 0 102 0V8z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/settings',
+    labelKey: 'common.nav.settings',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+]
+
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('your_')
@@ -134,6 +200,23 @@ export default async function AdminDashboardPage() {
         <StatCard label={t(locale, 'admin.dashboard.activeProjects')} value={stats?.activeProjects ?? '—'} sub={stats ? t(locale, 'admin.dashboard.inProgress') : t(locale, 'admin.dashboard.connectSupabase')} />
         <StatCard label={t(locale, 'admin.dashboard.pendingPayroll')} value={stats ? `$${weeklyPayroll.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'} sub={stats ? t(locale, 'admin.dashboard.awaitingPayment') : t(locale, 'admin.dashboard.connectSupabase')} color="amber" />
         <StatCard label={t(locale, 'admin.dashboard.totalEmployees')} value={stats?.totalEmployees ?? '—'} sub={stats ? t(locale, 'admin.dashboard.activeWorkers') : t(locale, 'admin.dashboard.connectSupabase')} />
+      </div>
+
+      {/* Quick Actions — the tabs that no longer live in the bottom nav */}
+      <div className="mb-6 md:mb-8">
+        <p className="text-xs font-medium text-secondary uppercase tracking-wide mb-3">{t(locale, 'admin.dashboard.quickActions')}</p>
+        <div className="flex flex-wrap gap-2">
+          {QUICK_ACTIONS.map(action => (
+            <a
+              key={action.href}
+              href={action.href}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-button bg-surface border border-[var(--border)] text-secondary hover:text-primary hover:border-brand/30 transition-colors text-sm font-medium"
+            >
+              <span className="text-tertiary [&>svg]:w-4 [&>svg]:h-4">{action.icon}</span>
+              {t(locale, action.labelKey)}
+            </a>
+          ))}
+        </div>
       </div>
 
       {/* Orbit AI Hub */}

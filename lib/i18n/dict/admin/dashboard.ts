@@ -31,6 +31,7 @@ export const dashboard = {
     pendingApprovals: 'Employee Approval Requests',
     pendingApprovalsBody: '{n} employee(s) awaiting approval to join your company.',
     reviewRequests: 'Review Requests →',
+    quickActions: 'Quick Actions',
   },
   pt: {
     title: 'Painel',
@@ -64,6 +65,7 @@ export const dashboard = {
     pendingApprovals: 'Solicitações de Aprovação',
     pendingApprovalsBody: '{n} funcionário(s) aguardando aprovação para entrar na sua empresa.',
     reviewRequests: 'Revisar Solicitações →',
+    quickActions: 'Atalhos',
   },
   es: {
     title: 'Panel',
@@ -97,5 +99,6 @@ export const dashboard = {
     pendingApprovals: 'Solicitudes de Aprobación',
     pendingApprovalsBody: '{n} empleado(s) esperando aprobación para unirse a tu empresa.',
     reviewRequests: 'Revisar Solicitudes →',
+    quickActions: 'Atajos',
   },
 }

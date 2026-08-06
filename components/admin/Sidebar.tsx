@@ -125,10 +125,17 @@ function useNav() {
   ]
 }
 
+// The bottom nav only has room for 5 items — the rest moved to
+// Quick Actions on the Dashboard/Home page.
+const MOBILE_NAV_HREFS = ['/admin/dashboard', '/admin/tasks', '/admin/projects', '/admin/employees']
+
 export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pendingCount?: number }) {
   const pathname = usePathname()
   const { t } = useTranslation()
   const NAV = useNav()
+  const MOBILE_NAV = MOBILE_NAV_HREFS.map(href => NAV.find(item => item.href === href)).filter(
+    (item): item is ReturnType<typeof useNav>[number] => !!item
+  )
 
   return (
     <>
@@ -222,13 +229,10 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
         </div>
       </header>
 
-      {/* ── Mobile Bottom Nav — horizontal scroll carousel (< md) ── */}
+      {/* ── Mobile Bottom Nav (< md) — 5 fixed tabs, the rest live as Quick Actions on Home ── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-[var(--border)] safe-bottom">
-        <div
-          className="flex overflow-x-auto scrollbar-none"
-          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
-        >
-          {NAV.map(item => {
+        <div className="flex">
+          {MOBILE_NAV.map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             const isMembersItem = item.href === '/admin/members'
             return (
@@ -236,7 +240,7 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
                 key={item.href}
                 href={item.href}
                 className={[
-                  'flex flex-col items-center justify-center gap-1 py-3 px-3.5 min-w-[72px] text-xs font-medium transition-colors duration-150 flex-shrink-0',
+                  'flex-1 flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium transition-colors duration-150',
                   active ? 'text-brand' : 'text-tertiary',
                 ].join(' ')}
               >
@@ -258,7 +262,7 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
           <Link
             href="/admin/ai"
             className={[
-              'flex flex-col items-center justify-center gap-1 py-3 px-3.5 min-w-[72px] text-xs font-medium flex-shrink-0 transition-colors duration-150',
+              'flex-1 flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium transition-colors duration-150',
               pathname === '/admin/ai' ? 'text-brand' : 'text-tertiary',
             ].join(' ')}
           >
