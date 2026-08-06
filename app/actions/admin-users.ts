@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { hashPassword } from '@/lib/auth/crypto'
 import { checkRoleLimit } from '@/lib/plan-limits'
 import { generateClientActivation } from './client-activation'
+import type { EmployeePermissions } from '@/lib/permissions'
 
 export async function createProfileWithPassword(data: {
   full_name: string
@@ -15,6 +16,7 @@ export async function createProfileWithPassword(data: {
   hourly_rate: number
   phone: string | null
   password: string
+  permissions?: EmployeePermissions
 }): Promise<{ error?: string; activationUrl?: string }> {
   if (!data.full_name.trim() || !data.email.trim()) {
     return { error: 'Name and email are required.' }
@@ -77,8 +79,37 @@ export async function createProfileWithPassword(data: {
     status: 'active',
     auth_status: 'approved',
     password_hash: hashPassword(data.password),
+    permissions: data.role === 'employee' ? (data.permissions ?? {}) : {},
   })
 
   if (error) return { error: error.message }
+  return {}
+}
+
+export async function adminSetPassword(
+  profileId: string,
+  password: string
+): Promise<{ error?: string }> {
+  if (!password || password.length < 8) {
+    return { error: 'Password must be at least 8 characters.' }
+  }
+
+  const user = getCurrentUser()
+  if (!user || user.role !== 'admin') {
+    return { error: 'Not authorized.' }
+  }
+
+  const supabase = createClient()
+
+  // Scope the update to this admin's own company so one admin can't
+  // reset a password on another company's profile by guessing an id.
+  const { error, count } = await supabase
+    .from('profiles')
+    .update({ password_hash: hashPassword(password), auth_status: 'approved' }, { count: 'exact' })
+    .eq('id', profileId)
+    .eq('company_id', user.company_id)
+
+  if (error) return { error: error.message }
+  if (!count) return { error: 'Employee not found.' }
   return {}
 }

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { createProfileWithPassword } from '@/app/actions/admin-users'
+import { createProfileWithPassword, adminSetPassword } from '@/app/actions/admin-users'
+import { PERMISSION_KEYS, type EmployeePermissions } from '@/lib/permissions'
 import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -23,11 +24,13 @@ interface Employee {
   phone: string | null
   status: string
   created_at: string
+  permissions: EmployeePermissions | null
 }
 
 const BLANK: Omit<Employee, 'id' | 'created_at'> & { password: string } = {
   full_name: '', email: '', role: 'employee', position: '',
   company_name: '', hourly_rate: 0, phone: '', status: 'active', password: '',
+  permissions: {},
 }
 
 export default function EmployeesPage() {
@@ -44,6 +47,11 @@ export default function EmployeesPage() {
   const [error, setError] = useState('')
   const [activationUrl, setActivationUrl] = useState('')
   const [copied, setCopied] = useState('')
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [resetPasswordValue, setResetPasswordValue] = useState('')
+  const [resettingPassword, setResettingPassword] = useState(false)
+  const [resetError, setResetError] = useState('')
+  const [resetSuccess, setResetSuccess] = useState(false)
 
   const ROLE_OPTIONS = [
     { value: 'employee', label: t('admin.employees.roleEmployee') },
@@ -74,6 +82,10 @@ export default function EmployeesPage() {
     setForm({ ...BLANK })
     setError('')
     setActivationUrl('')
+    setShowResetPassword(false)
+    setResetPasswordValue('')
+    setResetError('')
+    setResetSuccess(false)
     setShowModal(true)
   }
 
@@ -89,10 +101,29 @@ export default function EmployeesPage() {
       phone: emp.phone ?? '',
       status: emp.status,
       password: '',
+      permissions: emp.permissions ?? {},
     })
     setError('')
     setActivationUrl('')
+    setShowResetPassword(false)
+    setResetPasswordValue('')
+    setResetError('')
+    setResetSuccess(false)
     setShowModal(true)
+  }
+
+  async function handleResetPassword() {
+    if (!editing) return
+    setResetError('')
+    setResettingPassword(true)
+    const result = await adminSetPassword(editing.id, resetPasswordValue)
+    setResettingPassword(false)
+    if (result.error) {
+      setResetError(result.error)
+      return
+    }
+    setResetSuccess(true)
+    setResetPasswordValue('')
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -111,6 +142,7 @@ export default function EmployeesPage() {
         hourly_rate: Number(form.hourly_rate),
         phone: form.phone || null,
         status: form.status,
+        permissions: form.role === 'employee' ? (form.permissions ?? {}) : {},
       }).eq('id', editing.id)
     } else {
       // Creating a login needs the password hashed server-side.
@@ -123,6 +155,7 @@ export default function EmployeesPage() {
         hourly_rate: Number(form.hourly_rate),
         phone: form.phone || null,
         password: form.password,
+        permissions: form.permissions ?? {},
       })
       if (result.error) {
         setError(result.error)
@@ -309,6 +342,61 @@ export default function EmployeesPage() {
                     value={form.status}
                     onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
                   />
+                  {form.role === 'employee' && (
+                    <div className="col-span-2 bg-surface-elevated border border-[var(--border)] rounded-input p-3">
+                      <p className="text-xs font-semibold text-secondary mb-2">{t('admin.employees.permissionsTitle')}</p>
+                      <div className="space-y-2">
+                        {PERMISSION_KEYS.map(key => (
+                          <label key={key} className="flex items-center gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={form.permissions?.[key] === true}
+                              onChange={e =>
+                                setForm(f => ({ ...f, permissions: { ...f.permissions, [key]: e.target.checked } }))
+                              }
+                              className="w-4 h-4 rounded accent-brand flex-shrink-0"
+                            />
+                            <span className="text-sm text-primary">{t(`admin.employees.permission_${key}`)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {editing && (form.role === 'employee' || form.role === 'admin') && (
+                    <div className="col-span-2 bg-surface-elevated border border-[var(--border)] rounded-input p-3">
+                      {!showResetPassword ? (
+                        <button
+                          type="button"
+                          onClick={() => { setShowResetPassword(true); setResetSuccess(false) }}
+                          className="text-xs text-brand hover:text-brand-hover font-medium transition-colors"
+                        >
+                          {t('admin.employees.resetPasswordLink')}
+                        </button>
+                      ) : resetSuccess ? (
+                        <p className="text-xs text-green">{t('admin.employees.resetPasswordSuccess')}</p>
+                      ) : (
+                        <div className="space-y-2">
+                          <Input
+                            label={t('admin.employees.resetPasswordLabel')}
+                            type="text"
+                            placeholder={t('admin.employees.passwordPlaceholder')}
+                            value={resetPasswordValue}
+                            onChange={e => setResetPasswordValue(e.target.value)}
+                          />
+                          {resetError && <p className="text-xs text-danger">{resetError}</p>}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            loading={resettingPassword}
+                            onClick={handleResetPassword}
+                          >
+                            {t('admin.employees.resetPasswordSave')}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <Input
                     label={t('admin.employees.positionLabel')}
                     placeholder={t('admin.employees.positionPlaceholder')}

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TaskList } from './TaskList'
 import { t } from '@/lib/i18n/translate'
+import { hasPermission, type EmployeePermissions } from '@/lib/permissions'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -16,6 +17,7 @@ export default async function EmployeeTasksPage() {
   const locale = user.language
 
   let profileId: string | null = null
+  let canDeleteTeamPhotos = false
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let tasks: any[] = []
 
@@ -26,13 +28,14 @@ export default async function EmployeeTasksPage() {
       // Add company_id filter to prevent cross-company matches on shared emails
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, permissions')
         .eq('email', user.email)
         .eq('company_id', user.company_id)
         .maybeSingle()
 
       if (profile) {
         profileId = profile.id
+        canDeleteTeamPhotos = hasPermission(profile.permissions as EmployeePermissions | null, 'delete_team_photos')
 
         // Query via task_assignments join table (migration 022)
         const { data: assignments } = await supabase
@@ -84,6 +87,7 @@ export default async function EmployeeTasksPage() {
         profileId={profileId}
         employeeName={user.full_name ?? ''}
         supabaseReady={!!supabaseReady}
+        canDeleteTeamPhotos={canDeleteTeamPhotos}
       />
     </div>
   )

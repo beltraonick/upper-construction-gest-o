@@ -9,6 +9,7 @@ export interface LightboxPhoto {
   createdAt?: string | null
   projectName?: string | null
   taskTitle?: string | null
+  canDelete?: boolean
 }
 
 interface PhotoLightboxProps {
@@ -204,7 +205,7 @@ export function PhotoLightbox({ photos, initialIndex = 0, onClose, onDelete }: P
               {catInfo.label}
             </span>
           )}
-          {onDelete && (
+          {onDelete && current.canDelete !== false && (
             <button
               onClick={() => onDelete(index)}
               className="ml-auto flex items-center gap-1.5 text-xs text-danger/70 hover:text-danger transition-colors font-medium"

@@ -45,6 +45,7 @@ interface PhotoRow {
   storage_path: string
   uploaded_by_name?: string | null
   created_at?: string | null
+  employee_id?: string | null
 }
 
 interface PendingPhoto {
@@ -104,11 +105,13 @@ export function TaskList({
   profileId,
   employeeName,
   supabaseReady,
+  canDeleteTeamPhotos,
 }: {
   tasks: Task[]
   profileId: string | null
   employeeName: string
   supabaseReady: boolean
+  canDeleteTeamPhotos?: boolean
 }) {
   const companyId = useCompanyId()
   const { t } = useTranslation()
@@ -172,6 +175,7 @@ export function TaskList({
         storage_path: uploaded.path,
         uploaded_by_name: employeeName,
         created_at: new Date().toISOString(),
+        employee_id: profileId,
       }
 
       const mediaRow = {
@@ -265,6 +269,7 @@ export function TaskList({
   const handleDelete = useCallback((photo: PhotoRow, category: 'before' | 'after') => {
     const task = selectedRef.current
     if (!task || !supabaseReady) return
+    if (!canDeleteTeamPhotos && photo.employee_id !== profileId) return
     if (!window.confirm('Apagar esta foto?')) return
 
     // Flush any existing pending delete immediately
@@ -294,7 +299,7 @@ export function TaskList({
     const pd: PendingDelete = { storagePath: photo.storage_path, taskId, category, photo, timer }
     pendingDeleteRef.current = pd
     setPendingDelete(pd)
-  }, [supabaseReady, execDelete])
+  }, [supabaseReady, execDelete, canDeleteTeamPhotos, profileId])
 
   // Undo the pending delete
   function undoDelete() {
@@ -307,6 +312,12 @@ export function TaskList({
     else setAfterPhotos(prev => [pd.photo, ...prev])
   }
 
+  // A photo can be deleted by whoever uploaded it, or by a supervisor
+  // with the delete_team_photos permission.
+  function canDeletePhoto(photo: PhotoRow): boolean {
+    return !!canDeleteTeamPhotos || (!!profileId && photo.employee_id === profileId)
+  }
+
   // Open lightbox for a category's photos
   function openLightbox(photos: PhotoRow[], startIndex: number, category: 'before' | 'after') {
     const lbPhotos: LightboxPhoto[] = photos.map(p => ({
@@ -316,6 +327,7 @@ export function TaskList({
       createdAt: p.created_at ?? null,
       projectName: selected?.project?.name ?? null,
       taskTitle: selected?.title ?? null,
+      canDelete: canDeletePhoto(p),
     }))
     setLightbox({ photos: lbPhotos, index: startIndex, sourcePhotos: photos, category })
   }
@@ -337,7 +349,7 @@ export function TaskList({
     const supabase = createClient()
     supabase
       .from('task_media')
-      .select('storage_path, photo_category, uploaded_by_name, created_at')
+      .select('storage_path, photo_category, uploaded_by_name, created_at, employee_id')
       .eq('task_id', selected.id)
       .in('photo_category', ['before', 'after'])
       .order('created_at', { ascending: true })
@@ -347,11 +359,13 @@ export function TaskList({
           storage_path: r.storage_path,
           uploaded_by_name: r.uploaded_by_name,
           created_at: r.created_at,
+          employee_id: r.employee_id,
         })))
         setAfterPhotos(data.filter(r => r.photo_category === 'after').map(r => ({
           storage_path: r.storage_path,
           uploaded_by_name: r.uploaded_by_name,
           created_at: r.created_at,
+          employee_id: r.employee_id,
         })))
         setLoadingPhotos(false)
       })
@@ -628,15 +642,17 @@ export function TaskList({
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={taskPhotoUrl(photo.storage_path)} alt="Before" className="w-full h-full object-cover" />
                                   </button>
-                                  <button
-                                    onClick={() => handleDelete(photo, 'before')}
-                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"
-                                    title="Apagar foto"
-                                  >
-                                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                  </button>
+                                  {canDeletePhoto(photo) && (
+                                    <button
+                                      onClick={() => handleDelete(photo, 'before')}
+                                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"
+                                      title="Apagar foto"
+                                    >
+                                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  )}
                                 </div>
                                 {photo.created_at && (
                                   <p className="text-[9px] text-tertiary mt-0.5 text-center leading-tight w-full">
@@ -734,15 +750,17 @@ export function TaskList({
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={taskPhotoUrl(photo.storage_path)} alt="After" className="w-full h-full object-cover" />
                                   </button>
-                                  <button
-                                    onClick={() => handleDelete(photo, 'after')}
-                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"
-                                    title="Apagar foto"
-                                  >
-                                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                  </button>
+                                  {canDeletePhoto(photo) && (
+                                    <button
+                                      onClick={() => handleDelete(photo, 'after')}
+                                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"
+                                      title="Apagar foto"
+                                    >
+                                      <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  )}
                                 </div>
                                 {photo.created_at && (
                                   <p className="text-[9px] text-tertiary mt-0.5 text-center leading-tight w-full">
