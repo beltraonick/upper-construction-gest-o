@@ -70,6 +70,14 @@ export default function ChangeOrdersPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Lock background scroll while the modal is open — otherwise dragging
+  // inside the form also scrolls the page behind it.
+  useEffect(() => {
+    if (!showModal) return
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [showModal])
+
   function openAdd() {
     setForm({ ...BLANK, project_id: projects[0]?.id ?? '' })
     setShowModal(true)
@@ -188,7 +196,7 @@ export default function ChangeOrdersPage() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">

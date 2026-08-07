@@ -126,6 +126,14 @@ export default function TasksPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Lock background scroll while the modal is open — otherwise dragging
+  // inside the (long, scrollable) form also scrolls the page behind it.
+  useEffect(() => {
+    if (!showModal) return
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [showModal])
+
   function openAdd(presetProjectId?: string) {
     setEditing(null)
     setForm({ ...BLANK, project_id: presetProjectId ?? '' })
@@ -552,7 +560,7 @@ export default function TasksPage() {
           onClick={() => setShowModal(false)}
         >
           <div
-            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="p-6">
