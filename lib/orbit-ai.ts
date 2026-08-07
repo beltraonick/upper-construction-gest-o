@@ -22,15 +22,23 @@ export async function buildCompanyContext(companyId: string): Promise<string> {
       { data: pendingPayroll },
       { data: changeOrders },
       { count: completedThisWeek },
+      { count: photoCount },
+      { count: reportCount },
+      { count: pendingRequests },
     ] = await Promise.all([
-      supabase.from('projects').select('name, status, progress, address, client_name').eq('company_id', companyId).eq('status', 'active').limit(15),
+      // All projects regardless of status — not just active ones — so the
+      // assistant knows about on-hold, completed and cancelled work too.
+      supabase.from('projects').select('name, status, progress, address, client_name').eq('company_id', companyId).order('status').limit(30),
       supabase.from('time_entries').select('id, profiles:employee_id(full_name)').eq('company_id', companyId).is('clock_out', null),
-      supabase.from('tasks').select('title, priority, status, assigned_employee:assigned_to(full_name), project:project_id(name)').eq('company_id', companyId).neq('status', 'completed').limit(20),
+      supabase.from('tasks').select('title, priority, status, assigned_employee:assigned_to(full_name), project:project_id(name)').eq('company_id', companyId).neq('status', 'completed').limit(25),
       supabase.from('profiles').select('full_name, position, status').eq('company_id', companyId).eq('role', 'employee').eq('auth_status', 'approved').order('full_name'),
       supabase.from('time_entries').select('clock_in, clock_out').eq('company_id', companyId).gte('clock_in', weekStart.toISOString()).not('clock_out', 'is', null),
       supabase.from('payroll_records').select('total_amount').eq('company_id', companyId).eq('status', 'pending'),
       supabase.from('change_orders').select('title, amount, status, project:project_id(name)').eq('company_id', companyId).order('created_at', { ascending: false }).limit(10),
       supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'completed').gte('updated_at', weekStart.toISOString()),
+      supabase.from('project_photos').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
+      supabase.from('reports').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
+      supabase.from('membership_requests').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
     ])
 
     const weekHours = (weekEntries ?? []).reduce((sum, e) => {
@@ -60,10 +68,10 @@ ${employeeLines.join('\n') || 'No employees yet'}
 - Currently clocked in (${clockedInNames.length}): ${clockedInNames.length > 0 ? clockedInNames.join(', ') : 'Nobody'}
 - Hours logged this week: ${weekHours.toFixed(1)}h
 
-PROJECTS (${projects?.length ?? 0} active):
-${projects?.map(p => `• ${p.name} — ${p.progress ?? 0}%${p.client_name ? `, client: ${p.client_name}` : ''}${p.address ? ` — ${p.address}` : ''}`).join('\n') || 'No active projects'}
+PROJECTS (${projects?.length ?? 0} total, every status):
+${projects?.map(p => `• ${p.name} [${p.status}] — ${p.progress ?? 0}%${p.client_name ? `, client: ${p.client_name}` : ''}${p.address ? ` — ${p.address}` : ''}`).join('\n') || 'No projects yet'}
 
-OPEN TASKS (${openTasks?.length ?? 0}):
+OPEN TASKS (${openTasks?.length ?? 0}, includes tasks with no project assigned):
 ${taskLines.join('\n') || 'No open tasks'}
 
 COMPLETED TASKS THIS WEEK: ${completedThisWeek ?? 0}
@@ -73,6 +81,11 @@ ${orderLines.join('\n') || 'No change orders yet'}
 
 PAYROLL:
 - Pending payment: $${pendingPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+
+OTHER:
+- Photos uploaded: ${photoCount ?? 0}
+- Reports generated: ${reportCount ?? 0}
+- Pending signup/join requests awaiting approval: ${pendingRequests ?? 0}
 `
   } catch {
     return `Today: ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}. (Live data temporarily unavailable)`
@@ -81,14 +94,14 @@ PAYROLL:
 
 export function buildSystemPrompt(context: string): string {
   return `You are OrbitOps AI, the intelligent business copilot built into OrbitOps.
-You help construction company administrators understand what's happening and act fast — like a capable, calm assistant who knows the whole operation.
+You help construction company administrators understand what's happening across their whole company and act fast — like a capable, calm assistant who has read every tab of the app and can guide the admin clearly, with no back-and-forth needed for basic questions.
 
-LIVE COMPANY DATA (already loaded, use it directly):
+LIVE COMPANY DATA — this already covers every part of the app (already loaded, use it directly, do not say you can't see something that's listed here):
 ${context}
 
 TOOLS:
-- The summary above already includes the full employee roster, all active projects (with client and address), open tasks, extras, and payroll — answer directly from it for almost everything, including "tell me about project X" if X is listed above. Do not call a tool just to repeat what's already shown above.
-- Only call a read tool (list_change_orders, list_tasks, get_project_detail, get_payroll_summary) for something that is genuinely absent above, e.g. a project not in the active list, or task/payroll history beyond what's shown.
+- The summary above already includes the full employee roster, every project regardless of status (active, on hold, completed, cancelled), every open task (including ones with no project), extras, payroll, and counts for photos/reports/pending requests — answer directly from it for almost everything, including "tell me about project X" if X is listed above. Do not call a tool just to repeat what's already shown above.
+- Only call a read tool (list_change_orders, list_tasks, get_project_detail, get_payroll_summary) for something that is genuinely absent above, e.g. full history beyond what's summarized, or a project search that doesn't match anything listed.
 - Only call a write tool (create_task, create_change_order, mark_task_complete) when the admin clearly asks you to do exactly that. You do NOT need to ask "Confirm?" in text; calling the tool itself already pauses for the admin's explicit confirmation before anything is written, so just call it.
 - Call at most one tool per turn.
 - Critical: if you use a tool, you MUST use the platform's real function-calling mechanism. NEVER write a tool/function name, or anything that looks like a function call, as plain text in your answer — the admin cannot see that and it will look broken. If you're not confident the function-calling mechanism will work, just answer from the summary above instead of attempting it in text.
@@ -181,8 +194,13 @@ function looksLikeLeakedToolCall(text: string): boolean {
   const trimmed = text.trim()
   if (!trimmed) return true
   if (/<function[=\s]/i.test(trimmed)) return true
-  const mentionsToolName = KNOWN_TOOL_NAMES.some(name => new RegExp(`\\b${name}\\b`, 'i').test(trimmed))
-  return mentionsToolName && trimmed.length < 200
+  const toolNamePattern = KNOWN_TOOL_NAMES.join('|')
+  // "get_project_detail(...)" / "get_project_detail: {...}" style fake calls
+  if (new RegExp(`\\b(${toolNamePattern})\\s*[(:=]`, 'i').test(trimmed)) return true
+  // A bare mention of a tool name in an otherwise short reply — e.g.
+  // "Vou buscar detalhes sobre o projeto Spark.\nget_project_detail Spark"
+  const mentionsToolName = new RegExp(`\\b(${toolNamePattern})\\b`, 'i').test(trimmed)
+  return mentionsToolName && trimmed.length < 300
 }
 
 /**
