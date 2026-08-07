@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { login } from '@/app/actions/auth'
 import { Input } from '@/components/ui/Input'
 import { t, translateError, type Locale } from '@/lib/i18n/login'
+import { saveRememberToken, roleRedirectPath } from '@/lib/auth/remember'
 
 type RoleOption = 'admin' | 'employee' | 'client' | 'owner'
 
@@ -87,17 +88,8 @@ export function LoginForm({ locale, showOwnerRole = false }: { locale: Locale; s
         return
       }
 
-      if (result.status === 'pending') {
-        router.push('/pending')
-      } else if (result.role === 'admin') {
-        router.push('/admin/dashboard')
-      } else if (result.role === 'client') {
-        router.push('/client')
-      } else if (result.role === 'owner') {
-        router.push('/owner/dashboard')
-      } else {
-        router.push('/home')
-      }
+      if (result.token) saveRememberToken(result.token)
+      router.push(roleRedirectPath(result.role, result.status))
     } catch {
       setError(t(locale, 'errorGeneric'))
       setLoading(false)

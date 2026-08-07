@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { findUserByEmail, createEmployeeWithInvite, findActiveInviteCode, toSessionUser } from '@/lib/auth/store'
 import { verifyPassword, hashPassword } from '@/lib/auth/crypto'
-import { setSessionCookie, clearSessionCookie } from '@/lib/auth/session'
+import { setSessionCookie, clearSessionCookie, createToken, verifyToken } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
 import type { Language, UserRole, UserStatus } from '@/lib/auth/types'
 
@@ -11,7 +11,7 @@ export async function login(
   email: string,
   password: string,
   locale?: Language
-): Promise<{ error?: string; role?: UserRole; status?: UserStatus }> {
+): Promise<{ error?: string; role?: UserRole; status?: UserStatus; token?: string }> {
 
   if (!email?.trim() || !password) {
     return { error: 'Email and password are required.' }
@@ -53,8 +53,28 @@ export async function login(
     }
   }
 
-  setSessionCookie(toSessionUser(user))
+  const sessionUser = toSessionUser(user)
+  setSessionCookie(sessionUser)
 
+  // Also handed back to the client to keep in localStorage as a fallback —
+  // iOS can wipe cookies for home-screen-installed apps when they're fully
+  // closed and reopened, even well within the cookie's real expiry. If that
+  // happens, the app can silently restore the session from this copy
+  // instead of forcing a fresh login. See restoreSession() below.
+  const token = createToken(sessionUser)
+
+  return { role: user.role, status: user.status, token }
+}
+
+// Re-issues the session cookie from a token the client saved as a backup
+// (see login() above). Used when the cookie itself is missing — typically
+// because iOS cleared it for a home-screen-installed app — but the client
+// still has a valid saved copy.
+export async function restoreSession(token: string): Promise<{ error?: string; role?: UserRole; status?: UserStatus }> {
+  const user = verifyToken(token)
+  if (!user) return { error: 'Session expired.' }
+
+  setSessionCookie(user)
   return { role: user.role, status: user.status }
 }
 
