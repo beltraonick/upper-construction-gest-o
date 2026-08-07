@@ -17,16 +17,16 @@ export async function buildCompanyContext(companyId: string): Promise<string> {
       { data: projects },
       { data: clockedIn },
       { data: openTasks },
-      { count: totalEmployees },
+      { data: employees },
       { data: weekEntries },
       { data: pendingPayroll },
       { data: changeOrders },
       { count: completedThisWeek },
     ] = await Promise.all([
-      supabase.from('projects').select('name, status, progress, address').eq('company_id', companyId).eq('status', 'active').limit(10),
+      supabase.from('projects').select('name, status, progress, address, client_name').eq('company_id', companyId).eq('status', 'active').limit(15),
       supabase.from('time_entries').select('id, profiles:employee_id(full_name)').eq('company_id', companyId).is('clock_out', null),
-      supabase.from('tasks').select('title, priority, status, assigned_employee:assigned_to(full_name), project:project_id(name)').eq('company_id', companyId).neq('status', 'completed').limit(15),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('auth_status', 'approved'),
+      supabase.from('tasks').select('title, priority, status, assigned_employee:assigned_to(full_name), project:project_id(name)').eq('company_id', companyId).neq('status', 'completed').limit(20),
+      supabase.from('profiles').select('full_name, position, status').eq('company_id', companyId).eq('role', 'employee').eq('auth_status', 'approved').order('full_name'),
       supabase.from('time_entries').select('clock_in, clock_out').eq('company_id', companyId).gte('clock_in', weekStart.toISOString()).not('clock_out', 'is', null),
       supabase.from('payroll_records').select('total_amount').eq('company_id', companyId).eq('status', 'pending'),
       supabase.from('change_orders').select('title, amount, status, project:project_id(name)').eq('company_id', companyId).order('created_at', { ascending: false }).limit(10),
@@ -44,6 +44,9 @@ export async function buildCompanyContext(companyId: string): Promise<string> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const taskLines = (openTasks ?? []).map((t: any) => `• [${(t.priority ?? 'medium').toUpperCase()}] ${t.title} → ${t.assigned_employee?.full_name ?? 'Unassigned'} (${t.project?.name ?? 'No project'})`)
 
+    const activeEmployees = (employees ?? []).filter(e => e.status === 'active')
+    const employeeLines = activeEmployees.map(e => `• ${e.full_name}${e.position ? ` — ${e.position}` : ''}`)
+
     const pendingOrders = (changeOrders ?? []).filter(c => c.status === 'pending')
     const pendingOrdersTotal = pendingOrders.reduce((sum, c) => sum + Number(c.amount), 0)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,13 +55,13 @@ export async function buildCompanyContext(companyId: string): Promise<string> {
     return `
 TODAY: ${today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} — ${today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
 
-WORKFORCE:
-- Total active employees: ${totalEmployees ?? 0}
+WORKFORCE (${activeEmployees.length} active employees):
+${employeeLines.join('\n') || 'No employees yet'}
 - Currently clocked in (${clockedInNames.length}): ${clockedInNames.length > 0 ? clockedInNames.join(', ') : 'Nobody'}
 - Hours logged this week: ${weekHours.toFixed(1)}h
 
 PROJECTS (${projects?.length ?? 0} active):
-${projects?.map(p => `• ${p.name} — ${p.progress ?? 0}%${p.address ? ` — ${p.address}` : ''}`).join('\n') || 'No active projects'}
+${projects?.map(p => `• ${p.name} — ${p.progress ?? 0}%${p.client_name ? `, client: ${p.client_name}` : ''}${p.address ? ` — ${p.address}` : ''}`).join('\n') || 'No active projects'}
 
 OPEN TASKS (${openTasks?.length ?? 0}):
 ${taskLines.join('\n') || 'No open tasks'}
@@ -84,10 +87,11 @@ LIVE COMPANY DATA (already loaded, use it directly):
 ${context}
 
 TOOLS:
-- The summary above already answers most general questions ("how are projects doing", "what's pending", "who's clocked in") — answer directly from it, do not call a tool for those.
-- Only call a read tool (list_change_orders, list_tasks, get_project_detail, get_payroll_summary) when the admin asks about something specific that genuinely isn't in the summary above, e.g. full detail on one named project, or a filtered list.
+- The summary above already includes the full employee roster, all active projects (with client and address), open tasks, extras, and payroll — answer directly from it for almost everything, including "tell me about project X" if X is listed above. Do not call a tool just to repeat what's already shown above.
+- Only call a read tool (list_change_orders, list_tasks, get_project_detail, get_payroll_summary) for something that is genuinely absent above, e.g. a project not in the active list, or task/payroll history beyond what's shown.
 - Only call a write tool (create_task, create_change_order, mark_task_complete) when the admin clearly asks you to do exactly that. You do NOT need to ask "Confirm?" in text; calling the tool itself already pauses for the admin's explicit confirmation before anything is written, so just call it.
 - Call at most one tool per turn.
+- Critical: if you use a tool, you MUST use the platform's real function-calling mechanism. NEVER write a tool/function name, or anything that looks like a function call, as plain text in your answer — the admin cannot see that and it will look broken. If you're not confident the function-calling mechanism will work, just answer from the summary above instead of attempting it in text.
 
 RULES:
 - Be warm, patient and polite — never pushy or salesy. Guide the admin, don't rush them.
@@ -163,16 +167,35 @@ async function callGroqOnce(systemPrompt: string, messages: any[], tools: any[])
   return { type: 'text', content: choice?.content ?? '' }
 }
 
+const KNOWN_TOOL_NAMES = [
+  'get_project_detail', 'list_tasks', 'list_change_orders', 'get_payroll_summary',
+  'create_task', 'create_change_order', 'mark_task_complete',
+]
+
+// Sometimes the model writes a fake function call as plain text instead of
+// using the real tool-calling mechanism (e.g. "get_project_detail Spark" or
+// "<function=get_project_detail={...}>"), which Groq happily returns as a
+// normal, non-erroring text completion. Since there's no API error to catch,
+// detect the pattern ourselves so we don't show the admin broken output.
+function looksLikeLeakedToolCall(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed) return true
+  if (/<function[=\s]/i.test(trimmed)) return true
+  const mentionsToolName = KNOWN_TOOL_NAMES.some(name => new RegExp(`\\b${name}\\b`, 'i').test(trimmed))
+  return mentionsToolName && trimmed.length < 200
+}
+
 /**
  * Non-streaming, tool-aware chat call. Returns either a final text answer
  * or the tool calls the model wants to make — the caller decides whether
  * to execute them (read tools) or pause for confirmation (write tools).
  *
- * Groq's Llama 3.3 tool-calling occasionally emits a malformed call
- * (their API rejects it with a "tool_use_failed" error) instead of either
- * a clean tool call or plain text. When that happens, we retry once
- * without tools so the admin still gets a real answer instead of a raw
- * error — just without whatever extra detail the tool would have added.
+ * Groq's Llama 3.3 tool-calling is occasionally unreliable in two ways:
+ * it can emit a malformed call that Groq's own API rejects with a
+ * "tool_use_failed" error, or — worse — it can just write a fake function
+ * call as plain text that Groq happily returns as a normal answer. Either
+ * way we retry once with tools disabled so the admin gets a real answer
+ * instead of an error or garbled text.
  */
 export async function chatWithTools(
   systemPrompt: string,
@@ -188,7 +211,12 @@ export async function chatWithTools(
 > {
   const result = await callGroqOnce(systemPrompt, messages, tools)
 
-  if (result.type === 'error' && result.code === 'tool_use_failed' && tools.length > 0) {
+  const needsRetry =
+    tools.length > 0 &&
+    ((result.type === 'error' && result.code === 'tool_use_failed') ||
+      (result.type === 'text' && looksLikeLeakedToolCall(result.content)))
+
+  if (needsRetry) {
     const retry = await callGroqOnce(systemPrompt, messages, [])
     if (retry.type === 'text') return retry
   }
