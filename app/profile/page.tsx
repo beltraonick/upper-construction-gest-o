@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 import { getMyProfile } from '@/app/actions/profile'
-import { logout } from '@/app/actions/auth'
+import { LogoutForm } from '@/components/LogoutForm'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { t } from '@/lib/i18n/translate'
 import { ProfileForm } from './ProfileForm'
@@ -32,9 +32,9 @@ export default async function ProfilePage() {
             {t(locale, 'profile.back')}
           </a>
           <p className="text-sm font-semibold text-primary">{t(locale, 'profile.header')}</p>
-          <form action={logout}>
+          <LogoutForm>
             <button type="submit" className="text-xs text-secondary hover:text-danger transition-colors">{t(locale, 'profile.signOut')}</button>
-          </form>
+          </LogoutForm>
         </header>
 
         <main className="pt-14 max-w-lg mx-auto px-4 py-6 md:py-8">

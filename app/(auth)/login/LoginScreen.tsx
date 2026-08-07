@@ -1,20 +1,51 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { LoginForm } from './LoginForm'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { getStoredLocale, storeLocale, t, type Locale } from '@/lib/i18n/login'
+import { restoreSession } from '@/app/actions/auth'
+import { getRememberToken, clearRememberToken, roleRedirectPath } from '@/lib/auth/remember'
 
 export function LoginScreen({ showOwnerRole = false }: { showOwnerRole?: boolean }) {
+  const router = useRouter()
   const [locale, setLocale] = useState<Locale>('en')
+  // Starts true so we don't flash the login form while checking for a
+  // saved session to silently restore (see lib/auth/remember.ts).
+  const [restoring, setRestoring] = useState(true)
 
   useEffect(() => {
     setLocale(getStoredLocale())
   }, [])
 
+  useEffect(() => {
+    const token = getRememberToken()
+    if (!token) { setRestoring(false); return }
+
+    restoreSession(token)
+      .then(result => {
+        if (result.error) {
+          clearRememberToken()
+          setRestoring(false)
+          return
+        }
+        router.push(roleRedirectPath(result.role, result.status))
+      })
+      .catch(() => setRestoring(false))
+  }, [router])
+
   function handleChange(l: Locale) {
     setLocale(l)
     storeLocale(l)
+  }
+
+  if (restoring) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-7 h-7 rounded-full border-2 border-brand/30 border-t-brand animate-spin" />
+      </div>
+    )
   }
 
   return (
