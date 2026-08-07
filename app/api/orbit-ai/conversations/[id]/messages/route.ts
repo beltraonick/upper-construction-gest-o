@@ -90,20 +90,26 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         .insert({ conversation_id: params.id, role: 'assistant', content: result.content })
         .select('id, role, content, action, created_at')
         .single()
-      return Response.json({ message: saved })
+      return Response.json({ messages: saved ? [saved] : [] })
     }
 
-    // Tool call(s) — a write tool takes priority and pauses for confirmation.
-    const writeCall = result.calls.find(c => !READ_TOOL_NAMES.includes(c.name as (typeof READ_TOOL_NAMES)[number]))
-    if (writeCall) {
-      const { summary } = await buildActionSummary(writeCall.name, writeCall.args, companyId)
-      const action = { tool: writeCall.name, args: writeCall.args, summary, status: 'proposed' as const }
-      const { data: saved } = await supabase
-        .from('ai_messages')
-        .insert({ conversation_id: params.id, role: 'assistant', content: summary, action })
-        .select('id, role, content, action, created_at')
-        .single()
-      return Response.json({ message: saved })
+    // Tool call(s) — any write tools take priority and pause for confirmation.
+    // The model may propose several (e.g. 2-3 distinct create_task ideas in
+    // one turn) — each becomes its own message with its own confirm/cancel.
+    const writeCalls = result.calls.filter(c => !READ_TOOL_NAMES.includes(c.name as (typeof READ_TOOL_NAMES)[number]))
+    if (writeCalls.length > 0) {
+      const saved = []
+      for (const call of writeCalls) {
+        const { summary } = await buildActionSummary(call.name, call.args, companyId)
+        const action = { tool: call.name, args: call.args, summary, status: 'proposed' as const }
+        const { data: row } = await supabase
+          .from('ai_messages')
+          .insert({ conversation_id: params.id, role: 'assistant', content: summary, action })
+          .select('id, role, content, action, created_at')
+          .single()
+        if (row) saved.push(row)
+      }
+      return Response.json({ messages: saved })
     }
 
     // All read tools — execute and loop back with the results.

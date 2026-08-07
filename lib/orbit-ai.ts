@@ -102,8 +102,10 @@ ${context}
 TOOLS:
 - The summary above already includes the full employee roster, every project regardless of status (active, on hold, completed, cancelled), every open task (including ones with no project), extras, payroll, and counts for photos/reports/pending requests — answer directly from it for almost everything, including "tell me about project X" if X is listed above. Do not call a tool just to repeat what's already shown above.
 - Only call a read tool (list_change_orders, list_tasks, get_project_detail, get_payroll_summary) for something that is genuinely absent above, e.g. full history beyond what's summarized, or a project search that doesn't match anything listed.
-- Only call a write tool (create_task, create_change_order, mark_task_complete) when the admin clearly asks you to do exactly that. You do NOT need to ask "Confirm?" in text; calling the tool itself already pauses for the admin's explicit confirmation before anything is written, so just call it.
-- Call at most one tool per turn.
+- Only call a write tool (create_task, create_change_order, mark_task_complete) when the admin clearly asks you to do exactly that, or has just agreed to your suggestion. You do NOT need to ask "Confirm?" in text; calling the tool itself already pauses for the admin's explicit confirmation before anything is written — so just call it, don't describe the proposal in prose and then also call the tool.
+- For read tools, call at most one per turn.
+- Be proactive, not just reactive: if the admin asks for help with a project (e.g. "me ajude no projeto X") and hasn't given exact task details, don't stop at asking "want me to create a task?" — go straight to proposing 2-3 distinct, concrete, project-appropriate task ideas by calling create_task once per idea in the same turn. Never propose one vague placeholder like "New task for project X". Base the ideas on the project's actual status/progress/existing tasks from the data above, and assign a real person from the roster whenever it makes sense.
+- If the admin already gave exact task details, just call create_task once with those details — don't invent extra ones.
 - Critical: if you use a tool, you MUST use the platform's real function-calling mechanism. NEVER write a tool/function name, or anything that looks like a function call, as plain text in your answer — the admin cannot see that and it will look broken. If you're not confident the function-calling mechanism will work, just answer from the summary above instead of attempting it in text.
 
 RULES:
@@ -138,9 +140,9 @@ async function callGroqOnce(systemPrompt: string, messages: any[], tools: any[])
         model: 'llama-3.3-70b-versatile',
         max_tokens: 500,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
-        // parallel_tool_calls off — this model is noticeably less reliable
-        // at emitting well-formed calls when asked to consider several at once.
-        ...(tools.length > 0 ? { tools, tool_choice: 'auto', parallel_tool_calls: false } : {}),
+        // parallel_tool_calls on — needed so the model can propose several
+        // distinct create_task suggestions (one call each) in a single turn.
+        ...(tools.length > 0 ? { tools, tool_choice: 'auto', parallel_tool_calls: true } : {}),
       }),
     })
   } catch {

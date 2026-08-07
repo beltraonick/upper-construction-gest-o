@@ -61,14 +61,14 @@ export const ORBIT_AI_TOOLS = [
     type: 'function',
     function: {
       name: 'create_task',
-      description: 'Propose creating a new task on a project. Requires admin confirmation before it is actually created.',
+      description: 'Propose creating one new task on a project. Requires admin confirmation before it is actually created. When the admin asks broadly for help with a project instead of giving exact task details, call this tool 2-3 times in the same turn — once per distinct, concrete, project-appropriate task idea — instead of one vague placeholder task. Each call is shown to the admin as its own card to confirm or reject individually. Always set assignee_name when a sensible employee from the roster is available.',
       parameters: {
         type: 'object',
         properties: {
-          title: { type: 'string', description: 'Task title.' },
+          title: { type: 'string', description: 'Specific, actionable task title — never a generic placeholder like "New task for project X".' },
           project_name: { type: 'string', description: 'Which project this task belongs to.' },
           priority: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'], description: 'Defaults to medium.' },
-          assignee_name: { type: 'string', description: 'Employee full name to assign it to, if mentioned.' },
+          assignee_name: { type: 'string', description: 'Employee full name from the team roster to assign it to. Set this whenever a sensible fit exists — do not leave it out by default.' },
         },
         required: ['title', 'project_name'],
       },
