@@ -215,8 +215,11 @@ export default function AdminAIPage() {
 
       if (!res.ok || data?.error) {
         setMessages(m => [...m, { role: 'assistant', content: data?.error || t('admin.aiChat.somethingWrong') }])
-      } else if (data?.message) {
-        setMessages(m => [...m, { id: data.message.id, role: 'assistant', content: data.message.content, action: data.message.action }])
+      } else if (data?.messages?.length) {
+        setMessages(m => [
+          ...m,
+          ...data.messages.map((msg: Message) => ({ id: msg.id, role: 'assistant', content: msg.content, action: msg.action })),
+        ])
       }
 
       loadConversations()
