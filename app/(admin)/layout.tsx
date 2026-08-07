@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 import { Sidebar } from '@/components/admin/Sidebar'
-import { OrbitAI } from '@/components/OrbitAI'
 import { CompanyProvider } from '@/lib/company-context'
 import { UserProvider } from '@/lib/user-context'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
@@ -33,7 +32,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <main className="flex-1 md:ml-[240px] overflow-y-auto pt-14 md:pt-0 pb-20 md:pb-0">
               {children}
             </main>
-            <OrbitAI />
           </div>
         </UserProvider>
       </CompanyProvider>
