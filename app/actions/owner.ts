@@ -21,13 +21,33 @@ function requireOwner(): SessionUser | null {
 
 export async function updateCompanyBilling(
   companyId: string,
-  data: { subscription_status?: string; months_overdue?: number; owner_notes?: string }
+  data: { subscription_status?: string; months_overdue?: number; owner_notes?: string; plan_id?: string | null }
 ): Promise<{ error?: string }> {
   if (!requireOwner()) return { error: 'Not authorized.' }
 
   const supabase = createClient()
   const { error } = await supabase.from('companies').update(data).eq('id', companyId)
   if (error) return { error: error.message }
+  return {}
+}
+
+// Suspend/reactivate/approve any account platform-wide — how the owner
+// helps a company lock someone out or lets a pending signup in without
+// having to go through that company's own admin.
+export async function ownerSetAccountStatus(
+  profileId: string,
+  authStatus: 'approved' | 'suspended'
+): Promise<{ error?: string }> {
+  if (!requireOwner()) return { error: 'Not authorized.' }
+
+  const supabase = createClient()
+  const { error, count } = await supabase
+    .from('profiles')
+    .update({ auth_status: authStatus }, { count: 'exact' })
+    .eq('id', profileId)
+
+  if (error) return { error: error.message }
+  if (!count) return { error: 'User not found.' }
   return {}
 }
 
