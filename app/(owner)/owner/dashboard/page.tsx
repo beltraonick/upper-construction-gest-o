@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/auth/session'
 import { t } from '@/lib/i18n/translate'
@@ -14,6 +15,7 @@ interface CompanyRow {
   id: string
   name: string
   subscription_status: string
+  months_overdue: number | null
   created_at: string
   plan: { name: string; price_cents: number; project_limit: number | null } | null
 }
@@ -38,7 +40,7 @@ export default async function OwnerDashboardPage() {
       const [{ data: companyRows }, { data: profileRows }, { data: projectRows }] = await Promise.all([
         supabase
           .from('companies')
-          .select('id, name, subscription_status, created_at, plan:plan_id(name, price_cents, project_limit)')
+          .select('id, name, subscription_status, months_overdue, created_at, plan:plan_id(name, price_cents, project_limit)')
           .order('created_at', { ascending: false }),
         supabase.from('profiles').select('company_id, role'),
         supabase.from('projects').select('company_id'),
@@ -94,12 +96,22 @@ export default async function OwnerDashboardPage() {
           <div className="divide-y divide-[var(--border)]">
             {companies.map(c => {
               const bucket = counts.get(c.id) ?? { admins: 0, employees: 0, clients: 0, projects: 0 }
+              const overdue = c.months_overdue ?? 0
               return (
-                <div key={c.id} className="flex items-center gap-3 px-5 py-4 flex-wrap">
+                <Link
+                  key={c.id}
+                  href={`/owner/companies/${c.id}`}
+                  className="flex items-center gap-3 px-5 py-4 flex-wrap hover:bg-surface-elevated transition-colors"
+                >
                   <div className="flex-1 min-w-[160px]">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-primary truncate">{c.name}</p>
                       {statusBadge(c.subscription_status, locale)}
+                      {overdue > 0 && (
+                        <Badge variant="red">
+                          {overdue} {overdue !== 1 ? t(locale, 'owner.dashboard.monthsOverdue') : t(locale, 'owner.dashboard.monthOverdue')}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-secondary mt-0.5">
                       {c.plan ? `${c.plan.name} · $${(c.plan.price_cents / 100).toFixed(0)}/mo` : t(locale, 'owner.dashboard.noPlan')}
@@ -117,7 +129,7 @@ export default async function OwnerDashboardPage() {
                   <p className="text-xs text-tertiary w-full sm:w-auto">
                     {t(locale, 'owner.dashboard.since')} {new Date(c.created_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
-                </div>
+                </Link>
               )
             })}
           </div>
