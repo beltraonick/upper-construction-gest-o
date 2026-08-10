@@ -24,15 +24,15 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
   const locale = user.language
   const supabase = createClient()
 
-  const [{ data: company }, { data: people }, { data: projects }] = await Promise.all([
+  const [{ data: company }, { data: people }, { data: projects }, { data: plans }, { data: pendingRequests }] = await Promise.all([
     supabase
       .from('companies')
-      .select('id, name, subscription_status, months_overdue, owner_notes, created_at, plan:plan_id(name, price_cents, project_limit)')
+      .select('id, name, subscription_status, months_overdue, owner_notes, created_at, plan_id, plan:plan_id(name, price_cents, project_limit)')
       .eq('id', params.id)
       .maybeSingle(),
     supabase
       .from('profiles')
-      .select('id, full_name, email, role, auth_status, last_login_at')
+      .select('id, full_name, email, phone, position, role, auth_status, last_login_at')
       .eq('company_id', params.id)
       .order('role')
       .order('full_name'),
@@ -40,6 +40,13 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
       .from('projects')
       .select('id, name, status, progress, created_at')
       .eq('company_id', params.id)
+      .order('created_at', { ascending: false }),
+    supabase.from('plans').select('id, name, price_cents').order('price_cents'),
+    supabase
+      .from('membership_requests')
+      .select('id, created_at, profile:profile_id(full_name, email)')
+      .eq('company_id', params.id)
+      .eq('status', 'pending')
       .order('created_at', { ascending: false }),
   ])
 
@@ -79,8 +86,29 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
           initialStatus={company.subscription_status}
           initialMonthsOverdue={company.months_overdue ?? 0}
           initialNotes={company.owner_notes ?? ''}
+          initialPlanId={company.plan_id}
+          plans={plans ?? []}
         />
       </Card>
+
+      {pendingRequests && pendingRequests.length > 0 && (
+        <Card className="mb-6">
+          <h2 className="text-sm font-semibold text-primary mb-3">{t(locale, 'owner.companyDetail.pendingRequestsTitle')}</h2>
+          <div className="space-y-2">
+            {pendingRequests.map(r => {
+              const profile = r.profile as unknown as { full_name: string; email: string } | null
+              return (
+                <div key={r.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-primary">{profile?.full_name ?? '—'} <span className="text-secondary">· {profile?.email}</span></span>
+                  <span className="text-xs text-tertiary">
+                    {new Date(r.created_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card padding="none" className="mb-6">
         <h2 className="text-sm font-semibold text-primary px-5 pt-4 pb-3">{t(locale, 'owner.companyDetail.peopleTitle')}</h2>

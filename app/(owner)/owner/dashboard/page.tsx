@@ -20,6 +20,13 @@ interface CompanyRow {
   plan: { name: string; price_cents: number; project_limit: number | null } | null
 }
 
+interface ActivityRow {
+  full_name: string
+  role: string
+  last_login_at: string
+  company: { name: string } | null
+}
+
 function statusBadge(s: string, locale: 'en' | 'pt' | 'es') {
   if (s === 'active') return <Badge variant="green">{t(locale, 'common.active')}</Badge>
   if (s === 'trialing') return <Badge variant="blue">{t(locale, 'owner.dashboard.trialing')}</Badge>
@@ -33,20 +40,31 @@ export default async function OwnerDashboardPage() {
   let companies: CompanyRow[] = []
   let counts = new Map<string, { admins: number; employees: number; clients: number; projects: number }>()
   let mrrCents = 0
+  let totalUsers = 0
+  let totalProjects = 0
+  let recentActivity: ActivityRow[] = []
 
   if (supabaseReady) {
     try {
       const supabase = createClient()
-      const [{ data: companyRows }, { data: profileRows }, { data: projectRows }] = await Promise.all([
+      const [{ data: companyRows }, { data: profileRows }, { data: projectRows }, { data: activityRows }] = await Promise.all([
         supabase
           .from('companies')
           .select('id, name, subscription_status, months_overdue, created_at, plan:plan_id(name, price_cents, project_limit)')
           .order('created_at', { ascending: false }),
         supabase.from('profiles').select('company_id, role'),
         supabase.from('projects').select('company_id'),
+        supabase
+          .from('profiles')
+          .select('full_name, role, last_login_at, company:company_id(name)')
+          .neq('role', 'owner')
+          .not('last_login_at', 'is', null)
+          .order('last_login_at', { ascending: false })
+          .limit(8),
       ])
 
       companies = (companyRows ?? []) as unknown as CompanyRow[]
+      recentActivity = (activityRows ?? []) as unknown as ActivityRow[]
 
       counts = new Map()
       for (const c of companies) counts.set(c.id, { admins: 0, employees: 0, clients: 0, projects: 0 })
@@ -65,6 +83,8 @@ export default async function OwnerDashboardPage() {
       mrrCents = companies
         .filter(c => c.subscription_status === 'active')
         .reduce((sum, c) => sum + (c.plan?.price_cents ?? 0), 0)
+      totalUsers = (profileRows ?? []).length
+      totalProjects = (projectRows ?? []).length
     } catch {
       // silent — falls back to empty state
     }
@@ -72,6 +92,7 @@ export default async function OwnerDashboardPage() {
 
   const activeCount = companies.filter(c => c.subscription_status === 'active').length
   const trialingCount = companies.filter(c => c.subscription_status === 'trialing').length
+  const overdueCount = companies.filter(c => (c.months_overdue ?? 0) > 0).length
 
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
@@ -80,12 +101,38 @@ export default async function OwnerDashboardPage() {
         <p className="text-sm text-secondary mt-1">{t(locale, 'owner.dashboard.subtitle')}</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-3 md:mb-4">
         <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.companies')}</p><p className="text-2xl font-bold text-primary">{companies.length}</p></Card>
         <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.active')}</p><p className="text-2xl font-bold text-green">{activeCount}</p></Card>
         <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.trialing')}</p><p className="text-2xl font-bold text-blue">{trialingCount}</p></Card>
         <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.mrr')}</p><p className="text-2xl font-bold text-primary">${(mrrCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p></Card>
       </div>
+
+      <div className="grid grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.totalUsers')}</p><p className="text-2xl font-bold text-primary">{totalUsers}</p></Card>
+        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.totalProjects')}</p><p className="text-2xl font-bold text-primary">{totalProjects}</p></Card>
+        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.overdueCompanies')}</p><p className={`text-2xl font-bold ${overdueCount > 0 ? 'text-danger' : 'text-primary'}`}>{overdueCount}</p></Card>
+      </div>
+
+      {recentActivity.length > 0 && (
+        <Card padding="none" className="mb-6 md:mb-8">
+          <h2 className="text-sm font-semibold text-primary px-5 pt-4 pb-3">{t(locale, 'owner.dashboard.recentActivity')}</h2>
+          <div className="divide-y divide-[var(--border)]">
+            {recentActivity.map((a, i) => (
+              <div key={i} className="flex items-center gap-3 px-5 py-2.5 flex-wrap">
+                <p className="flex-1 min-w-[140px] text-sm text-primary truncate">
+                  <span className="font-medium">{a.full_name}</span>
+                  <span className="text-secondary"> · {a.company?.name ?? '—'}</span>
+                </p>
+                <Badge variant="gray">{a.role}</Badge>
+                <span className="text-xs text-tertiary">
+                  {new Date(a.last_login_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card padding="none">
         {!supabaseReady ? (
