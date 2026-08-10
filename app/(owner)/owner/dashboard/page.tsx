@@ -4,6 +4,7 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { t } from '@/lib/i18n/translate'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { subscriptionStatusKey, subscriptionStatusVariant, isCompanyOverdue } from '@/lib/owner-status'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -28,10 +29,7 @@ interface ActivityRow {
 }
 
 function statusBadge(s: string, locale: 'en' | 'pt' | 'es') {
-  if (s === 'active') return <Badge variant="green">{t(locale, 'common.active')}</Badge>
-  if (s === 'trialing') return <Badge variant="blue">{t(locale, 'owner.dashboard.trialing')}</Badge>
-  if (s === 'past_due') return <Badge variant="amber">Past Due</Badge>
-  return <Badge variant="red">Canceled</Badge>
+  return <Badge variant={subscriptionStatusVariant(s)}>{t(locale, subscriptionStatusKey(s))}</Badge>
 }
 
 export default async function OwnerDashboardPage() {
@@ -92,7 +90,7 @@ export default async function OwnerDashboardPage() {
 
   const activeCount = companies.filter(c => c.subscription_status === 'active').length
   const trialingCount = companies.filter(c => c.subscription_status === 'trialing').length
-  const overdueCount = companies.filter(c => (c.months_overdue ?? 0) > 0).length
+  const overdueCount = companies.filter(c => isCompanyOverdue(c.subscription_status, c.months_overdue)).length
 
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
@@ -105,7 +103,11 @@ export default async function OwnerDashboardPage() {
         <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.companies')}</p><p className="text-2xl font-bold text-primary">{companies.length}</p></Card>
         <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.active')}</p><p className="text-2xl font-bold text-green">{activeCount}</p></Card>
         <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.trialing')}</p><p className="text-2xl font-bold text-blue">{trialingCount}</p></Card>
-        <Card><p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.mrr')}</p><p className="text-2xl font-bold text-primary">${(mrrCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p></Card>
+        <Card>
+          <p className="text-xs text-secondary uppercase tracking-wide mb-1">{t(locale, 'owner.dashboard.mrr')}</p>
+          <p className="text-2xl font-bold text-primary">${(mrrCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+          <p className="text-[10px] text-tertiary mt-1 leading-snug">{t(locale, 'owner.dashboard.mrrHint')}</p>
+        </Card>
       </div>
 
       <div className="grid grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
@@ -144,6 +146,7 @@ export default async function OwnerDashboardPage() {
             {companies.map(c => {
               const bucket = counts.get(c.id) ?? { admins: 0, employees: 0, clients: 0, projects: 0 }
               const overdue = c.months_overdue ?? 0
+              const flaggedOverdue = isCompanyOverdue(c.subscription_status, c.months_overdue)
               return (
                 <Link
                   key={c.id}
@@ -154,9 +157,11 @@ export default async function OwnerDashboardPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-primary truncate">{c.name}</p>
                       {statusBadge(c.subscription_status, locale)}
-                      {overdue > 0 && (
+                      {flaggedOverdue && (
                         <Badge variant="red">
-                          {overdue} {overdue !== 1 ? t(locale, 'owner.dashboard.monthsOverdue') : t(locale, 'owner.dashboard.monthOverdue')}
+                          {overdue > 0
+                            ? `${overdue} ${overdue !== 1 ? t(locale, 'owner.dashboard.monthsOverdue') : t(locale, 'owner.dashboard.monthOverdue')}`
+                            : t(locale, 'owner.dashboard.statusPastDue')}
                         </Badge>
                       )}
                     </div>

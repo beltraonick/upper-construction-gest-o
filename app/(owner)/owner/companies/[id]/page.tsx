@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { t } from '@/lib/i18n/translate'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { subscriptionStatusKey, subscriptionStatusVariant } from '@/lib/owner-status'
 import { BillingForm } from './BillingForm'
 import { PeopleTable } from './PeopleTable'
 
@@ -24,7 +25,11 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
   const locale = user.language
   const supabase = createClient()
 
-  const [{ data: company }, { data: people }, { data: projects }, { data: plans }, { data: pendingRequests }] = await Promise.all([
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
+
+  const [{ data: company }, { data: people }, { data: projects }, { data: plans }, { data: pendingRequests }, { data: monthLogins }] = await Promise.all([
     supabase
       .from('companies')
       .select('id, name, subscription_status, months_overdue, owner_notes, created_at, plan_id, plan:plan_id(name, price_cents, project_limit)')
@@ -48,7 +53,17 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
       .eq('company_id', params.id)
       .eq('status', 'pending')
       .order('created_at', { ascending: false }),
+    supabase
+      .from('login_events')
+      .select('profile_id')
+      .eq('company_id', params.id)
+      .gte('created_at', monthStart.toISOString()),
   ])
+
+  const accessesThisMonth: Record<string, number> = {}
+  for (const row of monthLogins ?? []) {
+    accessesThisMonth[row.profile_id] = (accessesThisMonth[row.profile_id] ?? 0) + 1
+  }
 
   if (!company) {
     return (
@@ -71,6 +86,9 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
 
       <div className="mt-3 mb-6 flex items-center gap-3 flex-wrap">
         <h1 className="text-xl md:text-2xl font-bold text-primary tracking-tight">{company.name}</h1>
+        <Badge variant={subscriptionStatusVariant(company.subscription_status)}>
+          {t(locale, subscriptionStatusKey(company.subscription_status))}
+        </Badge>
         <Badge variant="gray">
           {plan ? `${plan.name} · $${(plan.price_cents / 100).toFixed(0)}/mo` : t(locale, 'owner.dashboard.noPlan')}
         </Badge>
@@ -112,7 +130,7 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
 
       <Card padding="none" className="mb-6">
         <h2 className="text-sm font-semibold text-primary px-5 pt-4 pb-3">{t(locale, 'owner.companyDetail.peopleTitle')}</h2>
-        <PeopleTable people={people ?? []} />
+        <PeopleTable people={people ?? []} accessesThisMonth={accessesThisMonth} />
       </Card>
 
       <Card padding="none">
@@ -122,14 +140,18 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
         ) : (
           <div className="divide-y divide-[var(--border)]">
             {projects.map(p => (
-              <div key={p.id} className="flex items-center gap-3 px-5 py-3.5 flex-wrap">
+              <Link
+                key={p.id}
+                href={`/owner/companies/${company.id}/projects/${p.id}`}
+                className="flex items-center gap-3 px-5 py-3.5 flex-wrap hover:bg-surface-elevated transition-colors"
+              >
                 <p className="flex-1 min-w-[160px] text-sm font-medium text-primary truncate">{p.name}</p>
                 <Badge variant={projectStatusVariant(p.status)}>{p.status}</Badge>
                 <span className="text-xs text-secondary w-24">{p.progress ?? 0}%</span>
                 <span className="text-xs text-tertiary">
                   {new Date(p.created_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
-              </div>
+              </Link>
             ))}
           </div>
         )}

@@ -5,7 +5,24 @@ import { findUserByEmail, createEmployeeWithInvite, findActiveInviteCode, toSess
 import { verifyPassword, hashPassword } from '@/lib/auth/crypto'
 import { setSessionCookie, clearSessionCookie, createToken, verifyToken } from '@/lib/auth/session'
 import { createClient } from '@/lib/supabase/server'
-import type { Language, UserRole, UserStatus } from '@/lib/auth/types'
+import type { Language, SessionUser, UserRole, UserStatus } from '@/lib/auth/types'
+
+// Best-effort — lets the owner panel show when each account last got in,
+// and how many times, without ever blocking a login over it. Counts as
+// an "access" both for a real login and a silent iOS session restore,
+// since the latter also represents someone genuinely opening the app.
+async function recordAccess(profileId: string, companyId: string | null): Promise<void> {
+  try {
+    const supabase = createClient()
+    const now = new Date().toISOString()
+    await Promise.all([
+      supabase.from('profiles').update({ last_login_at: now }).eq('id', profileId),
+      supabase.from('login_events').insert({ profile_id: profileId, company_id: companyId }),
+    ])
+  } catch {
+    // never block login over this
+  }
+}
 
 export async function login(
   email: string,
@@ -53,13 +70,7 @@ export async function login(
     }
   }
 
-  // Best-effort — lets the owner panel show when each account last got in.
-  try {
-    const supabase = createClient()
-    await supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', user.id)
-  } catch {
-    // never block login over this
-  }
+  await recordAccess(user.id, user.company_id)
 
   const sessionUser = toSessionUser(user)
   setSessionCookie(sessionUser)
@@ -79,10 +90,11 @@ export async function login(
 // because iOS cleared it for a home-screen-installed app — but the client
 // still has a valid saved copy.
 export async function restoreSession(token: string): Promise<{ error?: string; role?: UserRole; status?: UserStatus }> {
-  const user = verifyToken(token)
+  const user: SessionUser | null = verifyToken(token)
   if (!user) return { error: 'Session expired.' }
 
   setSessionCookie(user)
+  await recordAccess(user.id, user.company_id)
   return { role: user.role, status: user.status }
 }
 

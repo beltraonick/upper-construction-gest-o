@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { updateCompanyBilling } from '@/app/actions/owner'
 import { Input } from '@/components/ui/Input'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
-
-const STATUS_OPTIONS = ['trialing', 'active', 'past_due', 'canceled'] as const
+import { SUBSCRIPTION_STATUSES, subscriptionStatusKey } from '@/lib/owner-status'
 
 interface PlanOption {
   id: string
@@ -68,8 +67,8 @@ export function BillingForm({
             onChange={e => setStatus(e.target.value)}
             className="h-11 w-full rounded-input bg-surface-elevated border border-[var(--border)] px-4 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/60 transition-colors"
           >
-            {STATUS_OPTIONS.map(s => (
-              <option key={s} value={s}>{s}</option>
+            {SUBSCRIPTION_STATUSES.map(s => (
+              <option key={s} value={s}>{t(subscriptionStatusKey(s))}</option>
             ))}
           </select>
         </div>
@@ -94,6 +93,8 @@ export function BillingForm({
           onChange={e => setMonthsOverdue(e.target.value)}
         />
       </div>
+
+      <p className="text-xs text-tertiary -mt-1">{t('owner.companyDetail.statusHint')}</p>
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-secondary">{t('owner.companyDetail.notesLabel')}</label>
