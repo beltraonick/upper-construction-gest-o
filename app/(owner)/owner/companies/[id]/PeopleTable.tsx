@@ -26,7 +26,7 @@ function statusBadge(status: string) {
   return <Badge variant="amber">{status}</Badge>
 }
 
-function PersonRow({ person, locale, t }: { person: Person; locale: string; t: (key: string) => string }) {
+function PersonRow({ person, locale, t, accessesThisMonth }: { person: Person; locale: string; t: (key: string) => string; accessesThisMonth: number }) {
   const router = useRouter()
   const [authStatus, setAuthStatus] = useState(person.auth_status)
   const [resetting, setResetting] = useState(false)
@@ -92,11 +92,14 @@ function PersonRow({ person, locale, t }: { person: Person; locale: string; t: (
         </div>
         <Badge variant="gray">{person.role}</Badge>
         {statusBadge(authStatus)}
-        <p className="text-xs text-tertiary w-32 text-right">
-          {person.last_login_at
-            ? new Date(person.last_login_at).toLocaleDateString(DATE_LOCALE[locale] ?? 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-            : t('owner.companyDetail.never')}
-        </p>
+        <div className="text-right">
+          <p className="text-xs text-tertiary">
+            {person.last_login_at
+              ? new Date(person.last_login_at).toLocaleDateString(DATE_LOCALE[locale] ?? 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+              : t('owner.companyDetail.never')}
+          </p>
+          <p className="text-[10px] text-tertiary">{accessesThisMonth} {t('owner.companyDetail.accessesThisMonth')}</p>
+        </div>
         <div className="flex gap-2 flex-wrap justify-end">
           <button
             onClick={handleToggleStatus}
@@ -150,7 +153,7 @@ function PersonRow({ person, locale, t }: { person: Person; locale: string; t: (
   )
 }
 
-export function PeopleTable({ people }: { people: Person[] }) {
+export function PeopleTable({ people, accessesThisMonth }: { people: Person[]; accessesThisMonth: Record<string, number> }) {
   const { t, locale } = useTranslation()
 
   if (people.length === 0) {
@@ -160,7 +163,7 @@ export function PeopleTable({ people }: { people: Person[] }) {
   return (
     <div className="divide-y divide-[var(--border)]">
       {people.map(p => (
-        <PersonRow key={p.id} person={p} locale={locale} t={t} />
+        <PersonRow key={p.id} person={p} locale={locale} t={t} accessesThisMonth={accessesThisMonth[p.id] ?? 0} />
       ))}
     </div>
   )
