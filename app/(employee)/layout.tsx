@@ -6,6 +6,7 @@ import { CompanyProvider } from '@/lib/company-context'
 import { PermissionsProvider } from '@/lib/permissions-context'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { OfflineBanner } from '@/components/OfflineBanner'
+import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import type { EmployeePermissions } from '@/lib/permissions'
 
 const supabaseReady =
@@ -45,6 +46,7 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
             <OfflineBanner />
             {children}
             <EmployeeNav />
+            <ImpersonationBanner />
           </div>
         </PermissionsProvider>
       </CompanyProvider>

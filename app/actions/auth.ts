@@ -53,6 +53,14 @@ export async function login(
     }
   }
 
+  // Best-effort — lets the owner panel show when each account last got in.
+  try {
+    const supabase = createClient()
+    await supabase.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', user.id)
+  } catch {
+    // never block login over this
+  }
+
   const sessionUser = toSessionUser(user)
   setSessionCookie(sessionUser)
 

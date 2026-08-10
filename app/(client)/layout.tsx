@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUser } from '@/lib/auth/session'
 import { LogoutForm } from '@/components/LogoutForm'
+import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { t } from '@/lib/i18n/translate'
 import { ClientNav } from './ClientNav'
@@ -61,6 +62,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </main>
       </div>
     </div>
+    <ImpersonationBanner />
     </LocaleProvider>
   )
 }

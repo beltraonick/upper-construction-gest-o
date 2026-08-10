@@ -5,6 +5,7 @@ import { CompanyProvider } from '@/lib/company-context'
 import { UserProvider } from '@/lib/user-context'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { OfflineBanner } from '@/components/OfflineBanner'
+import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { getPendingRequests } from '@/app/actions/membership'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -32,6 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <main className="flex-1 md:ml-[240px] overflow-y-auto pt-14 md:pt-0 pb-20 md:pb-0">
               {children}
             </main>
+            <ImpersonationBanner />
           </div>
         </UserProvider>
       </CompanyProvider>

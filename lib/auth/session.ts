@@ -81,3 +81,33 @@ export function getSessionCookieValue(): string | null {
     return null
   }
 }
+
+// ─── Impersonation (owner-only "log in as" support tool) ──────────────────
+// While an owner impersonates another account, the *impersonated* user's
+// token lives in the normal session cookie above (so every existing
+// role-gated layout just works unmodified), and the owner's own token is
+// stashed here so it can be restored when they stop.
+
+const IMPERSONATOR_COOKIE = 'uc_impersonator'
+
+export function setImpersonatorCookie(token: string): void {
+  cookies().set(IMPERSONATOR_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: MAX_AGE,
+    path: '/',
+  })
+}
+
+export function getImpersonatorToken(): string | null {
+  try {
+    return cookies().get(IMPERSONATOR_COOKIE)?.value ?? null
+  } catch {
+    return null
+  }
+}
+
+export function clearImpersonatorCookie(): void {
+  cookies().delete(IMPERSONATOR_COOKIE)
+}
