@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { t } from '@/lib/i18n/translate'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
+import { PhotoThumb } from '../../PhotoThumb'
 
 const DATE_LOCALE: Record<string, string> = { en: 'en-US', pt: 'pt-BR', es: 'es-ES' }
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
@@ -135,8 +136,7 @@ export default async function OwnerProjectDetailPage({ params }: { params: { id:
                 rel="noopener noreferrer"
                 className="group relative aspect-square rounded-input overflow-hidden bg-surface-elevated border border-[var(--border)]"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUrl(photo.storage_path)} alt={photo.caption ?? photo.tag} className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
+                <PhotoThumb src={photoUrl(photo.storage_path)} alt={photo.caption ?? photo.tag} className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
                 <span className="absolute bottom-1 left-1">
                   <Badge variant={photoTagVariant(photo.tag)} className="text-[9px] px-1.5 py-0">{photo.tag}</Badge>
                 </span>
