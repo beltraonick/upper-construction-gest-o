@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth/session'
+import { getCurrentUser, getImpersonatorToken } from '@/lib/auth/session'
+import { touchAccess } from '@/lib/auth/access'
 import { Sidebar } from '@/components/admin/Sidebar'
 import { CompanyProvider } from '@/lib/company-context'
 import { UserProvider } from '@/lib/user-context'
@@ -16,6 +17,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (user.role === 'client') redirect('/client')
   if (user.role === 'owner') redirect('/owner/dashboard')
   if (user.role !== 'admin') redirect('/home')
+
+  // Skip while the owner is impersonating — otherwise their own
+  // browsing would masquerade as this account's real activity.
+  if (!getImpersonatorToken()) await touchAccess(user.id, user.company_id)
 
   const { requests } = await getPendingRequests()
   const pendingCount = requests?.length ?? 0

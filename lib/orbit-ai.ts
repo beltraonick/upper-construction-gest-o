@@ -23,7 +23,6 @@ export async function buildCompanyContext(companyId: string): Promise<string> {
       { data: changeOrders },
       { count: completedThisWeek },
       { count: photoCount },
-      { count: reportCount },
       { count: pendingRequests },
     ] = await Promise.all([
       // All projects regardless of status — not just active ones — so the
@@ -37,7 +36,6 @@ export async function buildCompanyContext(companyId: string): Promise<string> {
       supabase.from('change_orders').select('title, amount, status, project:project_id(name)').eq('company_id', companyId).order('created_at', { ascending: false }).limit(10),
       supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'completed').gte('updated_at', weekStart.toISOString()),
       supabase.from('project_photos').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
-      supabase.from('reports').select('id', { count: 'exact', head: true }).eq('company_id', companyId),
       supabase.from('membership_requests').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('status', 'pending'),
     ])
 
@@ -84,7 +82,6 @@ PAYROLL:
 
 OTHER:
 - Photos uploaded: ${photoCount ?? 0}
-- Reports generated: ${reportCount ?? 0}
 - Pending signup/join requests awaiting approval: ${pendingRequests ?? 0}
 `
   } catch {
