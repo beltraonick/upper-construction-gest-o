@@ -17,8 +17,17 @@ interface CompanyRow {
   name: string
   subscription_status: string
   months_overdue: number | null
+  trial_ends_at: string | null
   created_at: string
   plan: { name: string; price_cents: number; project_limit: number | null } | null
+}
+
+function ChevronRight() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0">
+      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+    </svg>
+  )
 }
 
 interface ActivityRow {
@@ -48,7 +57,7 @@ export default async function OwnerDashboardPage() {
       const [{ data: companyRows }, { data: profileRows }, { data: projectRows }, { data: activityRows }] = await Promise.all([
         supabase
           .from('companies')
-          .select('id, name, subscription_status, months_overdue, created_at, plan:plan_id(name, price_cents, project_limit)')
+          .select('id, name, subscription_status, months_overdue, trial_ends_at, created_at, plan:plan_id(name, price_cents, project_limit)')
           .order('created_at', { ascending: false }),
         supabase.from('profiles').select('company_id, role'),
         supabase.from('projects').select('company_id'),
@@ -157,6 +166,16 @@ export default async function OwnerDashboardPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-primary truncate">{c.name}</p>
                       {statusBadge(c.subscription_status, locale)}
+                      {c.subscription_status === 'trialing' && c.trial_ends_at && (() => {
+                        const daysLeft = Math.ceil((new Date(c.trial_ends_at as string).getTime() - Date.now()) / 86400000)
+                        return (
+                          <Badge variant={daysLeft <= 3 ? 'amber' : 'gray'}>
+                            {daysLeft > 0
+                              ? `${daysLeft} ${t(locale, daysLeft === 1 ? 'owner.dashboard.trialDaySingular' : 'owner.dashboard.trialDayPlural')}`
+                              : t(locale, 'owner.dashboard.trialExpiredBadge')}
+                          </Badge>
+                        )
+                      })()}
                       {flaggedOverdue && (
                         <Badge variant="red">
                           {overdue > 0
@@ -178,9 +197,10 @@ export default async function OwnerDashboardPage() {
                       {c.plan?.project_limit != null ? ` / ${c.plan.project_limit}` : ''}
                     </span>
                   </div>
-                  <p className="text-xs text-tertiary w-full sm:w-auto">
+                  <p className="text-xs text-tertiary">
                     {t(locale, 'owner.dashboard.since')} {new Date(c.created_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric', year: 'numeric' })}
                   </p>
+                  <ChevronRight />
                 </Link>
               )
             })}
