@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getCurrentUser } from '@/lib/auth/session'
+import { getCurrentUser, getImpersonatorToken } from '@/lib/auth/session'
+import { touchAccess } from '@/lib/auth/access'
 import { LogoutForm } from '@/components/LogoutForm'
 import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
@@ -8,7 +9,7 @@ import { t } from '@/lib/i18n/translate'
 import { ClientNav } from './ClientNav'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
-export default function ClientLayout({ children }: { children: React.ReactNode }) {
+export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
 
   if (!user) redirect('/login')
@@ -18,6 +19,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     if (user.role === 'owner') redirect('/owner/dashboard')
     redirect('/home')
   }
+
+  if (!getImpersonatorToken()) await touchAccess(user.id, user.company_id)
 
   return (
     <LocaleProvider locale={user.language}>

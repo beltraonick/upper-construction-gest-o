@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth/session'
+import { getCurrentUser, getImpersonatorToken } from '@/lib/auth/session'
+import { touchAccess } from '@/lib/auth/access'
 import { createClient } from '@/lib/supabase/server'
 import { EmployeeNav } from './EmployeeNav'
 import { CompanyProvider } from '@/lib/company-context'
@@ -21,6 +22,8 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
   if (user.role === 'admin') redirect('/admin/dashboard')
   if (user.role === 'client') redirect('/client')
   if (user.role === 'owner') redirect('/owner/dashboard')
+
+  if (!getImpersonatorToken()) await touchAccess(user.id, user.company_id)
 
   let permissions: EmployeePermissions = {}
   if (supabaseReady) {

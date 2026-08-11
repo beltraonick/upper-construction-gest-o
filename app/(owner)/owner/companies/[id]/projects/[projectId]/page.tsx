@@ -7,6 +7,17 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 
 const DATE_LOCALE: Record<string, string> = { en: 'en-US', pt: 'pt-BR', es: 'es-ES' }
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+
+function photoUrl(path: string) {
+  return `${SUPABASE_URL}/storage/v1/object/public/project-photos/${path}`
+}
+
+function photoTagVariant(tag: string): 'green' | 'blue' | 'gray' {
+  if (tag === 'before') return 'gray'
+  if (tag === 'after') return 'green'
+  return 'blue'
+}
 
 function projectStatusVariant(status: string): 'green' | 'blue' | 'gray' | 'amber' {
   if (status === 'active') return 'green'
@@ -29,7 +40,7 @@ export default async function OwnerProjectDetailPage({ params }: { params: { id:
   const locale = user.language
   const supabase = createClient()
 
-  const [{ data: project }, { data: tasks }, { count: photoCount }, { count: reportCount }] = await Promise.all([
+  const [{ data: project }, { data: tasks }, { data: photos }] = await Promise.all([
     supabase
       .from('projects')
       .select('id, name, status, progress, address, client_name, client_email, client_phone, budget, start_date, created_at, company:company_id(name)')
@@ -41,8 +52,12 @@ export default async function OwnerProjectDetailPage({ params }: { params: { id:
       .select('id, title, status, priority, assigned_employee:assigned_to(full_name)')
       .eq('project_id', params.projectId)
       .order('created_at', { ascending: false }),
-    supabase.from('project_photos').select('id', { count: 'exact', head: true }).eq('project_id', params.projectId),
-    supabase.from('reports').select('id', { count: 'exact', head: true }).eq('project_id', params.projectId),
+    supabase
+      .from('project_photos')
+      .select('id, storage_path, tag, caption, created_at')
+      .eq('project_id', params.projectId)
+      .order('created_at', { ascending: false })
+      .limit(60),
   ])
 
   const backHref = `/owner/companies/${params.id}`
@@ -102,10 +117,33 @@ export default async function OwnerProjectDetailPage({ params }: { params: { id:
             </div>
           )}
         </div>
-        <div className="flex gap-4 mt-4 pt-4 border-t border-[var(--border)] text-xs text-secondary">
-          <span>{photoCount ?? 0} {t(locale, 'owner.projectDetail.photosCount')}</span>
-          <span>{reportCount ?? 0} {t(locale, 'owner.projectDetail.reportsCount')}</span>
-        </div>
+      </Card>
+
+      <Card padding="none" className="mb-6">
+        <h2 className="text-sm font-semibold text-primary px-5 pt-4 pb-3">
+          {photos?.length ?? 0} {t(locale, 'owner.projectDetail.photosCount')}
+        </h2>
+        {!photos || photos.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-secondary text-center">{t(locale, 'owner.projectDetail.noPhotos')}</p>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 px-5 pb-5">
+            {photos.map(photo => (
+              <a
+                key={photo.id}
+                href={photoUrl(photo.storage_path)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative aspect-square rounded-input overflow-hidden bg-surface-elevated border border-[var(--border)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl(photo.storage_path)} alt={photo.caption ?? photo.tag} className="w-full h-full object-cover group-hover:opacity-90 transition-opacity" />
+                <span className="absolute bottom-1 left-1">
+                  <Badge variant={photoTagVariant(photo.tag)} className="text-[9px] px-1.5 py-0">{photo.tag}</Badge>
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card padding="none">
