@@ -8,8 +8,14 @@ import { Badge } from '@/components/ui/Badge'
 import { subscriptionStatusKey, subscriptionStatusVariant } from '@/lib/owner-status'
 import { BillingForm } from './BillingForm'
 import { PeopleTable } from './PeopleTable'
+import { PhotoThumb } from './PhotoThumb'
 
 const DATE_LOCALE: Record<string, string> = { en: 'en-US', pt: 'pt-BR', es: 'es-ES' }
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+
+function photoUrl(path: string) {
+  return `${SUPABASE_URL}/storage/v1/object/public/project-photos/${path}`
+}
 
 function projectStatusVariant(status: string): 'green' | 'blue' | 'gray' | 'amber' {
   if (status === 'active') return 'green'
@@ -37,7 +43,16 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
 
-  const [{ data: company }, { data: people }, { data: projects }, { data: plans }, { data: pendingRequests }, { data: monthLogins }] = await Promise.all([
+  const [
+    { data: company },
+    { data: people },
+    { data: projects },
+    { data: plans },
+    { data: pendingRequests },
+    { data: monthLogins },
+    { data: allTasks },
+    { data: allPhotos },
+  ] = await Promise.all([
     supabase
       .from('companies')
       .select('id, name, subscription_status, months_overdue, trial_ends_at, owner_notes, created_at, plan_id, plan:plan_id(name, price_cents, project_limit)')
@@ -51,7 +66,7 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
       .order('full_name'),
     supabase
       .from('projects')
-      .select('id, name, status, progress, created_at')
+      .select('id, name, status, progress, client_name, created_at')
       .eq('company_id', params.id)
       .order('created_at', { ascending: false }),
     supabase.from('plans').select('id, name, price_cents').order('price_cents'),
@@ -66,11 +81,32 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
       .select('profile_id')
       .eq('company_id', params.id)
       .gte('created_at', monthStart.toISOString()),
+    // Fetched once for the whole company and bucketed below, so each
+    // project row can show its own task/photo summary without making
+    // the admin click into every single project just to see the basics.
+    supabase.from('tasks').select('project_id, status').eq('company_id', params.id),
+    supabase.from('project_photos').select('project_id, storage_path').eq('company_id', params.id).order('created_at', { ascending: false }),
   ])
 
   const accessesThisMonth: Record<string, number> = {}
   for (const row of monthLogins ?? []) {
     accessesThisMonth[row.profile_id] = (accessesThisMonth[row.profile_id] ?? 0) + 1
+  }
+
+  const projectSummaries = new Map<string, { taskTotal: number; taskDone: number; photoPaths: string[]; photoCount: number }>()
+  for (const t of allTasks ?? []) {
+    if (!t.project_id) continue
+    const s = projectSummaries.get(t.project_id) ?? { taskTotal: 0, taskDone: 0, photoPaths: [], photoCount: 0 }
+    s.taskTotal++
+    if (t.status === 'completed') s.taskDone++
+    projectSummaries.set(t.project_id, s)
+  }
+  for (const p of allPhotos ?? []) {
+    if (!p.project_id) continue
+    const s = projectSummaries.get(p.project_id) ?? { taskTotal: 0, taskDone: 0, photoPaths: [], photoCount: 0 }
+    s.photoCount++
+    if (s.photoPaths.length < 3) s.photoPaths.push(p.storage_path)
+    projectSummaries.set(p.project_id, s)
   }
 
   if (!company) {
@@ -157,21 +193,47 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
           <p className="px-5 py-8 text-sm text-secondary text-center">{t(locale, 'owner.companyDetail.noProjects')}</p>
         ) : (
           <div className="divide-y divide-[var(--border)]">
-            {projects.map(p => (
-              <Link
-                key={p.id}
-                href={`/owner/companies/${company.id}/projects/${p.id}`}
-                className="flex items-center gap-3 px-5 py-3.5 flex-wrap hover:bg-surface-elevated transition-colors"
-              >
-                <p className="flex-1 min-w-[160px] text-sm font-medium text-primary truncate">{p.name}</p>
-                <Badge variant={projectStatusVariant(p.status)}>{p.status}</Badge>
-                <span className="text-xs text-secondary w-24">{p.progress ?? 0}%</span>
-                <span className="text-xs text-tertiary">
-                  {new Date(p.created_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-                <ChevronRight />
-              </Link>
-            ))}
+            {projects.map(p => {
+              const summary = projectSummaries.get(p.id) ?? { taskTotal: 0, taskDone: 0, photoPaths: [], photoCount: 0 }
+              return (
+                <Link
+                  key={p.id}
+                  href={`/owner/companies/${company.id}/projects/${p.id}`}
+                  className="flex items-center gap-3 px-5 py-3.5 flex-wrap hover:bg-surface-elevated transition-colors"
+                >
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-primary truncate">{p.name}</p>
+                      <Badge variant={projectStatusVariant(p.status)}>{p.status}</Badge>
+                    </div>
+                    <p className="text-xs text-secondary mt-0.5">
+                      {p.client_name ? `${p.client_name} · ` : ''}
+                      {summary.taskTotal > 0
+                        ? `${summary.taskDone}/${summary.taskTotal} ${t(locale, 'owner.companyDetail.tasksInline')}`
+                        : t(locale, 'owner.companyDetail.noTasksInline')}
+                      {summary.photoCount > 0 ? ` · ${summary.photoCount} ${t(locale, 'owner.dashboard.photoInline')}` : ''}
+                    </p>
+                  </div>
+                  {summary.photoPaths.length > 0 && (
+                    <div className="flex -space-x-2">
+                      {summary.photoPaths.map((path, i) => (
+                        <PhotoThumb
+                          key={i}
+                          src={photoUrl(path)}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover border-2 border-surface"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <span className="text-xs text-secondary w-14 text-right">{p.progress ?? 0}%</span>
+                  <span className="text-xs text-tertiary">
+                    {new Date(p.created_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                  <ChevronRight />
+                </Link>
+              )
+            })}
           </div>
         )}
       </Card>
