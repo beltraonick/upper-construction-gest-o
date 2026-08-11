@@ -35,13 +35,21 @@ export async function signupCompany(data: {
 
   const { data: plan } = await supabase.from('plans').select('id').eq('key', data.plan_key).maybeSingle()
 
+  // Free needs no payment, so there's nothing to "trial" — it's active
+  // from day one. Paid plans start a real 14-day trial with a real end
+  // date, instead of sitting in an indefinite "trialing" limbo that only
+  // the owner can ever resolve by hand.
+  const isFree = data.plan_key === 'free'
+  const trialEndsAt = isFree ? null : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+
   const { data: company, error: companyErr } = await supabase
     .from('companies')
     .insert({
       name: data.company_name.trim(),
       language: data.language,
       plan_id: plan?.id ?? null,
-      subscription_status: 'trialing',
+      subscription_status: isFree ? 'active' : 'trialing',
+      trial_ends_at: trialEndsAt,
       billing_email: email,
     })
     .select('id')

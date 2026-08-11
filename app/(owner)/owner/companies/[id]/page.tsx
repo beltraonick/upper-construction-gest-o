@@ -18,6 +18,14 @@ function projectStatusVariant(status: string): 'green' | 'blue' | 'gray' | 'ambe
   return 'gray'
 }
 
+function ChevronRight() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-tertiary flex-shrink-0">
+      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
 export default async function OwnerCompanyDetailPage({ params }: { params: { id: string } }) {
   const user = getCurrentUser()
   if (!user || user.role !== 'owner') redirect('/login')
@@ -32,7 +40,7 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
   const [{ data: company }, { data: people }, { data: projects }, { data: plans }, { data: pendingRequests }, { data: monthLogins }] = await Promise.all([
     supabase
       .from('companies')
-      .select('id, name, subscription_status, months_overdue, owner_notes, created_at, plan_id, plan:plan_id(name, price_cents, project_limit)')
+      .select('id, name, subscription_status, months_overdue, trial_ends_at, owner_notes, created_at, plan_id, plan:plan_id(name, price_cents, project_limit)')
       .eq('id', params.id)
       .maybeSingle(),
     supabase
@@ -89,6 +97,16 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
         <Badge variant={subscriptionStatusVariant(company.subscription_status)}>
           {t(locale, subscriptionStatusKey(company.subscription_status))}
         </Badge>
+        {company.subscription_status === 'trialing' && company.trial_ends_at && (() => {
+          const daysLeft = Math.ceil((new Date(company.trial_ends_at).getTime() - Date.now()) / 86400000)
+          return (
+            <Badge variant={daysLeft <= 3 ? 'amber' : 'gray'}>
+              {daysLeft > 0
+                ? `${daysLeft} ${t(locale, daysLeft === 1 ? 'owner.dashboard.trialDaySingular' : 'owner.dashboard.trialDayPlural')}`
+                : t(locale, 'owner.dashboard.trialExpiredBadge')}
+            </Badge>
+          )
+        })()}
         <Badge variant="gray">
           {plan ? `${plan.name} · $${(plan.price_cents / 100).toFixed(0)}/mo` : t(locale, 'owner.dashboard.noPlan')}
         </Badge>
@@ -151,6 +169,7 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
                 <span className="text-xs text-tertiary">
                   {new Date(p.created_at).toLocaleDateString(DATE_LOCALE[locale], { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
+                <ChevronRight />
               </Link>
             ))}
           </div>
