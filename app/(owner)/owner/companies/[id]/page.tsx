@@ -49,7 +49,7 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
     { data: projects },
     { data: plans },
     { data: pendingRequests },
-    { data: monthLogins },
+    { data: recentLogins },
     { data: allTasks },
     { data: allPhotos },
   ] = await Promise.all([
@@ -76,11 +76,15 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
       .eq('company_id', params.id)
       .eq('status', 'pending')
       .order('created_at', { ascending: false }),
+    // Fetched once (most recent first) and used both to count this
+    // month's accesses and to show each person's last few real access
+    // times — not just a single "last login" timestamp.
     supabase
       .from('login_events')
-      .select('profile_id')
+      .select('profile_id, created_at')
       .eq('company_id', params.id)
-      .gte('created_at', monthStart.toISOString()),
+      .order('created_at', { ascending: false })
+      .limit(300),
     // Fetched once for the whole company and bucketed below, so each
     // project row can show its own task/photo summary without making
     // the admin click into every single project just to see the basics.
@@ -89,8 +93,13 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
   ])
 
   const accessesThisMonth: Record<string, number> = {}
-  for (const row of monthLogins ?? []) {
-    accessesThisMonth[row.profile_id] = (accessesThisMonth[row.profile_id] ?? 0) + 1
+  const accessHistory: Record<string, string[]> = {}
+  for (const row of recentLogins ?? []) {
+    if (new Date(row.created_at) >= monthStart) {
+      accessesThisMonth[row.profile_id] = (accessesThisMonth[row.profile_id] ?? 0) + 1
+    }
+    const history = accessHistory[row.profile_id] ?? (accessHistory[row.profile_id] = [])
+    if (history.length < 5) history.push(row.created_at)
   }
 
   const projectSummaries = new Map<string, { taskTotal: number; taskDone: number; photoPaths: string[]; photoCount: number }>()
@@ -184,7 +193,7 @@ export default async function OwnerCompanyDetailPage({ params }: { params: { id:
 
       <Card padding="none" className="mb-6">
         <h2 className="text-sm font-semibold text-primary px-5 pt-4 pb-3">{t(locale, 'owner.companyDetail.peopleTitle')}</h2>
-        <PeopleTable people={people ?? []} accessesThisMonth={accessesThisMonth} />
+        <PeopleTable people={people ?? []} accessesThisMonth={accessesThisMonth} accessHistory={accessHistory} />
       </Card>
 
       <Card padding="none">
