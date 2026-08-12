@@ -26,7 +26,30 @@ function statusBadge(status: string) {
   return <Badge variant="amber">{status}</Badge>
 }
 
-function PersonRow({ person, locale, t, accessesThisMonth }: { person: Person; locale: string; t: (key: string) => string; accessesThisMonth: number }) {
+// "3 days ago" style label so the owner doesn't have to do date math —
+// the exact timestamp is still shown alongside it for precision.
+function relativeTime(iso: string, t: (key: string) => string): string {
+  const diffDays = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+  if (diffDays <= 0) return t('owner.companyDetail.today')
+  if (diffDays === 1) return t('owner.companyDetail.yesterday')
+  if (diffDays < 30) return `${diffDays} ${t('owner.companyDetail.daysAgo')}`
+  const months = Math.floor(diffDays / 30)
+  return `${months} ${months === 1 ? t('owner.companyDetail.monthAgo') : t('owner.companyDetail.monthsAgo')}`
+}
+
+function PersonRow({
+  person,
+  locale,
+  t,
+  accessesThisMonth,
+  accessHistory,
+}: {
+  person: Person
+  locale: string
+  t: (key: string) => string
+  accessesThisMonth: number
+  accessHistory: string[]
+}) {
   const router = useRouter()
   const [authStatus, setAuthStatus] = useState(person.auth_status)
   const [resetting, setResetting] = useState(false)
@@ -36,6 +59,7 @@ function PersonRow({ person, locale, t, accessesThisMonth }: { person: Person; l
   const [error, setError] = useState('')
   const [impersonating, setImpersonating] = useState(false)
   const [togglingStatus, setTogglingStatus] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   async function handleReset() {
     if (password.length < 8) {
@@ -92,14 +116,27 @@ function PersonRow({ person, locale, t, accessesThisMonth }: { person: Person; l
         </div>
         <Badge variant="gray">{person.role}</Badge>
         {statusBadge(authStatus)}
-        <div className="text-right">
-          <p className="text-xs text-tertiary">
-            {person.last_login_at
-              ? new Date(person.last_login_at).toLocaleDateString(DATE_LOCALE[locale] ?? 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-              : t('owner.companyDetail.never')}
+        <button
+          type="button"
+          onClick={() => setShowHistory(h => !h)}
+          disabled={accessHistory.length === 0}
+          className="text-right disabled:cursor-default"
+        >
+          {person.last_login_at ? (
+            <>
+              <p className="text-xs text-secondary font-medium">{relativeTime(person.last_login_at, t)}</p>
+              <p className="text-[10px] text-tertiary">
+                {new Date(person.last_login_at).toLocaleDateString(DATE_LOCALE[locale] ?? 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-tertiary">{t('owner.companyDetail.never')}</p>
+          )}
+          <p className="text-[10px] text-tertiary">
+            {accessesThisMonth} {t('owner.companyDetail.accessesThisMonth')}
+            {accessHistory.length > 0 && (showHistory ? ' ▲' : ' ▼')}
           </p>
-          <p className="text-[10px] text-tertiary">{accessesThisMonth} {t('owner.companyDetail.accessesThisMonth')}</p>
-        </div>
+        </button>
         <div className="flex gap-2 flex-wrap justify-end">
           <button
             onClick={handleToggleStatus}
@@ -129,6 +166,17 @@ function PersonRow({ person, locale, t, accessesThisMonth }: { person: Person; l
         </div>
       </div>
 
+      {showHistory && accessHistory.length > 0 && (
+        <div className="pl-0 sm:pl-[calc(160px+0.75rem)] flex flex-wrap gap-x-4 gap-y-1">
+          <span className="text-[10px] text-tertiary uppercase tracking-wide w-full">{t('owner.companyDetail.recentAccesses')}</span>
+          {accessHistory.map((iso, i) => (
+            <span key={i} className="text-xs text-secondary">
+              {new Date(iso).toLocaleDateString(DATE_LOCALE[locale] ?? 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </span>
+          ))}
+        </div>
+      )}
+
       {resetting && (
         <div className="flex items-center gap-2 pl-0 sm:pl-[calc(160px+0.75rem)]">
           <input
@@ -153,7 +201,15 @@ function PersonRow({ person, locale, t, accessesThisMonth }: { person: Person; l
   )
 }
 
-export function PeopleTable({ people, accessesThisMonth }: { people: Person[]; accessesThisMonth: Record<string, number> }) {
+export function PeopleTable({
+  people,
+  accessesThisMonth,
+  accessHistory,
+}: {
+  people: Person[]
+  accessesThisMonth: Record<string, number>
+  accessHistory: Record<string, string[]>
+}) {
   const { t, locale } = useTranslation()
 
   if (people.length === 0) {
@@ -163,7 +219,14 @@ export function PeopleTable({ people, accessesThisMonth }: { people: Person[]; a
   return (
     <div className="divide-y divide-[var(--border)]">
       {people.map(p => (
-        <PersonRow key={p.id} person={p} locale={locale} t={t} accessesThisMonth={accessesThisMonth[p.id] ?? 0} />
+        <PersonRow
+          key={p.id}
+          person={p}
+          locale={locale}
+          t={t}
+          accessesThisMonth={accessesThisMonth[p.id] ?? 0}
+          accessHistory={accessHistory[p.id] ?? []}
+        />
       ))}
     </div>
   )
