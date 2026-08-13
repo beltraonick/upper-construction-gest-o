@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/session'
 import { getValidAccessToken, createTimeActivity } from '@/lib/qbo/client'
 import type { QBOConnection, QBOTimeActivityPayload } from '@/lib/qbo/types'
 
@@ -22,7 +23,12 @@ function toQBOTime(iso: string) {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { time_entry_id?: string; company_id?: string } = {}
+  const user = await getCurrentUser()
+  if (!user || !user.company_id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  let body: { time_entry_id?: string } = {}
   try {
     body = await req.json()
   } catch {
@@ -46,6 +52,11 @@ export async function POST(req: NextRequest) {
 
   if (entryErr || !entry) {
     return NextResponse.json({ error: 'Time entry not found' }, { status: 404 })
+  }
+
+  // Ensure the entry belongs to the caller's company
+  if (entry.company_id !== user.company_id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
   if (!entry.clock_out) {
