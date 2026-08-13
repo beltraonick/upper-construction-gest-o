@@ -127,6 +127,12 @@ export function ClockButtons({ employeeId, companyId, openEntryId, clockInTime }
       const supabase = createClient()
       const { error } = await supabase.from('time_entries').update(payload).eq('id', localEntryId)
       if (error) throw error
+      // Fire-and-forget QBO sync — never blocks clock out, never surfaces errors to the employee
+      fetch('/api/qbo/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time_entry_id: localEntryId }),
+      }).catch(() => {})
     } catch (err) {
       await queueIfOffline({ table: 'time_entries', type: 'update', match: { id: localEntryId }, payload }, err)
     }
