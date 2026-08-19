@@ -61,6 +61,16 @@ export default async function ClientPortalPage() {
 
   let totalHoursThisWeek = 0
 
+  let clientTasks: {
+    id: string
+    title: string
+    status: string
+    area: string | null
+    due_date: string | null
+    checklist: { text: string; done: boolean }[]
+    project_id: string | null
+  }[] = []
+
   if (supabaseReady) {
     try {
       const supabase = createClient()
@@ -106,6 +116,15 @@ export default async function ClientPortalPage() {
       recentPhotos = (photos ?? []) as typeof recentPhotos
       rooms = (roomRows ?? []) as typeof rooms
       roomTasks = (taskRows ?? []) as typeof roomTasks
+
+      if (projectIds.length > 0) {
+        const { data: taskFull } = await supabase
+          .from('tasks')
+          .select('id, title, status, area, due_date, checklist, project_id')
+          .in('project_id', projectIds)
+          .order('created_at', { ascending: false })
+        clientTasks = (taskFull ?? []) as typeof clientTasks
+      }
       totalHoursThisWeek = (weekEntries ?? []).reduce((sum, e) => {
         return sum + (new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) / 3600000
       }, 0)
@@ -217,6 +236,63 @@ export default async function ClientPortalPage() {
           ))}
         </div>
       </div>
+
+      {/* Tasks per project */}
+      {clientTasks.length > 0 && projects.map(p => {
+        const pTasks = clientTasks.filter(t => t.project_id === p.id)
+        if (pTasks.length === 0) return null
+        return (
+          <div key={p.id} className="mb-8">
+            <h2 className="text-sm font-semibold text-primary mb-3">
+              {p.name} — {t(locale, 'client.overview.tasks')}
+            </h2>
+            <Card padding="none">
+              <div className="divide-y divide-[var(--border)]">
+                {pTasks.map(task => {
+                  const doneItems = (task.checklist ?? []).filter((c: { done: boolean }) => c.done).length
+                  const totalItems = (task.checklist ?? []).length
+                  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
+                  return (
+                    <div key={task.id} className="px-4 py-3 flex items-start gap-3">
+                      <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                        task.status === 'completed' ? 'bg-green' :
+                        task.status === 'in_progress' ? 'bg-amber' : 'bg-tertiary/40'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${task.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
+                          {task.title}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className={`text-[11px] ${
+                            task.status === 'completed' ? 'text-green' :
+                            task.status === 'in_progress' ? 'text-amber' : 'text-secondary'
+                          }`}>
+                            {task.status === 'completed' ? t(locale, 'client.overview.done') :
+                             task.status === 'in_progress' ? t(locale, 'client.overview.inProgress') :
+                             t(locale, 'client.overview.notStarted')}
+                          </span>
+                          {task.area && <span className="text-[11px] text-tertiary">{task.area}</span>}
+                          {totalItems > 0 && (
+                            <span className="text-[11px] text-tertiary">{doneItems}/{totalItems}</span>
+                          )}
+                          {task.due_date && (
+                            <span className={`text-[11px] ${isOverdue ? 'text-danger font-medium' : 'text-tertiary'}`}>
+                              {new Date(task.due_date + 'T00:00:00').toLocaleDateString(
+                                locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US',
+                                { month: 'short', day: 'numeric' }
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Card>
+          </div>
+        )
+      })}
 
       {/* Floor plan */}
       {plan && (

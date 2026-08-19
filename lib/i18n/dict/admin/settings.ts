@@ -25,6 +25,8 @@ export const settings = {
     companyName: 'Company Name',
     defaultHourlyRate: 'Default Hourly Rate ($)',
     saveChangesComingSoon: 'Save Changes (coming soon)',
+    saveChanges: 'Save Changes',
+    settingsSaved: 'Settings saved!',
   },
   pt: {
     title: 'Configurações',
@@ -52,6 +54,8 @@ export const settings = {
     companyName: 'Nome da Empresa',
     defaultHourlyRate: 'Valor Padrão por Hora ($)',
     saveChangesComingSoon: 'Salvar Alterações (em breve)',
+    saveChanges: 'Salvar Alterações',
+    settingsSaved: 'Configurações salvas!',
   },
   es: {
     title: 'Configuración',
@@ -79,5 +83,7 @@ export const settings = {
     companyName: 'Nombre de la Empresa',
     defaultHourlyRate: 'Tarifa Predeterminada por Hora ($)',
     saveChangesComingSoon: 'Guardar Cambios (próximamente)',
+    saveChanges: 'Guardar Cambios',
+    settingsSaved: '¡Configuración guardada!',
   },
 }

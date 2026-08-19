@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/Badge'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
 import { PhotoPicker } from '@/components/ui/PhotoPicker'
 import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
+import { queuePhoto } from '@/lib/offline-photo-queue'
+import { useOfflinePhotoSync } from '@/lib/useOfflinePhotoSync'
 
 interface ChecklistItem { text: string; done: boolean }
 
@@ -75,6 +77,7 @@ const BLANK = {
 export default function TasksPage() {
   const { t } = useTranslation()
   const companyId = useCompanyId()
+  useOfflinePhotoSync(companyId)
   const [tasks, setTasks] = useState<Task[]>([])
   const [employees, setEmployees] = useState<Profile[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -124,7 +127,11 @@ export default function TasksPage() {
     setLoading(false)
   }, [companyId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    const interval = setInterval(load, 30_000)
+    return () => clearInterval(interval)
+  }, [load])
 
   function openAdd(presetProjectId?: string) {
     setEditing(null)
@@ -250,16 +257,30 @@ export default function TasksPage() {
       for (const file of newPhotoFiles) {
         const ext = file.name.split('.').pop() ?? 'jpg'
         const path = `tasks/${savedTaskId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-        const { error: upErr } = await supabase.storage.from('task-photos').upload(path, file, { upsert: false })
-        if (!upErr) {
-          const { error: mediaErr } = await supabase.from('task_media').insert({
-            task_id: savedTaskId,
-            company_id: companyId,
-            storage_path: path,
-            media_type: 'photo',
-            photo_category: 'progress',
+        if (!navigator.onLine) {
+          const fileData = await file.arrayBuffer()
+          await queuePhoto({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            taskId: savedTaskId,
+            companyId,
+            fileName: file.name,
+            fileType: file.type,
+            fileData,
+            photoCategory: 'progress',
+            queuedAt: new Date().toISOString(),
           })
-          if (mediaErr) console.error('[task_media insert]', mediaErr.message)
+        } else {
+          const { error: upErr } = await supabase.storage.from('task-photos').upload(path, file, { upsert: false })
+          if (!upErr) {
+            const { error: mediaErr } = await supabase.from('task_media').insert({
+              task_id: savedTaskId,
+              company_id: companyId,
+              storage_path: path,
+              media_type: 'photo',
+              photo_category: 'progress',
+            })
+            if (mediaErr) console.error('[task_media insert]', mediaErr.message)
+          }
         }
       }
       setUploadingPhotos(false)
@@ -268,6 +289,11 @@ export default function TasksPage() {
 
     setSaving(false)
     setShowModal(false)
+    // Recalculate progress for the task's project
+    const projectId = form.project_id || editing?.project_id
+    if (projectId) {
+      await recalcProjectProgress(projectId)
+    }
     load()
   }
 
@@ -278,7 +304,25 @@ export default function TasksPage() {
       completed_at: status === 'completed' ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     }).eq('id', id)
+    // Recalculate progress for the task's project
+    const task = tasks.find(t => t.id === id)
+    if (task?.project_id) {
+      await recalcProjectProgress(task.project_id)
+    }
     load()
+  }
+
+  async function recalcProjectProgress(projectId: string) {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('tasks')
+      .select('status')
+      .eq('project_id', projectId)
+      .eq('company_id', companyId)
+    if (!data || data.length === 0) return
+    const completed = data.filter(t => t.status === 'completed').length
+    const progress = Math.round((completed / data.length) * 100)
+    await supabase.from('projects').update({ progress }).eq('id', projectId)
   }
 
   async function deleteTask(id: string) {
@@ -334,10 +378,11 @@ export default function TasksPage() {
     return (
       <div
         className={[
-          'group px-3 py-3 flex items-start gap-2.5 rounded-button transition-colors',
+          'group px-3 py-3 flex items-start gap-2.5 rounded-button transition-colors cursor-pointer',
           task.label_color ? '' : 'hover:bg-surface-elevated/70',
         ].join(' ')}
         style={task.label_color ? { backgroundColor: task.label_color + '18' } : undefined}
+        onClick={() => openEdit(task)}
       >
         <div
           className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${task.label_color ? '' : (PRIORITY_DOT[task.priority] ?? 'bg-secondary')}`}
@@ -374,18 +419,18 @@ export default function TasksPage() {
         <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           {task.status === 'pending' && (
             <button
-              onClick={() => quickStatus(task.id, 'in_progress')}
+              onClick={e => { e.stopPropagation(); quickStatus(task.id, 'in_progress') }}
               className="text-[10px] px-1.5 py-0.5 rounded bg-amber/10 text-amber hover:bg-amber/20 transition-colors"
             >{t('admin.tasks.start')}</button>
           )}
           {task.status === 'in_progress' && (
             <button
-              onClick={() => quickStatus(task.id, 'completed')}
+              onClick={e => { e.stopPropagation(); quickStatus(task.id, 'completed') }}
               className="text-[10px] px-1.5 py-0.5 rounded bg-green/10 text-green hover:bg-green/20 transition-colors"
             >{t('admin.tasks.complete')}</button>
           )}
           <button
-            onClick={() => openEdit(task)}
+            onClick={e => { e.stopPropagation(); openEdit(task) }}
             className="p-1 rounded text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
           >
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
@@ -393,7 +438,7 @@ export default function TasksPage() {
             </svg>
           </button>
           <button
-            onClick={() => deleteTask(task.id)}
+            onClick={e => { e.stopPropagation(); deleteTask(task.id) }}
             className="p-1 rounded text-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
           >
             <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
@@ -415,7 +460,15 @@ export default function TasksPage() {
             {t('admin.tasks.summary').replace('{n}', String(counts.pending)).replace('{m}', String(counts.in_progress)).replace('{k}', String(counts.completed))}
           </p>
         </div>
-        <Button onClick={() => openAdd()}>{t('admin.tasks.addTask')}</Button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/admin/reports/task-report"
+            className="px-3 py-2 rounded-button border border-[var(--border)] text-xs font-medium text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
+          >
+            Exportar PDF
+          </a>
+          <Button onClick={() => openAdd()}>{t('admin.tasks.addTask')}</Button>
+        </div>
       </div>
 
       {/* Summary chips */}

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { getCompanyInviteCode, regenerateInviteCode } from '@/app/actions/invites'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
+import { useCompanyId } from '@/lib/company-context'
+import { createClient } from '@/lib/supabase/client'
 
 const VERSION = '1.0.0'
 
@@ -343,10 +345,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function SettingsPage() {
   const { t } = useTranslation()
+  const companyId = useCompanyId()
   const [copied, setCopied] = useState('')
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [inviteLoading, setInviteLoading] = useState(true)
   const [inviteRegenerating, setInviteRegenerating] = useState(false)
+
+  // Company settings state
+  const [companyName, setCompanyName] = useState('')
+  const [defaultHourlyRate, setDefaultHourlyRate] = useState('')
+  const [companyLoading, setCompanyLoading] = useState(true)
+  const [companySaving, setCompanySaving] = useState(false)
+  const [companySaved, setCompanySaved] = useState(false)
 
   useEffect(() => {
     getCompanyInviteCode().then(res => {
@@ -354,6 +364,39 @@ export default function SettingsPage() {
       setInviteLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (!companyId) return
+    const supabase = createClient()
+    supabase
+      .from('companies')
+      .select('name, default_hourly_rate')
+      .eq('id', companyId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setCompanyName(data.name ?? '')
+          setDefaultHourlyRate(data.default_hourly_rate != null ? String(data.default_hourly_rate) : '')
+        }
+        setCompanyLoading(false)
+      })
+  }, [companyId])
+
+  async function handleSaveCompany(e: React.FormEvent) {
+    e.preventDefault()
+    setCompanySaving(true)
+    const supabase = createClient()
+    await supabase
+      .from('companies')
+      .update({
+        name: companyName,
+        default_hourly_rate: defaultHourlyRate ? Number(defaultHourlyRate) : 0,
+      })
+      .eq('id', companyId)
+    setCompanySaving(false)
+    setCompanySaved(true)
+    setTimeout(() => setCompanySaved(false), 2500)
+  }
 
   function copy(text: string, label: string) {
     navigator.clipboard.writeText(text).then(() => {
@@ -508,27 +551,47 @@ export default function SettingsPage() {
         <QBOIntegrationSection />
       </Section>
 
-      {/* Company settings (coming in next release) */}
+      {/* Company settings */}
       <Section title={t('admin.settings.sectionCompanySettings')}>
         <Card>
-          <div className="space-y-4">
-            <Input
-              label={t('admin.settings.companyName')}
-              defaultValue="Upper Construction"
-              disabled
-            />
-            <Input
-              label={t('admin.settings.defaultHourlyRate')}
-              type="number"
-              defaultValue="25"
-              disabled
-            />
-            <div className="pt-1">
-              <Button disabled variant="secondary">
-                {t('admin.settings.saveChangesComingSoon')}
+          <form onSubmit={handleSaveCompany} className="space-y-4">
+            {companyLoading ? (
+              <div className="space-y-3">
+                <div className="h-11 bg-surface-elevated rounded-input animate-pulse" />
+                <div className="h-11 bg-surface-elevated rounded-input animate-pulse" />
+              </div>
+            ) : (
+              <>
+                <Input
+                  label={t('admin.settings.companyName')}
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  required
+                />
+                <Input
+                  label={t('admin.settings.defaultHourlyRate')}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={defaultHourlyRate}
+                  onChange={e => setDefaultHourlyRate(e.target.value)}
+                />
+              </>
+            )}
+            <div className="pt-1 flex items-center gap-3">
+              <Button
+                type="submit"
+                variant="secondary"
+                loading={companySaving}
+                disabled={companyLoading || companySaving}
+              >
+                {t('admin.settings.saveChanges')}
               </Button>
+              {companySaved && (
+                <span className="text-xs text-green">{t('admin.settings.settingsSaved')}</span>
+              )}
             </div>
-          </div>
+          </form>
         </Card>
       </Section>
     </div>

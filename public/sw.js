@@ -1,4 +1,4 @@
-const CACHE = 'orbit-v2'
+const CACHE = 'orbit-v3'
 const OFFLINE_ASSETS = ['/', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', e => {
@@ -39,4 +39,27 @@ self.addEventListener('fetch', e => {
       }
     })()
   )
+})
+
+// Background sync: process queued photo uploads when connectivity returns
+self.addEventListener('sync', e => {
+  if (e.tag === 'photo-upload-queue') {
+    e.waitUntil(processPhotoQueue())
+  }
+})
+
+async function processPhotoQueue() {
+  // Notify all clients to run the sync — the actual upload logic
+  // lives in the app since it needs Supabase credentials from the session.
+  const clients = await self.clients.matchAll({ type: 'window' })
+  for (const client of clients) {
+    client.postMessage({ type: 'PROCESS_PHOTO_QUEUE' })
+  }
+}
+
+// Also trigger queue processing when the service worker receives a SYNC message
+self.addEventListener('message', e => {
+  if (e.data?.type === 'TRIGGER_SYNC') {
+    processPhotoQueue()
+  }
 })

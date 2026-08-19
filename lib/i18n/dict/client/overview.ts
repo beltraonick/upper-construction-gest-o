@@ -19,6 +19,7 @@ export const overview = {
     footer: 'Powered by OrbitOps · For questions contact your project manager',
     active: 'Active',
     onHold: 'On Hold',
+    tasks: 'Tasks',
   },
   pt: {
     welcomeBack: 'Bem-vindo de volta,',
@@ -40,6 +41,7 @@ export const overview = {
     footer: 'Desenvolvido por OrbitOps · Dúvidas? Fale com o responsável pelo projeto',
     active: 'Ativo',
     onHold: 'Em Espera',
+    tasks: 'Tarefas',
   },
   es: {
     welcomeBack: 'Bienvenido de nuevo,',
@@ -61,5 +63,6 @@ export const overview = {
     footer: 'Desarrollado por OrbitOps · Para preguntas contacta a tu gerente de proyecto',
     active: 'Activo',
     onHold: 'En Espera',
+    tasks: 'Tareas',
   },
 }

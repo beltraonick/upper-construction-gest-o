@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { PhotoPicker } from '@/components/ui/PhotoPicker'
 import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
+import { queuePhoto } from '@/lib/offline-photo-queue'
+import { useOfflinePhotoSync } from '@/lib/useOfflinePhotoSync'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -227,17 +229,32 @@ function TaskDrawer({
       for (const file of newFiles) {
         const ext = file.name.split('.').pop() ?? 'jpg'
         const path = `${companyId}/${savedTask.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-        const { error } = await supabase.storage.from('task-photos').upload(path, file, { contentType: file.type })
-        if (!error) {
-          await supabase.from('task_media').insert({
-            task_id: savedTask.id,
-            project_id: projectId,
-            company_id: companyId,
-            media_type: 'photo',
-            storage_path: path,
-            photo_category: 'progress',
-            uploaded_by_name: currentUser.name,
+        if (!navigator.onLine) {
+          // Queue for later upload when offline
+          const fileData = await file.arrayBuffer()
+          await queuePhoto({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            taskId: savedTask.id,
+            companyId,
+            fileName: file.name,
+            fileType: file.type,
+            fileData,
+            photoCategory: 'progress',
+            queuedAt: new Date().toISOString(),
           })
+        } else {
+          const { error } = await supabase.storage.from('task-photos').upload(path, file, { contentType: file.type })
+          if (!error) {
+            await supabase.from('task_media').insert({
+              task_id: savedTask.id,
+              project_id: projectId,
+              company_id: companyId,
+              media_type: 'photo',
+              storage_path: path,
+              photo_category: 'progress',
+              uploaded_by_name: currentUser.name,
+            })
+          }
         }
       }
       setUploading(false)
@@ -249,6 +266,14 @@ function TaskDrawer({
     setSaving(false)
     if (savedTask) {
       onUpdated(savedTask)
+    }
+    // Recalculate project progress based on task completion
+    const supabase2 = createClient()
+    const { data: allTasks } = await supabase2.from('tasks').select('status').eq('project_id', projectId).eq('company_id', companyId)
+    if (allTasks && allTasks.length > 0) {
+      const completed = allTasks.filter(t => t.status === 'completed').length
+      const progress = Math.round((completed / allTasks.length) * 100)
+      await supabase2.from('projects').update({ progress }).eq('id', projectId)
     }
   }
 
@@ -267,6 +292,15 @@ function TaskDrawer({
     const supabase = createClient()
     await supabase.from('tasks').delete().eq('id', task.id)
     onDeleted(task.id)
+    // Recalculate project progress
+    const { data: allTasks } = await supabase.from('tasks').select('status').eq('project_id', projectId).eq('company_id', companyId)
+    if (allTasks && allTasks.length > 0) {
+      const completed = allTasks.filter(t => t.status === 'completed').length
+      const progress = Math.round((completed / allTasks.length) * 100)
+      await supabase.from('projects').update({ progress }).eq('id', projectId)
+    } else if (allTasks?.length === 0) {
+      await supabase.from('projects').update({ progress: 0 }).eq('id', projectId)
+    }
   }
 
   function addCheckItem() {
@@ -922,6 +956,7 @@ export function KanbanBoard({
   employees: Profile[]
 }) {
   const { t } = useTranslation()
+  useOfflinePhotoSync(companyId)
   const [columns, setColumns] = useState<KanbanColumn[]>([])
   const [tasks, setTasks] = useState<KanbanTask[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
