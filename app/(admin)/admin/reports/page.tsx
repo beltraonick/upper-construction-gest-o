@@ -187,6 +187,12 @@ export default function ReportsPage() {
               </button>
             ))}
           </div>
+          <a
+            href="/admin/reports/task-report"
+            className="px-3 py-2 rounded-button border border-[var(--border)] text-xs font-medium text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
+          >
+            Relatório de Tarefas (PDF)
+          </a>
           <button
             onClick={printPage}
             className="px-3 py-2 rounded-button border border-[var(--border)] text-xs font-medium text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
