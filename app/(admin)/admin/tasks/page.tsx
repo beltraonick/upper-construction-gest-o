@@ -38,7 +38,7 @@ interface Task {
 }
 
 interface Profile { id: string; full_name: string }
-interface Project { id: string; name: string }
+interface Project { id: string; name: string; cover_image_path: string | null }
 interface Room { id: string; project_id: string; floor: string | null; label: string }
 
 const PRIORITY_DOT: Record<string, string> = {
@@ -126,7 +126,7 @@ export default function TasksPage() {
         .eq('company_id', companyId)
         .order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, full_name').eq('company_id', companyId).eq('auth_status', 'approved').order('full_name'),
-      supabase.from('projects').select('id, name').eq('company_id', companyId).order('name'),
+      supabase.from('projects').select('id, name, cover_image_path').eq('company_id', companyId).order('name'),
       supabase.from('project_rooms').select('id, project_id, floor, label').eq('company_id', companyId),
     ])
     setTasks((td ?? []) as unknown as Task[])
@@ -192,6 +192,10 @@ export default function TasksPage() {
 
   function editPhotoUrl(path: string) {
     return createClient().storage.from('task-photos').getPublicUrl(path).data.publicUrl
+  }
+
+  function projectCoverUrl(path: string) {
+    return createClient().storage.from('project-photos').getPublicUrl(path).data.publicUrl
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -673,7 +677,16 @@ export default function TasksPage() {
                     <div className="border-b border-[var(--border)]">
                       <div className="px-3 pt-3 pb-2 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-2 h-2 rounded-full bg-brand flex-shrink-0" />
+                          {project.cover_image_path ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={projectCoverUrl(project.cover_image_path)}
+                              alt=""
+                              className="w-5 h-5 rounded-full object-cover flex-shrink-0 ring-1 ring-[var(--border)]"
+                            />
+                          ) : (
+                            <div className="w-2 h-2 rounded-full bg-brand flex-shrink-0" />
+                          )}
                           <h3 className="text-xs font-semibold text-primary truncate">{project.name}</h3>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
