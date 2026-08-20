@@ -300,11 +300,11 @@ export default function TasksPage() {
 
     setSaving(false)
     setShowModal(false)
-    // Recalculate progress for the task's project
-    const projectId = form.project_id || editing?.project_id
-    if (projectId) {
-      await recalcProjectProgress(projectId)
-    }
+    // Recalculate progress — both the new project and the old one if the task was moved
+    const newProjectId = form.project_id || null
+    const oldProjectId = editing?.project_id || null
+    if (newProjectId) await recalcProjectProgress(newProjectId)
+    if (oldProjectId && oldProjectId !== newProjectId) await recalcProjectProgress(oldProjectId)
     load()
   }
 
@@ -363,8 +363,10 @@ export default function TasksPage() {
 
   async function deleteTask(id: string) {
     if (!confirm(t('admin.tasks.confirmDelete'))) return
+    const projectId = tasks.find(t => t.id === id)?.project_id ?? null
     const supabase = createClient()
     await supabase.from('tasks').delete().eq('id', id)
+    if (projectId) await recalcProjectProgress(projectId)
     load()
   }
 

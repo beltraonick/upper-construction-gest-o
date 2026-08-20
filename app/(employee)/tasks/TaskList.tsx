@@ -401,6 +401,7 @@ export function TaskList({
     }
     if (!confirm(t('employee.tasks.confirmComplete'))) return
     setSaving(true)
+    const projectId = selected?.project_id ?? null
     if (supabaseReady) {
       const update: Record<string, unknown> = {
         status: 'completed',
@@ -411,6 +412,19 @@ export function TaskList({
         const supabase = createClient()
         const { error } = await supabase.from('tasks').update(update).eq('id', taskId)
         if (error) throw error
+        // Recalculate project progress after completion
+        if (projectId && companyId) {
+          const { data: allTasks } = await supabase
+            .from('tasks')
+            .select('status')
+            .eq('project_id', projectId)
+            .eq('company_id', companyId)
+          if (allTasks && allTasks.length > 0) {
+            const completed = allTasks.filter(t => t.status === 'completed').length
+            const progress = Math.round((completed / allTasks.length) * 100)
+            await supabase.from('projects').update({ progress }).eq('id', projectId)
+          }
+        }
       } catch (err) {
         await queueIfOffline({ table: 'tasks', type: 'update', match: { id: taskId }, payload: update }, err)
       }

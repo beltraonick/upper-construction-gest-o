@@ -270,7 +270,6 @@ export default function ProjectDetailPage() {
       client_phone: editForm.client_phone || null,
       description: editForm.description || null,
       status: editForm.status,
-      progress: Number(editForm.progress) || 0,
       start_date: editForm.start_date || null,
       end_date: editForm.end_date || null,
     }
@@ -955,17 +954,10 @@ export default function ProjectDetailPage() {
                   onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
                 />
                 <div>
-                  <label className="block text-xs font-medium text-secondary mb-1">
-                    {t('admin.projectDetail.progressPercent').replace('{n}', String(editForm.progress ?? 0))}
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={editForm.progress ?? 0}
-                    onChange={e => setEditForm(f => ({ ...f, progress: e.target.value }))}
-                    className="w-full accent-brand"
-                  />
+                  <p className="text-xs font-medium text-secondary mb-1">
+                    {t('admin.projectDetail.progressPercent').replace('{n}', String(project.progress ?? 0))}
+                  </p>
+                  <p className="text-[11px] text-tertiary">{t('admin.projectDetail.progressAutoNote')}</p>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-1">{t('admin.projectDetail.description')}</label>
