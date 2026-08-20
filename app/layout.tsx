@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import './globals.css'
 import { ThemeProvider } from '@/lib/theme-context'
+import { SplashScreen } from '@/components/SplashScreen'
 
 export const metadata: Metadata = {
   title: 'OrbitOps',
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="icon" sizes="512x512" href="/icon-512.png" type="image/png" />
       </head>
       <body className="antialiased">
+        <SplashScreen />
         <ThemeProvider>
           {children}
         </ThemeProvider>
