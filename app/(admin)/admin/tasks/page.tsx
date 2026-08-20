@@ -96,6 +96,12 @@ export default function TasksPage() {
   const [bulkAssignProject, setBulkAssignProject] = useState<{ id: string; name: string } | null>(null)
   const [bulkAssignEmpId, setBulkAssignEmpId] = useState('')
   const [bulkAssigning, setBulkAssigning] = useState(false)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = useState<'assign' | 'delete' | 'move' | null>(null)
+  const [bulkTargetEmpId, setBulkTargetEmpId] = useState('')
+  const [bulkTargetProjectId, setBulkTargetProjectId] = useState('')
+  const [bulkOperating, setBulkOperating] = useState(false)
 
   const PRIORITY_OPTIONS = [
     { value: 'low', label: t('common.priority.low') },
@@ -370,6 +376,71 @@ export default function TasksPage() {
     load()
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds)
+    if (!ids.length) return
+    if (!confirm(t('admin.tasks.bulkDeleteConfirm').replace('{n}', String(ids.length)))) return
+    setBulkOperating(true)
+    const supabase = createClient()
+    const affectedPids = Array.from(new Set(ids.map(id => tasks.find(t => t.id === id)?.project_id).filter(Boolean) as string[]))
+    await supabase.from('tasks').delete().in('id', ids)
+    for (const pid of affectedPids) await recalcProjectProgress(pid)
+    setBulkOperating(false)
+    setSelectMode(false)
+    setSelectedIds(new Set())
+    load()
+  }
+
+  async function handleBulkMove() {
+    if (!bulkTargetProjectId) return
+    const ids = Array.from(selectedIds)
+    setBulkOperating(true)
+    const supabase = createClient()
+    const oldPids = Array.from(new Set(ids.map(id => tasks.find(t => t.id === id)?.project_id).filter(Boolean) as string[]))
+    await supabase.from('tasks').update({ project_id: bulkTargetProjectId, updated_at: new Date().toISOString() }).in('id', ids)
+    await recalcProjectProgress(bulkTargetProjectId)
+    for (const pid of oldPids) { if (pid !== bulkTargetProjectId) await recalcProjectProgress(pid) }
+    setBulkOperating(false)
+    setBulkAction(null)
+    setBulkTargetProjectId('')
+    setSelectMode(false)
+    setSelectedIds(new Set())
+    load()
+  }
+
+  async function handleBulkAssignSelected() {
+    const ids = Array.from(selectedIds)
+    setBulkOperating(true)
+    const supabase = createClient()
+    await supabase.from('tasks').update({
+      assigned_to: bulkTargetEmpId || null,
+      assigned_employee_id: bulkTargetEmpId || null,
+      updated_at: new Date().toISOString(),
+    }).in('id', ids)
+    await supabase.from('task_assignments').delete().in('task_id', ids)
+    if (bulkTargetEmpId) {
+      await supabase.from('task_assignments').upsert(
+        ids.map(id => ({ task_id: id, profile_id: bulkTargetEmpId })),
+        { onConflict: 'task_id,profile_id' }
+      )
+    }
+    setBulkOperating(false)
+    setBulkAction(null)
+    setBulkTargetEmpId('')
+    setSelectMode(false)
+    setSelectedIds(new Set())
+    load()
+  }
+
   function addCheckItem() {
     if (!newCheckItem.trim()) return
     setForm(f => ({ ...f, checklist: [...f.checklist, { text: newCheckItem.trim(), done: false }] }))
@@ -412,20 +483,64 @@ export default function TasksPage() {
     const doneItems = (task.checklist ?? []).filter(c => c.done).length
     const totalItems = (task.checklist ?? []).length
     const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
+    const isSelected = selectedIds.has(task.id)
+
+    function handleStatusCircle(e: React.MouseEvent) {
+      e.stopPropagation()
+      quickStatus(task.id, task.status === 'completed' ? 'pending' : 'completed')
+    }
 
     return (
       <div
         className={[
           'group px-3 py-3 flex items-start gap-2.5 rounded-button transition-colors cursor-pointer',
           task.label_color ? '' : 'hover:bg-surface-elevated/70',
+          isSelected ? 'bg-brand/5' : '',
         ].join(' ')}
         style={task.label_color ? { backgroundColor: task.label_color + '18' } : undefined}
-        onClick={() => openEdit(task)}
+        onClick={() => selectMode ? toggleSelect(task.id) : openEdit(task)}
       >
+        {/* Status circle (always visible) / checkbox in select mode */}
+        {selectMode ? (
+          <div className="mt-1 flex-shrink-0">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => toggleSelect(task.id)}
+              onClick={e => e.stopPropagation()}
+              className="w-4 h-4 rounded accent-brand cursor-pointer"
+            />
+          </div>
+        ) : (
+          <button
+            onClick={handleStatusCircle}
+            className={[
+              'mt-0.5 w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center transition-all',
+              task.status === 'completed'
+                ? 'bg-green border-0'
+                : task.status === 'in_progress'
+                  ? 'border-2 border-amber bg-amber/10'
+                  : 'border-2 border-[var(--border-strong)] bg-transparent hover:border-green/60',
+            ].join(' ')}
+            title={task.status === 'completed' ? 'Reopen' : 'Mark complete'}
+          >
+            {task.status === 'completed' && (
+              <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3">
+                <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+            {task.status === 'in_progress' && (
+              <div className="w-2 h-2 rounded-full bg-amber" />
+            )}
+          </button>
+        )}
+
+        {/* Priority dot */}
         <div
           className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${task.label_color ? '' : (PRIORITY_DOT[task.priority] ?? 'bg-secondary')}`}
           style={task.label_color ? { backgroundColor: task.label_color } : undefined}
         />
+
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-medium leading-snug ${task.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
             {task.title}
@@ -454,36 +569,30 @@ export default function TasksPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          {task.status === 'pending' && (
+
+        {/* Action buttons — hidden in select mode, always visible otherwise */}
+        {!selectMode && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
             <button
-              onClick={e => { e.stopPropagation(); quickStatus(task.id, 'in_progress') }}
-              className="text-[10px] px-1.5 py-0.5 rounded bg-amber/10 text-amber hover:bg-amber/20 transition-colors"
-            >{t('admin.tasks.start')}</button>
-          )}
-          {task.status === 'in_progress' && (
+              onClick={e => { e.stopPropagation(); openEdit(task) }}
+              className="p-1.5 rounded text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
+              title="Edit"
+            >
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                <path d="M11.013 2.508a1.75 1.75 0 012.475 2.474L5.87 12.6l-3.371.749.749-3.371 7.765-7.47z"/>
+              </svg>
+            </button>
             <button
-              onClick={e => { e.stopPropagation(); quickStatus(task.id, 'completed') }}
-              className="text-[10px] px-1.5 py-0.5 rounded bg-green/10 text-green hover:bg-green/20 transition-colors"
-            >{t('admin.tasks.complete')}</button>
-          )}
-          <button
-            onClick={e => { e.stopPropagation(); openEdit(task) }}
-            className="p-1 rounded text-tertiary hover:text-primary hover:bg-surface-elevated transition-colors"
-          >
-            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-              <path d="M11.013 2.508a1.75 1.75 0 012.475 2.474L5.87 12.6l-3.371.749.749-3.371 7.765-7.47z"/>
-            </svg>
-          </button>
-          <button
-            onClick={e => { e.stopPropagation(); deleteTask(task.id) }}
-            className="p-1 rounded text-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
-          >
-            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
-              <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 000 1.5h.3l.815 8.15A1.5 1.5 0 005.357 15h5.285a1.5 1.5 0 001.493-1.35l.815-8.15h.3a.75.75 0 000-1.5H11v-.75A2.25 2.25 0 008.75 1h-1.5A2.25 2.25 0 005 3.25zm2.25-.75a.75.75 0 00-.75.75V4h3v-.75a.75.75 0 00-.75-.75h-1.5zM6.05 6a.75.75 0 01.787.713l.275 5.5a.75.75 0 01-1.498.075l-.275-5.5A.75.75 0 016.05 6zm3.9 0a.75.75 0 01.712.787l-.275 5.5a.75.75 0 01-1.498-.075l.275-5.5a.75.75 0 01.786-.711z" clipRule="evenodd"/>
-            </svg>
-          </button>
-        </div>
+              onClick={e => { e.stopPropagation(); deleteTask(task.id) }}
+              className="p-1.5 rounded text-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
+              title="Delete"
+            >
+              <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3">
+                <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 000 1.5h.3l.815 8.15A1.5 1.5 0 005.357 15h5.285a1.5 1.5 0 001.493-1.35l.815-8.15h.3a.75.75 0 000-1.5H11v-.75A2.25 2.25 0 008.75 1h-1.5A2.25 2.25 0 005 3.25zm2.25-.75a.75.75 0 00-.75.75V4h3v-.75a.75.75 0 00-.75-.75h-1.5zM6.05 6a.75.75 0 01.787.713l.275 5.5a.75.75 0 01-1.498.075l-.275-5.5A.75.75 0 016.05 6zm3.9 0a.75.75 0 01.712.787l-.275 5.5a.75.75 0 01-1.498-.075l.275-5.5a.75.75 0 01.786-.711z" clipRule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -505,6 +614,17 @@ export default function TasksPage() {
           >
             Exportar PDF
           </a>
+          <button
+            onClick={() => { setSelectMode(m => !m); setSelectedIds(new Set()) }}
+            className={[
+              'px-3 py-2 rounded-button border text-xs font-medium transition-colors',
+              selectMode
+                ? 'border-brand bg-brand/10 text-brand'
+                : 'border-[var(--border)] text-secondary hover:text-primary hover:bg-surface-elevated',
+            ].join(' ')}
+          >
+            {selectMode ? t('admin.tasks.exitSelect') : t('admin.tasks.selectMode')}
+          </button>
           <Button onClick={() => openAdd()}>{t('admin.tasks.addTask')}</Button>
         </div>
       </div>
@@ -642,6 +762,99 @@ export default function TasksPage() {
                 </div>
               </div>
             ))}
+        </div>
+      )}
+
+      {/* Floating multi-select action bar */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-surface border border-[var(--border)] rounded-card shadow-2xl px-4 py-3 flex items-center gap-3 min-w-[300px] max-w-[90vw]">
+          <span className="text-sm font-semibold text-primary whitespace-nowrap">
+            {t('admin.tasks.selected').replace('{n}', String(selectedIds.size))}
+          </span>
+          <div className="flex-1" />
+          <button
+            onClick={() => { setBulkTargetEmpId(''); setBulkAction('assign') }}
+            disabled={bulkOperating}
+            className="px-3 py-1.5 rounded-button text-xs font-medium bg-brand/10 text-brand hover:bg-brand/20 transition-colors disabled:opacity-50"
+          >
+            {t('admin.tasks.bulkAssignSelected')}
+          </button>
+          <button
+            onClick={() => { setBulkTargetProjectId(''); setBulkAction('move') }}
+            disabled={bulkOperating}
+            className="px-3 py-1.5 rounded-button text-xs font-medium bg-surface-elevated text-secondary hover:text-primary hover:bg-surface-elevated/80 transition-colors border border-[var(--border)] disabled:opacity-50"
+          >
+            {t('admin.tasks.bulkMove')}
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkOperating}
+            className="px-3 py-1.5 rounded-button text-xs font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-colors disabled:opacity-50"
+          >
+            {bulkOperating ? '…' : t('admin.tasks.bulkDelete')}
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Assign Selected Modal */}
+      {bulkAction === 'assign' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => { if (!bulkOperating) setBulkAction(null) }}
+        >
+          <div
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-sm p-6 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-primary">
+              {t('admin.tasks.bulkAssignSelectedTitle').replace('{n}', String(selectedIds.size))}
+            </h2>
+            <Select
+              label={t('admin.tasks.assignedTo')}
+              value={bulkTargetEmpId}
+              onChange={e => setBulkTargetEmpId(e.target.value)}
+              options={empOptions}
+            />
+            <div className="flex gap-2 justify-end mt-2">
+              <Button variant="ghost" onClick={() => setBulkAction(null)} disabled={bulkOperating}>
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={handleBulkAssignSelected} disabled={bulkOperating || !bulkTargetEmpId} loading={bulkOperating}>
+                {bulkOperating ? t('admin.tasks.bulkAssigningSelected') : t('admin.tasks.bulkAssignSelected')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Move Modal */}
+      {bulkAction === 'move' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => { if (!bulkOperating) setBulkAction(null) }}
+        >
+          <div
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-sm p-6 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-primary">
+              {t('admin.tasks.bulkMoveTitle')}
+            </h2>
+            <Select
+              label={t('admin.tasks.project')}
+              value={bulkTargetProjectId}
+              onChange={e => setBulkTargetProjectId(e.target.value)}
+              options={projOptions.filter(o => o.value !== '')}
+            />
+            <div className="flex gap-2 justify-end mt-2">
+              <Button variant="ghost" onClick={() => setBulkAction(null)} disabled={bulkOperating}>
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={handleBulkMove} disabled={bulkOperating || !bulkTargetProjectId} loading={bulkOperating}>
+                {bulkOperating ? t('admin.tasks.bulkMoving') : t('admin.tasks.bulkMove')}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
