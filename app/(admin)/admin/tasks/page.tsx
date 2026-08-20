@@ -666,35 +666,60 @@ export default function TasksPage() {
                 className="flex-shrink-0 w-72 bg-surface border border-[var(--border)] rounded-card overflow-hidden flex flex-col"
               >
                 {/* Column header */}
-                <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-2 h-2 rounded-full bg-brand flex-shrink-0" />
-                    <h3 className="text-xs font-semibold text-primary truncate">{project.name}</h3>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <span className="text-[10px] text-tertiary bg-surface-elevated rounded-full px-1.5 py-0.5">
-                      {projectTasks.length}
-                    </span>
-                    <button
-                      onClick={() => { setBulkAssignProject(project); setBulkAssignEmpId('') }}
-                      className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
-                      title={t('admin.tasks.bulkAssignTitle')}
-                    >
-                      <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                        <path d="M6 3.5a2.5 2.5 0 115 0 2.5 2.5 0 01-5 0zM8 7a4 4 0 00-4 4v.5a.5.5 0 001 0V11a3 3 0 016 0v.5a.5.5 0 001 0V11a4 4 0 00-4-4zm5.5-1a.5.5 0 01.5.5v1h1a.5.5 0 010 1h-1v1a.5.5 0 01-1 0v-1h-1a.5.5 0 010-1h1v-1a.5.5 0 01.5-.5z"/>
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => openAdd(project.id)}
-                      className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
-                      title={t('admin.tasks.addTask')}
-                    >
-                      <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
-                        <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5H2.75a.75.75 0 010-1.5h4.5V2.75A.75.75 0 018 2z"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                {(() => {
+                  const completedCount = projectTasks.filter(t => t.status === 'completed').length
+                  const colProgress = projectTasks.length > 0 ? Math.round((completedCount / projectTasks.length) * 100) : 0
+                  return (
+                    <div className="border-b border-[var(--border)]">
+                      <div className="px-3 pt-3 pb-2 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-2 h-2 rounded-full bg-brand flex-shrink-0" />
+                          <h3 className="text-xs font-semibold text-primary truncate">{project.name}</h3>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[10px] text-tertiary bg-surface-elevated rounded-full px-1.5 py-0.5">
+                            {projectTasks.length}
+                          </span>
+                          <button
+                            onClick={() => { setBulkAssignProject(project); setBulkAssignEmpId('') }}
+                            className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
+                            title={t('admin.tasks.bulkAssignTitle')}
+                          >
+                            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                              <path d="M6 3.5a2.5 2.5 0 115 0 2.5 2.5 0 01-5 0zM8 7a4 4 0 00-4 4v.5a.5.5 0 001 0V11a3 3 0 016 0v.5a.5.5 0 001 0V11a4 4 0 00-4-4zm5.5-1a.5.5 0 01.5.5v1h1a.5.5 0 010 1h-1v1a.5.5 0 01-1 0v-1h-1a.5.5 0 010-1h1v-1a.5.5 0 01.5-.5z"/>
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => openAdd(project.id)}
+                            className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
+                            title={t('admin.tasks.addTask')}
+                          >
+                            <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                              <path d="M8 2a.75.75 0 01.75.75v4.5h4.5a.75.75 0 010 1.5h-4.5v4.5a.75.75 0 01-1.5 0v-4.5H2.75a.75.75 0 010-1.5h4.5V2.75A.75.75 0 018 2z"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="px-3 pb-2.5">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] text-tertiary tabular-nums">
+                            {completedCount}/{projectTasks.length}
+                          </span>
+                          <span className={`text-[10px] font-semibold tabular-nums transition-colors ${colProgress === 100 ? 'text-green' : colProgress > 0 ? 'text-brand' : 'text-tertiary'}`}>
+                            {colProgress}%
+                          </span>
+                        </div>
+                        <div className="h-[3px] bg-[var(--border)] rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ease-out ${colProgress === 100 ? 'bg-green' : 'bg-brand'}`}
+                            style={{ width: `${colProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Tasks list */}
                 <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
