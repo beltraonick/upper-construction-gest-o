@@ -42,6 +42,10 @@ export const tasks = {
     add: 'Add',
     save: 'Save',
     createTask: 'Create Task',
+    bulkAssignTitle: 'Assign all tasks',
+    bulkAssignConfirm: 'Assign',
+    bulkAssigning: 'Assigning…',
+    bulkAssignSuccess: 'All tasks assigned',
   },
   pt: {
     title: 'Tarefas',
@@ -86,6 +90,10 @@ export const tasks = {
     add: 'Adicionar',
     save: 'Salvar',
     createTask: 'Criar Tarefa',
+    bulkAssignTitle: 'Atribuir todas as tarefas',
+    bulkAssignConfirm: 'Atribuir',
+    bulkAssigning: 'Atribuindo…',
+    bulkAssignSuccess: 'Todas as tarefas atribuídas',
   },
   es: {
     title: 'Tareas',
@@ -130,5 +138,9 @@ export const tasks = {
     add: 'Agregar',
     save: 'Guardar',
     createTask: 'Crear Tarea',
+    bulkAssignTitle: 'Asignar todas las tareas',
+    bulkAssignConfirm: 'Asignar',
+    bulkAssigning: 'Asignando…',
+    bulkAssignSuccess: 'Todas las tareas asignadas',
   },
 }

@@ -93,6 +93,9 @@ export default function TasksPage() {
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [photoLightbox, setPhotoLightbox] = useState<{ photos: LightboxPhoto[]; index: number } | null>(null)
+  const [bulkAssignProject, setBulkAssignProject] = useState<{ id: string; name: string } | null>(null)
+  const [bulkAssignEmpId, setBulkAssignEmpId] = useState('')
+  const [bulkAssigning, setBulkAssigning] = useState(false)
 
   const PRIORITY_OPTIONS = [
     { value: 'low', label: t('common.priority.low') },
@@ -333,6 +336,31 @@ export default function TasksPage() {
     await supabase.from('projects').update({ progress }).eq('id', projectId)
   }
 
+  async function handleBulkAssign() {
+    if (!bulkAssignProject) return
+    setBulkAssigning(true)
+    const supabase = createClient()
+    const projectTaskIds = tasks.filter(t => t.project_id === bulkAssignProject.id).map(t => t.id)
+    await supabase.from('tasks').update({
+      assigned_to: bulkAssignEmpId || null,
+      assigned_employee_id: bulkAssignEmpId || null,
+      updated_at: new Date().toISOString(),
+    }).eq('project_id', bulkAssignProject.id).eq('company_id', companyId)
+    if (projectTaskIds.length > 0) {
+      await supabase.from('task_assignments').delete().in('task_id', projectTaskIds)
+      if (bulkAssignEmpId) {
+        await supabase.from('task_assignments').upsert(
+          projectTaskIds.map(tid => ({ task_id: tid, profile_id: bulkAssignEmpId })),
+          { onConflict: 'task_id,profile_id' }
+        )
+      }
+    }
+    setBulkAssigning(false)
+    setBulkAssignProject(null)
+    setBulkAssignEmpId('')
+    load()
+  }
+
   async function deleteTask(id: string) {
     if (!confirm(t('admin.tasks.confirmDelete'))) return
     const supabase = createClient()
@@ -526,6 +554,15 @@ export default function TasksPage() {
                       {projectTasks.length}
                     </span>
                     <button
+                      onClick={() => { setBulkAssignProject(project); setBulkAssignEmpId('') }}
+                      className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
+                      title={t('admin.tasks.bulkAssignTitle')}
+                    >
+                      <svg viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
+                        <path d="M6 3.5a2.5 2.5 0 115 0 2.5 2.5 0 01-5 0zM8 7a4 4 0 00-4 4v.5a.5.5 0 001 0V11a3 3 0 016 0v.5a.5.5 0 001 0V11a4 4 0 00-4-4zm5.5-1a.5.5 0 01.5.5v1h1a.5.5 0 010 1h-1v1a.5.5 0 01-1 0v-1h-1a.5.5 0 010-1h1v-1a.5.5 0 01.5-.5z"/>
+                      </svg>
+                    </button>
+                    <button
                       onClick={() => openAdd(project.id)}
                       className="w-5 h-5 rounded flex items-center justify-center text-tertiary hover:text-brand hover:bg-brand/10 transition-colors"
                       title={t('admin.tasks.addTask')}
@@ -603,6 +640,42 @@ export default function TasksPage() {
                 </div>
               </div>
             ))}
+        </div>
+      )}
+
+      {/* Bulk Assign Modal */}
+      {bulkAssignProject && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => { if (!bulkAssigning) setBulkAssignProject(null) }}
+        >
+          <div
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-sm p-6 flex flex-col gap-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-primary">
+              {t('admin.tasks.bulkAssignTitle')}
+            </h2>
+            <p className="text-sm text-secondary -mt-2">{bulkAssignProject.name}</p>
+            <Select
+              label={t('admin.tasks.assignedTo')}
+              value={bulkAssignEmpId}
+              onChange={e => setBulkAssignEmpId(e.target.value)}
+              options={empOptions}
+            />
+            <div className="flex gap-2 justify-end mt-2">
+              <Button
+                variant="ghost"
+                onClick={() => setBulkAssignProject(null)}
+                disabled={bulkAssigning}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={handleBulkAssign} disabled={bulkAssigning || !bulkAssignEmpId}>
+                {bulkAssigning ? t('admin.tasks.bulkAssigning') : t('admin.tasks.bulkAssignConfirm')}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
