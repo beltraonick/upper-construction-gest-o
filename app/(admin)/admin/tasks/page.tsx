@@ -356,14 +356,11 @@ export default function TasksPage() {
       assigned_employee_id: bulkAssignEmpId || null,
       updated_at: new Date().toISOString(),
     }).eq('project_id', bulkAssignProject.id).eq('company_id', companyId)
-    if (projectTaskIds.length > 0) {
-      await supabase.from('task_assignments').delete().in('task_id', projectTaskIds)
-      if (bulkAssignEmpId) {
-        await supabase.from('task_assignments').upsert(
-          projectTaskIds.map(tid => ({ task_id: tid, profile_id: bulkAssignEmpId })),
-          { onConflict: 'task_id,profile_id' }
-        )
-      }
+    if (projectTaskIds.length > 0 && bulkAssignEmpId) {
+      await supabase.from('task_assignments').upsert(
+        projectTaskIds.map(tid => ({ task_id: tid, profile_id: bulkAssignEmpId })),
+        { onConflict: 'task_id,profile_id' }
+      )
     }
     setBulkAssigning(false)
     setBulkAssignProject(null)
@@ -430,7 +427,6 @@ export default function TasksPage() {
       assigned_employee_id: bulkTargetEmpId || null,
       updated_at: new Date().toISOString(),
     }).in('id', ids)
-    await supabase.from('task_assignments').delete().in('task_id', ids)
     if (bulkTargetEmpId) {
       await supabase.from('task_assignments').upsert(
         ids.map(id => ({ task_id: id, profile_id: bulkTargetEmpId })),

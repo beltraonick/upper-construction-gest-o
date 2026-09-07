@@ -20,6 +20,10 @@ export const overview = {
     active: 'Active',
     onHold: 'On Hold',
     tasks: 'Tasks',
+    allFloors: 'All',
+    taskPhotos: 'Photos',
+    noPhotos: 'No photos yet.',
+    postedOn: 'Posted',
   },
   pt: {
     welcomeBack: 'Bem-vindo de volta,',
@@ -42,6 +46,10 @@ export const overview = {
     active: 'Ativo',
     onHold: 'Em Espera',
     tasks: 'Tarefas',
+    allFloors: 'Todos',
+    taskPhotos: 'Fotos',
+    noPhotos: 'Nenhuma foto ainda.',
+    postedOn: 'Postado',
   },
   es: {
     welcomeBack: 'Bienvenido de nuevo,',
@@ -64,5 +72,9 @@ export const overview = {
     active: 'Activo',
     onHold: 'En Espera',
     tasks: 'Tareas',
+    allFloors: 'Todos',
+    taskPhotos: 'Fotos',
+    noPhotos: 'Aún no hay fotos.',
+    postedOn: 'Publicado',
   },
 }

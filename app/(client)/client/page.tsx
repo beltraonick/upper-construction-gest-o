@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { getCurrentUser } from '@/lib/auth/session'
 import { t } from '@/lib/i18n/translate'
+import { ClientTaskSection } from './ClientTaskSection'
 
 const supabaseReady =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -59,24 +60,28 @@ export default async function ClientPortalPage() {
   let plan: { id: string; label: string; storage_path: string } | null = null
   let planPins: { id: string; title: string; status: string; pin_x: number; pin_y: number }[] = []
 
-  let totalHoursThisWeek = 0
-
   let clientTasks: {
     id: string
     title: string
     status: string
     area: string | null
     due_date: string | null
+    room_id: string | null
     checklist: { text: string; done: boolean }[]
     project_id: string | null
+  }[] = []
+
+  let taskPhotos: {
+    id: string
+    task_id: string
+    storage_path: string
+    created_at: string | null
+    photo_category: string | null
   }[] = []
 
   if (supabaseReady) {
     try {
       const supabase = createClient()
-      const weekStart = new Date(today)
-      weekStart.setDate(today.getDate() - today.getDay())
-      weekStart.setHours(0, 0, 0, 0)
 
       const { data: projs } = await supabase
         .from('projects')
@@ -88,7 +93,7 @@ export default async function ClientPortalPage() {
       projects = (projs ?? []) as typeof projects
       const projectIds = projects.map(p => p.id)
 
-      const [{ data: photos }, { data: weekEntries }, { data: roomRows }, { data: taskRows }] = await Promise.all([
+      const [{ data: photos }, { data: roomRows }, { data: taskRows }] = await Promise.all([
         projectIds.length > 0
           ? supabase
               .from('project_photos')
@@ -96,14 +101,6 @@ export default async function ClientPortalPage() {
               .in('project_id', projectIds)
               .order('created_at', { ascending: false })
               .limit(12)
-          : Promise.resolve({ data: [] }),
-        projectIds.length > 0
-          ? supabase
-              .from('time_entries')
-              .select('clock_in, clock_out')
-              .in('project_id', projectIds)
-              .gte('clock_in', weekStart.toISOString())
-              .not('clock_out', 'is', null)
           : Promise.resolve({ data: [] }),
         projectIds.length > 0
           ? supabase.from('project_rooms').select('id, project_id, floor, label').in('project_id', projectIds).order('floor').order('label')
@@ -120,14 +117,22 @@ export default async function ClientPortalPage() {
       if (projectIds.length > 0) {
         const { data: taskFull } = await supabase
           .from('tasks')
-          .select('id, title, status, area, due_date, checklist, project_id')
+          .select('id, title, status, area, due_date, room_id, checklist, project_id')
           .in('project_id', projectIds)
           .order('created_at', { ascending: false })
         clientTasks = (taskFull ?? []) as typeof clientTasks
+
+        const taskIds = clientTasks.map(tk => tk.id)
+        if (taskIds.length > 0) {
+          const { data: mediaRows } = await supabase
+            .from('task_media')
+            .select('id, task_id, storage_path, created_at, photo_category')
+            .in('task_id', taskIds)
+            .eq('media_type', 'photo')
+            .order('created_at', { ascending: true })
+          taskPhotos = (mediaRows ?? []) as typeof taskPhotos
+        }
       }
-      totalHoursThisWeek = (weekEntries ?? []).reduce((sum, e) => {
-        return sum + (new Date(e.clock_out!).getTime() - new Date(e.clock_in).getTime()) / 3600000
-      }, 0)
 
       if (projectIds.length > 0) {
         const { data: planRow } = await supabase
@@ -158,6 +163,13 @@ export default async function ClientPortalPage() {
   const getPhotoUrl = (path: string) =>
     `${SUPABASE_URL}/storage/v1/object/public/project-photos/${path}`
 
+  // Group task photos by task_id for ClientTaskSection
+  const photosByTask: Record<string, typeof taskPhotos> = {}
+  for (const photo of taskPhotos) {
+    if (!photosByTask[photo.task_id]) photosByTask[photo.task_id] = []
+    photosByTask[photo.task_id].push(photo)
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 md:py-8">
 
@@ -171,7 +183,7 @@ export default async function ClientPortalPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
+      <div className="grid grid-cols-2 gap-3 mb-8">
         <Card className="text-center">
           <p className="text-2xl font-bold text-primary">{activeProjects.length}</p>
           <p className="text-xs text-secondary mt-0.5">{t(locale, 'client.overview.activeProjects')}</p>
@@ -179,10 +191,6 @@ export default async function ClientPortalPage() {
         <Card className="text-center">
           <p className="text-2xl font-bold text-primary">{completedProjects.length}</p>
           <p className="text-xs text-secondary mt-0.5">{t(locale, 'client.overview.completed')}</p>
-        </Card>
-        <Card className="text-center">
-          <p className="text-2xl font-bold text-primary">{totalHoursThisWeek.toFixed(0)}h</p>
-          <p className="text-xs text-secondary mt-0.5">{t(locale, 'client.overview.thisWeek')}</p>
         </Card>
       </div>
 
@@ -237,60 +245,21 @@ export default async function ClientPortalPage() {
         </div>
       </div>
 
-      {/* Tasks per project */}
+      {/* Tasks per project — interactive (filter by floor + photo expansion) */}
       {clientTasks.length > 0 && projects.map(p => {
-        const pTasks = clientTasks.filter(t => t.project_id === p.id)
+        const pTasks = clientTasks.filter(tk => tk.project_id === p.id)
+        const pRooms = rooms.filter(r => r.project_id === p.id)
         if (pTasks.length === 0) return null
         return (
-          <div key={p.id} className="mb-8">
-            <h2 className="text-sm font-semibold text-primary mb-3">
-              {p.name} — {t(locale, 'client.overview.tasks')}
-            </h2>
-            <Card padding="none">
-              <div className="divide-y divide-[var(--border)]">
-                {pTasks.map(task => {
-                  const doneItems = (task.checklist ?? []).filter((c: { done: boolean }) => c.done).length
-                  const totalItems = (task.checklist ?? []).length
-                  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
-                  return (
-                    <div key={task.id} className="px-4 py-3 flex items-start gap-3">
-                      <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
-                        task.status === 'completed' ? 'bg-green' :
-                        task.status === 'in_progress' ? 'bg-amber' : 'bg-tertiary/40'
-                      }`} />
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium ${task.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
-                          {task.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className={`text-[11px] ${
-                            task.status === 'completed' ? 'text-green' :
-                            task.status === 'in_progress' ? 'text-amber' : 'text-secondary'
-                          }`}>
-                            {task.status === 'completed' ? t(locale, 'client.overview.done') :
-                             task.status === 'in_progress' ? t(locale, 'client.overview.inProgress') :
-                             t(locale, 'client.overview.notStarted')}
-                          </span>
-                          {task.area && <span className="text-[11px] text-tertiary">{task.area}</span>}
-                          {totalItems > 0 && (
-                            <span className="text-[11px] text-tertiary">{doneItems}/{totalItems}</span>
-                          )}
-                          {task.due_date && (
-                            <span className={`text-[11px] ${isOverdue ? 'text-danger font-medium' : 'text-tertiary'}`}>
-                              {new Date(task.due_date + 'T00:00:00').toLocaleDateString(
-                                locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US',
-                                { month: 'short', day: 'numeric' }
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </Card>
-          </div>
+          <ClientTaskSection
+            key={p.id}
+            projectName={p.name}
+            tasks={pTasks}
+            rooms={pRooms}
+            photosByTask={photosByTask}
+            supabaseUrl={SUPABASE_URL}
+            locale={locale}
+          />
         )
       })}
 
