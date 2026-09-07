@@ -46,6 +46,9 @@ export const employees = {
     resetPasswordLabel: 'New password',
     resetPasswordSave: 'Save password',
     resetPasswordSuccess: 'Password updated.',
+    projectAccessTitle: 'Project access',
+    projectAccessHint: 'Employee will only see the projects checked here.',
+    noProjectsAvailable: 'No projects to assign.',
   },
   pt: {
     title: 'Funcionários',
@@ -94,6 +97,9 @@ export const employees = {
     resetPasswordLabel: 'Nova senha',
     resetPasswordSave: 'Salvar senha',
     resetPasswordSuccess: 'Senha atualizada.',
+    projectAccessTitle: 'Acesso a projetos',
+    projectAccessHint: 'O funcionário verá apenas os projetos marcados aqui.',
+    noProjectsAvailable: 'Nenhum projeto disponível.',
   },
   es: {
     title: 'Empleados',
@@ -142,5 +148,8 @@ export const employees = {
     resetPasswordLabel: 'Nueva contraseña',
     resetPasswordSave: 'Guardar contraseña',
     resetPasswordSuccess: 'Contraseña actualizada.',
+    projectAccessTitle: 'Acceso a proyectos',
+    projectAccessHint: 'El empleado solo verá los proyectos marcados aquí.',
+    noProjectsAvailable: 'No hay proyectos disponibles.',
   },
 }

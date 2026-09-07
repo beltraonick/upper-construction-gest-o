@@ -33,6 +33,8 @@ const BLANK: Omit<Employee, 'id' | 'created_at'> & { password: string } = {
   permissions: {},
 }
 
+interface Project { id: string; name: string }
+
 export default function EmployeesPage() {
   const { t } = useTranslation()
   const companyId = useCompanyId()
@@ -52,6 +54,8 @@ export default function EmployeesPage() {
   const [resettingPassword, setResettingPassword] = useState(false)
   const [resetError, setResetError] = useState('')
   const [resetSuccess, setResetSuccess] = useState(false)
+  const [allProjects, setAllProjects] = useState<Project[]>([])
+  const [memberProjectIds, setMemberProjectIds] = useState<string[]>([])
 
   const ROLE_OPTIONS = [
     { value: 'employee', label: t('admin.employees.roleEmployee') },
@@ -66,12 +70,14 @@ export default function EmployeesPage() {
 
   const load = useCallback(async () => {
     const supabase = createClient()
-    const [{ data: emps }, { data: open }] = await Promise.all([
+    const [{ data: emps }, { data: open }, { data: projs }] = await Promise.all([
       supabase.from('profiles').select('*').eq('company_id', companyId).order('full_name'),
       supabase.from('time_entries').select('employee_id').is('clock_out', null),
+      supabase.from('projects').select('id, name').eq('company_id', companyId).order('name'),
     ])
     setEmployees(emps ?? [])
     setOpenIds(new Set((open ?? []).map((e: { employee_id: string }) => e.employee_id)))
+    setAllProjects(projs ?? [])
     setLoading(false)
   }, [companyId])
 
@@ -88,6 +94,7 @@ export default function EmployeesPage() {
   function openAdd() {
     setEditing(null)
     setForm({ ...BLANK })
+    setMemberProjectIds([])
     setError('')
     setActivationUrl('')
     setShowResetPassword(false)
@@ -97,7 +104,7 @@ export default function EmployeesPage() {
     setShowModal(true)
   }
 
-  function openEdit(emp: Employee) {
+  async function openEdit(emp: Employee) {
     setEditing(emp)
     setForm({
       full_name: emp.full_name,
@@ -117,6 +124,13 @@ export default function EmployeesPage() {
     setResetPasswordValue('')
     setResetError('')
     setResetSuccess(false)
+    // Fetch current project memberships for this employee
+    const supabase = createClient()
+    const { data: members } = await supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('profile_id', emp.id)
+    setMemberProjectIds((members ?? []).map((m: { project_id: string }) => m.project_id))
     setShowModal(true)
   }
 
@@ -152,6 +166,13 @@ export default function EmployeesPage() {
         status: form.status,
         permissions: form.role === 'employee' ? (form.permissions ?? {}) : {},
       }).eq('id', editing.id)
+      // Sync project memberships: delete all then re-insert selected
+      await supabase.from('project_members').delete().eq('profile_id', editing.id)
+      if (memberProjectIds.length > 0) {
+        await supabase.from('project_members').insert(
+          memberProjectIds.map(pid => ({ project_id: pid, profile_id: editing.id }))
+        )
+      }
     } else {
       // Creating a login needs the password hashed server-side.
       const result = await createProfileWithPassword({
@@ -431,6 +452,35 @@ export default function EmployeesPage() {
                     value={form.phone ?? ''}
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   />
+                  {editing && (form.role === 'employee' || form.role === 'admin') && (
+                    <div className="col-span-2 bg-surface-elevated border border-[var(--border)] rounded-input p-3">
+                      <p className="text-xs font-semibold text-secondary mb-1">{t('admin.employees.projectAccessTitle')}</p>
+                      <p className="text-xs text-tertiary mb-2.5">{t('admin.employees.projectAccessHint')}</p>
+                      {allProjects.length === 0 ? (
+                        <p className="text-xs text-tertiary">{t('admin.employees.noProjectsAvailable')}</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {allProjects.map(proj => (
+                            <label key={proj.id} className="flex items-center gap-2.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={memberProjectIds.includes(proj.id)}
+                                onChange={e => {
+                                  if (e.target.checked) {
+                                    setMemberProjectIds(ids => [...ids, proj.id])
+                                  } else {
+                                    setMemberProjectIds(ids => ids.filter(id => id !== proj.id))
+                                  }
+                                }}
+                                className="w-4 h-4 rounded accent-brand flex-shrink-0"
+                              />
+                              <span className="text-sm text-primary">{proj.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {activationUrl && (
                   <div className="bg-green/5 border border-green/20 rounded-input p-3 space-y-2">
