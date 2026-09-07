@@ -2,6 +2,7 @@ import { getCurrentUser } from '@/lib/auth/session'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { t } from '@/lib/i18n/translate'
+import Link from 'next/link'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -114,9 +115,10 @@ export default async function EmployeeProjectsPage() {
                 .replace('{n}', String(proj.progress ?? 0))
 
               return (
-                <div
+                <Link
                   key={proj.id}
-                  className="bg-surface rounded-[16px] border border-[var(--border)] overflow-hidden"
+                  href={`/projects/${proj.id}`}
+                  className="block bg-surface rounded-[16px] border border-[var(--border)] overflow-hidden active:opacity-70 transition-opacity"
                 >
                   {cover && (
                     <div className="h-32 w-full overflow-hidden">
@@ -148,7 +150,7 @@ export default async function EmployeeProjectsPage() {
                       />
                     </div>
                   </div>
-                </div>
+                </Link>
               )
             })}
           </div>

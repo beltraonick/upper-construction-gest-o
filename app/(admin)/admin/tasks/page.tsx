@@ -103,6 +103,8 @@ export default function TasksPage() {
   const [bulkTargetProjectId, setBulkTargetProjectId] = useState('')
   const [bulkOperating, setBulkOperating] = useState(false)
   const [assigneesMap, setAssigneesMap] = useState<Record<string, { id: string; name: string }[]>>({})
+  const [editAssignees, setEditAssignees] = useState<{ id: string; name: string }[]>([])
+  const [addEmpId, setAddEmpId] = useState('')
 
   const PRIORITY_OPTIONS = [
     { value: 'low', label: t('common.priority.low') },
@@ -178,6 +180,8 @@ export default function TasksPage() {
     setEditPhotos([])
     setNewPhotoFiles([])
     setSaveError('')
+    setEditAssignees([])
+    setAddEmpId('')
     setShowModal(true)
   }
 
@@ -201,6 +205,8 @@ export default function TasksPage() {
     setEditPhotos([])
     setNewPhotoFiles([])
     setSaveError('')
+    setEditAssignees(assigneesMap[task.id] ?? [])
+    setAddEmpId('')
     setShowModal(true)
     const supabase = createClient()
     const { data } = await supabase
@@ -226,14 +232,15 @@ export default function TasksPage() {
     setSaving(true)
     const supabase = createClient()
 
+    const primaryAssigneeId = editAssignees[0]?.id ?? null
     const payload = {
       title: form.title,
       description: form.description || null,
       status: form.status,
       due_date: form.due_date || null,
       project_id: form.project_id || null,
-      assigned_to: form.assigned_employee_id || null,
-      assigned_employee_id: form.assigned_employee_id || null,
+      assigned_to: primaryAssigneeId,
+      assigned_employee_id: primaryAssigneeId,
       area: form.area || null,
       priority: form.priority,
       estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
@@ -282,14 +289,12 @@ export default function TasksPage() {
       }
     }
 
-    // Sync task_assignments join table
+    // Sync task_assignments join table — preserves all selected assignees
     if (savedTaskId) {
-      const assigneeId = form.assigned_employee_id || null
       await supabase.from('task_assignments').delete().eq('task_id', savedTaskId)
-      if (assigneeId) {
-        await supabase.from('task_assignments').upsert(
-          { task_id: savedTaskId, profile_id: assigneeId },
-          { onConflict: 'task_id,profile_id' }
+      if (editAssignees.length > 0) {
+        await supabase.from('task_assignments').insert(
+          editAssignees.map(a => ({ task_id: savedTaskId, profile_id: a.id }))
         )
       }
     }
@@ -983,12 +988,45 @@ export default function TasksPage() {
                     value={form.project_id}
                     onChange={e => setForm(f => ({ ...f, project_id: e.target.value, room_id: '' }))}
                   />
-                  <Select
-                    label={t('admin.tasks.assignedTo')}
-                    options={empOptions}
-                    value={form.assigned_employee_id}
-                    onChange={e => setForm(f => ({ ...f, assigned_employee_id: e.target.value }))}
-                  />
+                  <div>
+                    <p className="text-xs font-medium text-secondary mb-1.5">{t('admin.tasks.assignedTo')}</p>
+                    {editAssignees.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {editAssignees.map(a => (
+                          <span
+                            key={a.id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand/10 text-brand text-xs font-medium"
+                          >
+                            {a.name.split(' ')[0]}
+                            <button
+                              type="button"
+                              onClick={() => setEditAssignees(prev => prev.filter(x => x.id !== a.id))}
+                              className="ml-0.5 hover:opacity-70 leading-none"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <Select
+                      label=""
+                      options={[
+                        { value: '', label: t('admin.tasks.addAssignee') },
+                        ...employees
+                          .filter(e => !editAssignees.find(a => a.id === e.id))
+                          .map(e => ({ value: e.id, label: e.full_name })),
+                      ]}
+                      value={addEmpId}
+                      onChange={e => {
+                        const emp = employees.find(x => x.id === e.target.value)
+                        if (emp) {
+                          setEditAssignees(prev => [...prev, { id: emp.id, name: emp.full_name }])
+                          setAddEmpId('')
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
