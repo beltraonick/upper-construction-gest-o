@@ -102,6 +102,7 @@ export default function TasksPage() {
   const [bulkTargetEmpId, setBulkTargetEmpId] = useState('')
   const [bulkTargetProjectId, setBulkTargetProjectId] = useState('')
   const [bulkOperating, setBulkOperating] = useState(false)
+  const [assigneesMap, setAssigneesMap] = useState<Record<string, { id: string; name: string }[]>>({})
 
   const PRIORITY_OPTIONS = [
     { value: 'low', label: t('common.priority.low') },
@@ -129,10 +130,31 @@ export default function TasksPage() {
       supabase.from('projects').select('id, name, cover_image_path').eq('company_id', companyId).order('name'),
       supabase.from('project_rooms').select('id, project_id, floor, label').eq('company_id', companyId),
     ])
-    setTasks((td ?? []) as unknown as Task[])
+    const loadedTasks = (td ?? []) as unknown as Task[]
+    setTasks(loadedTasks)
     setEmployees(emps ?? [])
     setProjects(projs ?? [])
     setRooms(rms ?? [])
+
+    // Load all assignees from task_assignments join table
+    const taskIds = loadedTasks.map(t => t.id)
+    if (taskIds.length > 0) {
+      const { data: assignRows } = await supabase
+        .from('task_assignments')
+        .select('task_id, profile:profile_id(id, full_name)')
+        .in('task_id', taskIds)
+      const map: Record<string, { id: string; name: string }[]> = {}
+      for (const row of assignRows ?? []) {
+        const p = row.profile as unknown as { id: string; full_name: string } | null
+        if (!p) continue
+        if (!map[row.task_id]) map[row.task_id] = []
+        map[row.task_id].push({ id: p.id, name: p.full_name })
+      }
+      setAssigneesMap(map)
+    } else {
+      setAssigneesMap({})
+    }
+
     setLoading(false)
   }, [companyId])
 
@@ -351,11 +373,6 @@ export default function TasksPage() {
     setBulkAssigning(true)
     const supabase = createClient()
     const projectTaskIds = tasks.filter(t => t.project_id === bulkAssignProject.id).map(t => t.id)
-    await supabase.from('tasks').update({
-      assigned_to: bulkAssignEmpId || null,
-      assigned_employee_id: bulkAssignEmpId || null,
-      updated_at: new Date().toISOString(),
-    }).eq('project_id', bulkAssignProject.id).eq('company_id', companyId)
     if (projectTaskIds.length > 0 && bulkAssignEmpId) {
       await supabase.from('task_assignments').upsert(
         projectTaskIds.map(tid => ({ task_id: tid, profile_id: bulkAssignEmpId })),
@@ -422,11 +439,6 @@ export default function TasksPage() {
     const ids = Array.from(selectedIds)
     setBulkOperating(true)
     const supabase = createClient()
-    await supabase.from('tasks').update({
-      assigned_to: bulkTargetEmpId || null,
-      assigned_employee_id: bulkTargetEmpId || null,
-      updated_at: new Date().toISOString(),
-    }).in('id', ids)
     if (bulkTargetEmpId) {
       await supabase.from('task_assignments').upsert(
         ids.map(id => ({ task_id: id, profile_id: bulkTargetEmpId })),
@@ -551,9 +563,9 @@ export default function TasksPage() {
                 : task.status === 'pending' ? t('common.pending')
                 : t('common.completed')}
             </Badge>
-            {task.assigned_employee?.full_name && (
+            {(assigneesMap[task.id]?.length ?? 0) > 0 && (
               <span className="text-[11px] text-secondary">
-                {task.assigned_employee.full_name.split(' ')[0]}
+                {assigneesMap[task.id].map(a => a.name.split(' ')[0]).join(', ')}
               </span>
             )}
             {task.area && (
