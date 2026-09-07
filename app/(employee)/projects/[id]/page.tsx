@@ -33,7 +33,7 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
   }
 
   let projectName = ''
-  let projectStatus = ''
+  let _projectStatus = ''
   let projectProgress = 0
   let projectAddress: string | null = null
   let coverPath: string | null = null
@@ -71,7 +71,7 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
 
           if (proj) {
             projectName = proj.name
-            projectStatus = proj.status
+            _projectStatus = proj.status
             projectProgress = proj.progress ?? 0
             projectAddress = proj.address ?? null
             coverPath = proj.cover_image_path ?? null
