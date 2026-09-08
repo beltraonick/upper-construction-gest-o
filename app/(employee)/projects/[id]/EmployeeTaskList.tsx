@@ -51,6 +51,7 @@ export function EmployeeTaskList({ initialTasks, locale }: Props) {
   const [taskPhotos, setTaskPhotos] = useState<string[]>([])
   const [photosLoading, setPhotosLoading] = useState(false)
   const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null)
+  const [newCheckItem, setNewCheckItem] = useState('')
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
 
@@ -79,8 +80,16 @@ export function EmployeeTaskList({ initialTasks, locale }: Props) {
     setEditChecklist((task.checklist ?? []).map(c => ({ ...c })))
     setEditTitle(task.title)
     setEditNotes(task.notes ?? '')
+    setNewCheckItem('')
     setSaved(false)
     loadPhotos(task.id)
+  }
+
+  function addCheckItem() {
+    const text = newCheckItem.trim()
+    if (!text) return
+    setEditChecklist(prev => [...prev, { text, done: false }])
+    setNewCheckItem('')
   }
 
   function closeEdit() {
@@ -253,10 +262,10 @@ export function EmployeeTaskList({ initialTasks, locale }: Props) {
               </div>
 
               {/* Checklist */}
-              {editChecklist.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{L.checklist}</p>
-                  <div className="bg-surface-elevated rounded-[12px] divide-y divide-[var(--border)]">
+              <div>
+                <p className="text-xs font-semibold text-secondary uppercase tracking-wide mb-2">{L.checklist}</p>
+                {editChecklist.length > 0 && (
+                  <div className="bg-surface-elevated rounded-[12px] divide-y divide-[var(--border)] mb-2">
                     {editChecklist.map((item, i) => (
                       <button
                         key={i}
@@ -277,14 +286,33 @@ export function EmployeeTaskList({ initialTasks, locale }: Props) {
                             </svg>
                           )}
                         </div>
-                        <span className={`text-sm leading-snug ${item.done ? 'text-tertiary line-through' : 'text-primary'}`}>
+                        <span className={`text-sm leading-snug flex-1 text-left ${item.done ? 'text-tertiary line-through' : 'text-primary'}`}>
                           {item.text}
                         </span>
                       </button>
                     ))}
                   </div>
+                )}
+                {/* Add new item */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCheckItem}
+                    onChange={e => setNewCheckItem(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addCheckItem()}
+                    placeholder={locale === 'pt' ? 'Novo item…' : 'New item…'}
+                    className="flex-1 text-sm bg-surface-elevated rounded-[10px] px-3 py-2.5 border border-[var(--border)] outline-none focus:border-brand placeholder:text-tertiary transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCheckItem}
+                    className="px-3 py-2.5 rounded-[10px] text-sm font-semibold text-white"
+                    style={{ background: 'rgb(var(--color-brand))' }}
+                  >
+                    +
+                  </button>
                 </div>
-              )}
+              </div>
 
               {/* Notes */}
               <div>
