@@ -31,6 +31,7 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
     area: string | null
     due_date: string | null
     checklist: { text: string; done: boolean }[]
+    notes: string | null
   }
 
   let projectName = ''
@@ -85,7 +86,7 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
           if (assignedIds.length > 0) {
             const { data: taskRows } = await supabase
               .from('tasks')
-              .select('id, title, status, area, due_date, checklist')
+              .select('id, title, status, area, due_date, checklist, notes')
               .eq('project_id', projectId)
               .in('id', assignedIds)
               .order('created_at', { ascending: false })

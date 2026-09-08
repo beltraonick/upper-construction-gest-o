@@ -9,6 +9,8 @@ export async function updateEmployeeTask(
   updates: {
     status?: string
     checklist?: { text: string; done: boolean }[]
+    title?: string
+    notes?: string
   }
 ) {
   const user = getCurrentUser()
@@ -38,7 +40,7 @@ export async function updateEmployeeTask(
   // Fetch current task state for audit diff
   const { data: currentTask } = await supabase
     .from('tasks')
-    .select('id, title, status, checklist, project_id')
+    .select('id, title, status, checklist, notes, project_id')
     .eq('id', taskId)
     .maybeSingle()
 
@@ -59,6 +61,17 @@ export async function updateEmployeeTask(
       changes.push({ field: 'checklist', old_value: currentTask.checklist ?? [], new_value: updates.checklist })
       payload.checklist = updates.checklist
     }
+  }
+
+  if (updates.title !== undefined && updates.title.trim() !== '' && updates.title !== currentTask.title) {
+    changes.push({ field: 'title', old_value: currentTask.title, new_value: updates.title })
+    payload.title = updates.title
+  }
+
+  const currentNotes = (currentTask as Record<string, unknown>).notes as string ?? ''
+  if (updates.notes !== undefined && updates.notes !== currentNotes) {
+    changes.push({ field: 'notes', old_value: currentNotes, new_value: updates.notes })
+    payload.notes = updates.notes
   }
 
   if (changes.length === 0) return { ok: true }
