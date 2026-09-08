@@ -12,6 +12,7 @@ import { PhotoPicker } from '@/components/ui/PhotoPicker'
 import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
 import { queuePhoto } from '@/lib/offline-photo-queue'
 import { useOfflinePhotoSync } from '@/lib/useOfflinePhotoSync'
+import { TaskAuditAlerts } from '@/components/admin/TaskAuditAlerts'
 
 interface ChecklistItem { text: string; done: boolean }
 
@@ -105,6 +106,8 @@ export default function TasksPage() {
   const [assigneesMap, setAssigneesMap] = useState<Record<string, { id: string; name: string }[]>>({})
   const [editAssignees, setEditAssignees] = useState<{ id: string; name: string }[]>([])
   const [addEmpId, setAddEmpId] = useState('')
+  type AuditEntry = { id: string; task_title: string | null; changed_by_name: string | null; changes: { field: string; old_value: unknown; new_value: unknown }[]; created_at: string }
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([])
 
   const PRIORITY_OPTIONS = [
     { value: 'low', label: t('common.priority.low') },
@@ -155,6 +158,20 @@ export default function TasksPage() {
       setAssigneesMap(map)
     } else {
       setAssigneesMap({})
+    }
+
+    // Load unread audit entries from employees
+    try {
+      const { data: auditRows } = await supabase
+        .from('task_audit_log')
+        .select('id, task_title, changed_by_name, changes, created_at')
+        .eq('company_id', companyId)
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      setAuditEntries((auditRows ?? []) as AuditEntry[])
+    } catch {
+      // table may not exist yet
     }
 
     setLoading(false)
@@ -616,6 +633,14 @@ export default function TasksPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-[1600px]">
+      {/* Employee change alerts */}
+      <TaskAuditAlerts
+        entries={auditEntries}
+        companyId={companyId}
+        locale="pt"
+        onRead={() => setAuditEntries([])}
+      />
+
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>

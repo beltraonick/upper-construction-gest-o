@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { t } from '@/lib/i18n/translate'
 import Link from 'next/link'
+import { EmployeeTaskList } from './EmployeeTaskList'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -33,7 +34,6 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
   }
 
   let projectName = ''
-  let _projectStatus = ''
   let projectProgress = 0
   let projectAddress: string | null = null
   let coverPath: string | null = null
@@ -52,7 +52,6 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
         .maybeSingle()
 
       if (profile) {
-        // Verify employee is a member of this project
         const { data: member } = await supabase
           .from('project_members')
           .select('project_id')
@@ -71,13 +70,11 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
 
           if (proj) {
             projectName = proj.name
-            _projectStatus = proj.status
             projectProgress = proj.progress ?? 0
             projectAddress = proj.address ?? null
             coverPath = proj.cover_image_path ?? null
           }
 
-          // Tasks assigned to this employee in this project
           const { data: assignments } = await supabase
             .from('task_assignments')
             .select('task_id')
@@ -104,19 +101,13 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
   if (!found) redirect('/projects')
 
   const cover = coverUrl(coverPath)
-  const doneTasks = tasks.filter(tk => tk.status === 'completed').length
-  const pendingTasks = tasks.filter(tk => tk.status !== 'completed').length
-
-  function fmtDate(iso: string) {
-    const dateLocale = locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US'
-    return new Date(iso + 'T00:00:00').toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })
-  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Cover */}
       {cover && (
         <div className="h-44 w-full overflow-hidden relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={cover} alt={projectName} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
         </div>
@@ -161,79 +152,18 @@ export default async function EmployeeProjectDetailPage({ params }: { params: { 
               }}
             />
           </div>
-          <div className="flex gap-4 mt-3 text-xs text-secondary">
-            <span>{pendingTasks} pendente{pendingTasks !== 1 ? 's' : ''}</span>
-            <span>{doneTasks} concluída{doneTasks !== 1 ? 's' : ''}</span>
-          </div>
         </div>
 
-        {/* Tasks */}
+        {/* Tasks — interactive client component */}
         <h2 className="text-sm font-semibold text-primary mb-3">
           {t(locale, 'employee.projects.myTasks')}
         </h2>
 
-        {tasks.length === 0 ? (
-          <p className="text-sm text-secondary text-center py-8">
-            {t(locale, 'employee.projects.noTasks')}
-          </p>
-        ) : (
-          <div className="bg-surface rounded-[16px] border border-[var(--border)] divide-y divide-[var(--border)]">
-            {tasks.map(task => {
-              const doneItems = (task.checklist ?? []).filter(c => c.done).length
-              const totalItems = (task.checklist ?? []).length
-              const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed'
-
-              return (
-                <div key={task.id} className="px-4 py-3 flex items-start gap-3">
-                  <div className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${
-                    task.status === 'completed' ? 'bg-green-500' :
-                    task.status === 'in_progress' ? 'bg-amber-400' : 'bg-gray-300'
-                  }`} style={{
-                    background: task.status === 'completed'
-                      ? 'rgb(var(--color-green))'
-                      : task.status === 'in_progress'
-                        ? 'rgb(var(--color-amber))'
-                        : 'color-mix(in srgb, var(--color-secondary) 30%, transparent)',
-                  }} />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium leading-snug ${task.status === 'completed' ? 'text-tertiary line-through' : 'text-primary'}`}>
-                      {task.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className={`text-[11px] ${
-                        task.status === 'completed' ? 'text-green-600' :
-                        task.status === 'in_progress' ? 'text-amber-600' : 'text-secondary'
-                      }`} style={{
-                        color: task.status === 'completed'
-                          ? 'rgb(var(--color-green))'
-                          : task.status === 'in_progress'
-                            ? 'rgb(var(--color-amber))'
-                            : undefined,
-                      }}>
-                        {task.status === 'completed'
-                          ? t(locale, 'employee.projects.taskDone')
-                          : task.status === 'in_progress'
-                            ? t(locale, 'employee.projects.taskInProgress')
-                            : t(locale, 'employee.projects.taskPending')}
-                      </span>
-                      {task.area && (
-                        <span className="text-[11px] text-tertiary">{task.area}</span>
-                      )}
-                      {totalItems > 0 && (
-                        <span className="text-[11px] text-tertiary">{doneItems}/{totalItems}</span>
-                      )}
-                      {task.due_date && (
-                        <span className={`text-[11px] ${isOverdue ? 'text-danger font-medium' : 'text-tertiary'}`}>
-                          {t(locale, 'employee.projects.due')} {fmtDate(task.due_date)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <EmployeeTaskList
+          initialTasks={tasks}
+          locale={locale}
+          projectId={projectId}
+        />
       </div>
     </div>
   )

@@ -139,7 +139,7 @@ function useNav() {
 // Quick Actions on the Dashboard/Home page.
 const MOBILE_NAV_HREFS = ['/admin/dashboard', '/admin/tasks', '/admin/projects', '/admin/employees', '/admin/ai']
 
-export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pendingCount?: number }) {
+export function Sidebar({ user, pendingCount = 0, auditCount = 0 }: { user: SessionUser; pendingCount?: number; auditCount?: number }) {
   const pathname = usePathname()
   const { t } = useTranslation()
   const NAV = useNav()
@@ -166,6 +166,7 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
           {NAV.map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             const isMembersItem = item.href === '/admin/members'
+            const isTasksItem = item.href === '/admin/tasks'
             return (
               <Link
                 key={item.href}
@@ -182,6 +183,12 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
                 {isMembersItem && pendingCount > 0 && (
                   <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none">
                     {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                )}
+                {isTasksItem && auditCount > 0 && (
+                  <span className="ml-auto min-w-[18px] h-[18px] rounded-full text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none"
+                    style={{ background: 'rgb(var(--color-amber))' }}>
+                    {auditCount > 99 ? '99+' : auditCount}
                   </span>
                 )}
               </Link>
@@ -245,6 +252,7 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
           {MOBILE_NAV.map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             const isMembersItem = item.href === '/admin/members'
+            const isTasksItem = item.href === '/admin/tasks'
             return (
               <Link
                 key={item.href}
@@ -258,6 +266,10 @@ export function Sidebar({ user, pendingCount = 0 }: { user: SessionUser; pending
                   {item.icon}
                   {isMembersItem && pendingCount > 0 && (
                     <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-brand border border-surface" />
+                  )}
+                  {isTasksItem && auditCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-surface"
+                      style={{ background: 'rgb(var(--color-amber))' }} />
                   )}
                 </span>
                 <span className="leading-tight text-center">{item.mobileLabel}</span>

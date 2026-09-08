@@ -8,6 +8,7 @@ import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { OfflineBanner } from '@/components/OfflineBanner'
 import { ImpersonationBanner } from '@/components/ImpersonationBanner'
 import { getPendingRequests } from '@/app/actions/membership'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = getCurrentUser()
@@ -25,6 +26,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { requests } = await getPendingRequests()
   const pendingCount = requests?.length ?? 0
 
+  let auditCount = 0
+  try {
+    const supabase = createClient()
+    const { count } = await supabase
+      .from('task_audit_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', user.company_id)
+      .eq('is_read', false)
+    auditCount = count ?? 0
+  } catch {
+    // table may not exist yet
+  }
+
   return (
     // Every non-owner profile always has a company_id — owner is the
     // only role that isn't scoped to one, and it's redirected above.
@@ -33,7 +47,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <UserProvider user={{ id: user.id, name: user.full_name }}>
           <div className="flex h-screen bg-background overflow-hidden">
             <OfflineBanner />
-            <Sidebar user={user} pendingCount={pendingCount} />
+            <Sidebar user={user} pendingCount={pendingCount} auditCount={auditCount} />
             {/* pt-14 = mobile topbar height; pb-20 = mobile bottom nav; md resets both */}
             <main className="flex-1 md:ml-[240px] overflow-y-auto pt-14 md:pt-0 pb-20 md:pb-0">
               {children}
