@@ -421,7 +421,7 @@ export function TaskList({
     }
   }
 
-  const [statusFilter, setStatusFilter] = useState<'all' | 'todo' | 'in_progress' | 'blocked'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in_progress' | 'blocked' | 'completed'>('all')
 
   const projectGroups = useMemo(() => {
     const map = new Map<string, { name: string; tasks: Task[] }>()
@@ -475,9 +475,10 @@ export function TaskList({
 
   const filterCounts = useMemo(() => ({
     all: tasks.length,
-    todo: tasks.filter(tk => tk.status === 'todo').length,
+    pending: tasks.filter(tk => tk.status === 'pending').length,
     in_progress: tasks.filter(tk => tk.status === 'in_progress').length,
     blocked: tasks.filter(tk => tk.status === 'blocked').length,
+    completed: tasks.filter(tk => tk.status === 'completed').length,
   }), [tasks])
 
   return (
@@ -487,9 +488,10 @@ export function TaskList({
         <div className="flex gap-2 overflow-x-auto pb-1 mb-4 -mx-4 px-4 scrollbar-hide">
           {([
             { key: 'all',         label: t('employee.tasks.filterAll'),        count: filterCounts.all },
-            { key: 'todo',        label: t('employee.tasks.filterTodo'),       count: filterCounts.todo },
+            { key: 'pending',     label: t('employee.tasks.filterPending'),    count: filterCounts.pending },
             { key: 'in_progress', label: t('employee.tasks.filterInProgress'), count: filterCounts.in_progress },
             { key: 'blocked',     label: t('employee.tasks.filterBlocked'),    count: filterCounts.blocked },
+            { key: 'completed',   label: t('employee.tasks.filterCompleted'),  count: filterCounts.completed },
           ] as const).filter(f => f.key === 'all' || f.count > 0).map(f => (
             <button
               key={f.key}

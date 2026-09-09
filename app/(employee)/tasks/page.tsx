@@ -47,7 +47,6 @@ export default async function EmployeeTasksPage() {
             .from('tasks')
             .select('*, project:project_id(name)')
             .in('id', assignedIds)
-            .neq('status', 'completed')
             .order('created_at', { ascending: false })
           tasks = t ?? []
         } else {
@@ -56,7 +55,6 @@ export default async function EmployeeTasksPage() {
             .from('tasks')
             .select('*, project:project_id(name)')
             .eq('assigned_to', profileId)
-            .neq('status', 'completed')
             .order('created_at', { ascending: false })
           tasks = t ?? []
         }
