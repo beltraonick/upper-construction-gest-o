@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { createProfileWithPassword, adminSetPassword } from '@/app/actions/admin-users'
+import { createWorker, updateWorker } from '@/app/actions/workerActions'
 import { PERMISSION_KEYS, type EmployeePermissions } from '@/lib/permissions'
 import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
@@ -21,6 +22,7 @@ interface Employee {
   position: string | null
   company_name: string | null
   hourly_rate: number
+  daily_rate: number | null
   phone: string | null
   status: string
   created_at: string
@@ -29,11 +31,21 @@ interface Employee {
 
 const BLANK: Omit<Employee, 'id' | 'created_at'> & { password: string } = {
   full_name: '', email: '', role: 'employee', position: '',
-  company_name: '', hourly_rate: 0, phone: '', status: 'active', password: '',
+  company_name: '', hourly_rate: 0, daily_rate: null, phone: '', status: 'active', password: '',
   permissions: {},
 }
 
 interface Project { id: string; name: string }
+
+interface Worker {
+  id: string
+  full_name: string
+  daily_rate: number
+  position: string | null
+  status: string
+}
+
+const WORKER_BLANK = { full_name: '', daily_rate: 0, position: '', status: 'active' }
 
 export default function EmployeesPage() {
   const { t } = useTranslation()
@@ -57,6 +69,15 @@ export default function EmployeesPage() {
   const [allProjects, setAllProjects] = useState<Project[]>([])
   const [memberProjectIds, setMemberProjectIds] = useState<string[]>([])
 
+  // Workers state
+  const [workers, setWorkers] = useState<Worker[]>([])
+  const [showWorkerModal, setShowWorkerModal] = useState(false)
+  const [editingWorker, setEditingWorker] = useState<Worker | null>(null)
+  const [workerForm, setWorkerForm] = useState({ ...WORKER_BLANK })
+  const [workerProjectIds, setWorkerProjectIds] = useState<string[]>([])
+  const [workerSaving, setWorkerSaving] = useState(false)
+  const [workerError, setWorkerError] = useState('')
+
   const ROLE_OPTIONS = [
     { value: 'employee', label: t('admin.employees.roleEmployee') },
     { value: 'admin', label: t('admin.employees.roleAdmin') },
@@ -70,21 +91,21 @@ export default function EmployeesPage() {
 
   const load = useCallback(async () => {
     const supabase = createClient()
-    const [{ data: emps }, { data: open }, { data: projs }] = await Promise.all([
+    const [{ data: emps }, { data: open }, { data: projs }, { data: wrks }] = await Promise.all([
       supabase.from('profiles').select('*').eq('company_id', companyId).order('full_name'),
       supabase.from('time_entries').select('employee_id').is('clock_out', null),
       supabase.from('projects').select('id, name').eq('company_id', companyId).order('name'),
+      supabase.from('workers').select('*').eq('company_id', companyId).order('full_name'),
     ])
     setEmployees(emps ?? [])
     setOpenIds(new Set((open ?? []).map((e: { employee_id: string }) => e.employee_id)))
     setAllProjects(projs ?? [])
+    setWorkers(wrks ?? [])
     setLoading(false)
   }, [companyId])
 
   useEffect(() => { load() }, [load])
 
-  // Lock background scroll while the modal is open — otherwise dragging
-  // inside the form also scrolls the page behind it.
   useEffect(() => {
     if (!showModal) return
     document.body.style.overflow = 'hidden'
@@ -113,6 +134,7 @@ export default function EmployeesPage() {
       position: emp.position ?? '',
       company_name: emp.company_name ?? '',
       hourly_rate: emp.hourly_rate,
+      daily_rate: emp.daily_rate ?? null,
       phone: emp.phone ?? '',
       status: emp.status,
       password: '',
@@ -124,7 +146,6 @@ export default function EmployeesPage() {
     setResetPasswordValue('')
     setResetError('')
     setResetSuccess(false)
-    // Fetch current project memberships for this employee
     const supabase = createClient()
     const { data: members } = await supabase
       .from('project_members')
@@ -148,6 +169,53 @@ export default function EmployeesPage() {
     setResetPasswordValue('')
   }
 
+  function openAddWorker() {
+    setEditingWorker(null)
+    setWorkerForm({ ...WORKER_BLANK })
+    setWorkerProjectIds([])
+    setWorkerError('')
+    setShowWorkerModal(true)
+  }
+
+  async function openEditWorker(w: Worker) {
+    setEditingWorker(w)
+    setWorkerForm({ full_name: w.full_name, daily_rate: w.daily_rate, position: w.position ?? '', status: w.status })
+    setWorkerError('')
+    const supabase = createClient()
+    const { data: wp } = await supabase.from('worker_projects').select('project_id').eq('worker_id', w.id)
+    setWorkerProjectIds((wp ?? []).map((r: { project_id: string }) => r.project_id))
+    setShowWorkerModal(true)
+  }
+
+  async function handleWorkerSave(e: React.FormEvent) {
+    e.preventDefault()
+    setWorkerError('')
+    setWorkerSaving(true)
+
+    if (editingWorker) {
+      const res = await updateWorker(editingWorker.id, {
+        full_name: workerForm.full_name,
+        daily_rate: Number(workerForm.daily_rate),
+        position: workerForm.position || undefined,
+        status: workerForm.status,
+        project_ids: workerProjectIds,
+      })
+      if (res.error) { setWorkerError(res.error); setWorkerSaving(false); return }
+    } else {
+      const res = await createWorker({
+        full_name: workerForm.full_name,
+        daily_rate: Number(workerForm.daily_rate),
+        position: workerForm.position || undefined,
+        project_ids: workerProjectIds,
+      })
+      if (res.error) { setWorkerError(res.error); setWorkerSaving(false); return }
+    }
+
+    setWorkerSaving(false)
+    setShowWorkerModal(false)
+    load()
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -162,11 +230,11 @@ export default function EmployeesPage() {
         position: form.position || null,
         company_name: form.company_name || null,
         hourly_rate: Number(form.hourly_rate),
+        daily_rate: form.daily_rate != null ? Number(form.daily_rate) : null,
         phone: form.phone || null,
         status: form.status,
         permissions: form.role === 'employee' ? (form.permissions ?? {}) : {},
       }).eq('id', editing.id)
-      // Sync project memberships: delete all then re-insert selected
       await supabase.from('project_members').delete().eq('profile_id', editing.id)
       if (memberProjectIds.length > 0) {
         await supabase.from('project_members').insert(
@@ -174,7 +242,6 @@ export default function EmployeesPage() {
         )
       }
     } else {
-      // Creating a login needs the password hashed server-side.
       const result = await createProfileWithPassword({
         full_name: form.full_name,
         email: form.email,
@@ -184,14 +251,13 @@ export default function EmployeesPage() {
         hourly_rate: Number(form.hourly_rate),
         phone: form.phone || null,
         password: form.password,
-        permissions: form.permissions ?? {},
+        permissions: (form.permissions ?? {}) as EmployeePermissions,
       })
       if (result.error) {
         setError(result.error)
         setSaving(false)
         return
       }
-      // Client was created — show their activation link before closing.
       if (result.activationUrl) {
         setActivationUrl(result.activationUrl)
         setSaving(false)
@@ -306,7 +372,146 @@ export default function EmployeesPage() {
         )}
       </Card>
 
-      {/* Modal */}
+      {/* Workers Section */}
+      <div className="mt-8">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-primary">{t('admin.employees.workersTitle')}</h2>
+          <Button size="sm" onClick={openAddWorker}>{t('admin.employees.addWorker')}</Button>
+        </div>
+        <Card padding="none">
+          {workers.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-secondary text-center">{t('admin.employees.noWorkersYet')}</p>
+          ) : (
+            <div className="divide-y divide-[var(--border)]">
+              {workers.map(w => (
+                <div key={w.id} className="flex items-center gap-3 px-5 py-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-primary">{w.full_name}</p>
+                    <p className="text-xs text-secondary mt-0.5">
+                      {w.position ?? t('admin.employees.noPosition')}
+                      {w.status === 'archived' && ` · ${t('admin.employees.statusArchived')}`}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0 mr-4">
+                    <p className="text-sm font-semibold text-primary">${Number(w.daily_rate).toFixed(2)}/day</p>
+                  </div>
+                  <button
+                    onClick={() => openEditWorker(w)}
+                    className="p-1.5 rounded-button text-secondary hover:text-primary hover:bg-surface-elevated transition-colors"
+                    title={t('admin.employees.editTooltip')}
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Worker Modal */}
+      {showWorkerModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowWorkerModal(false)}
+        >
+          <div
+            className="bg-surface rounded-card border border-[var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h2 className="text-base font-semibold text-primary mb-5">
+                {editingWorker ? t('admin.employees.editWorker') : t('admin.employees.addWorkerTitle')}
+              </h2>
+              <form onSubmit={handleWorkerSave} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Input
+                      label={t('admin.employees.fullName')}
+                      required
+                      value={workerForm.full_name}
+                      onChange={e => setWorkerForm(f => ({ ...f, full_name: e.target.value }))}
+                    />
+                  </div>
+                  <Input
+                    label={t('admin.employees.workerDailyRate')}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    placeholder={t('admin.employees.dailyRatePlaceholder')}
+                    value={workerForm.daily_rate || ''}
+                    onChange={e => setWorkerForm(f => ({ ...f, daily_rate: Number(e.target.value) }))}
+                  />
+                  <Input
+                    label={t('admin.employees.workerPosition')}
+                    placeholder={t('admin.employees.positionPlaceholder')}
+                    value={workerForm.position}
+                    onChange={e => setWorkerForm(f => ({ ...f, position: e.target.value }))}
+                  />
+                  {editingWorker && (
+                    <div className="col-span-2">
+                      <Select
+                        label={t('admin.employees.status')}
+                        options={[
+                          { value: 'active', label: t('common.active') },
+                          { value: 'archived', label: t('admin.employees.statusArchived') },
+                        ]}
+                        value={workerForm.status}
+                        onChange={e => setWorkerForm(f => ({ ...f, status: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                  <div className="col-span-2 bg-surface-elevated border border-[var(--border)] rounded-input p-3">
+                    <p className="text-xs font-semibold text-secondary mb-1">{t('admin.employees.workerProjects')}</p>
+                    <p className="text-xs text-tertiary mb-2.5">{t('admin.employees.workerProjectsHint')}</p>
+                    {allProjects.length === 0 ? (
+                      <p className="text-xs text-tertiary">{t('admin.employees.noProjectsAvailable')}</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {allProjects.map(proj => (
+                          <label key={proj.id} className="flex items-center gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={workerProjectIds.includes(proj.id)}
+                              onChange={e => {
+                                if (e.target.checked) {
+                                  setWorkerProjectIds(ids => [...ids, proj.id])
+                                } else {
+                                  setWorkerProjectIds(ids => ids.filter(id => id !== proj.id))
+                                }
+                              }}
+                              className="w-4 h-4 rounded accent-brand flex-shrink-0"
+                            />
+                            <span className="text-sm text-primary">{proj.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {workerError && (
+                  <div className="bg-danger/10 border border-danger/20 rounded-input px-4 py-3 text-sm text-danger">
+                    {workerError}
+                  </div>
+                )}
+                <div className="flex gap-3 pt-2">
+                  <Button type="button" variant="secondary" onClick={() => setShowWorkerModal(false)} className="flex-1">
+                    {t('common.cancel')}
+                  </Button>
+                  <Button type="submit" loading={workerSaving} className="flex-1">
+                    {editingWorker ? t('admin.employees.saveChanges') : t('admin.employees.addWorkerTitle')}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Modal */}
       {showModal && (
         <div
           className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
@@ -439,6 +644,15 @@ export default function EmployeesPage() {
                     step="0.01"
                     value={form.hourly_rate}
                     onChange={e => setForm(f => ({ ...f, hourly_rate: Number(e.target.value) }))}
+                  />
+                  <Input
+                    label={t('admin.employees.dailyRateLabel')}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder={t('admin.employees.dailyRatePlaceholder')}
+                    value={form.daily_rate ?? ''}
+                    onChange={e => setForm(f => ({ ...f, daily_rate: e.target.value === '' ? null : Number(e.target.value) }))}
                   />
                   <Input
                     label={t('admin.employees.companyLabel')}

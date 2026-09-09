@@ -50,7 +50,7 @@ export async function createProfileWithPassword(data: {
       phone: data.phone || null,
       status: 'active',
       auth_status: 'pending',
-      // No password_hash — set when client activates their account.
+      permissions: {},
     }).select('id').single()
 
     if (error) return { error: error.message }
