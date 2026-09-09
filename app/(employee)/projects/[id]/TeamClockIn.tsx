@@ -106,7 +106,10 @@ function ClockOutSheet({
         </div>
 
         {/* Sticky action button */}
-        <div className="flex-shrink-0 px-5 pb-8 pt-3 md:pb-5 border-t border-[var(--border)]">
+        <div
+          className="flex-shrink-0 px-5 pt-3 border-t border-[var(--border)]"
+          style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+        >
           <button
             onClick={handleClockOut}
             disabled={saving}
@@ -187,7 +190,10 @@ function ClockInSheet({
         </div>
 
         {/* Sticky action button */}
-        <div className="flex-shrink-0 px-5 pb-8 pt-3 md:pb-5 border-t border-[var(--border)]">
+        <div
+          className="flex-shrink-0 px-5 pt-3 border-t border-[var(--border)]"
+          style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+        >
           <button
             onClick={handleClockIn}
             disabled={saving}
