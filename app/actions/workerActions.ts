@@ -115,7 +115,7 @@ export async function supervisorClockIn(data: {
 
   if (!profile) return { error: 'Profile not found' }
 
-  const isSupervisor = hasPermission(profile.permissions as EmployeePermissions | null, 'supervisor')
+  const isSupervisor = user.role === 'admin' || hasPermission(profile.permissions as EmployeePermissions | null, 'supervisor')
   const canCheckinTeam = hasPermission(profile.permissions as EmployeePermissions | null, 'checkin_team')
 
   if (!isSupervisor && !canCheckinTeam) return { error: 'Not authorized' }
@@ -180,7 +180,7 @@ export async function supervisorClockOut(data: {
 
   if (!profile) return { error: 'Profile not found' }
 
-  const isSupervisor = hasPermission(profile.permissions as EmployeePermissions | null, 'supervisor')
+  const isSupervisor = user.role === 'admin' || hasPermission(profile.permissions as EmployeePermissions | null, 'supervisor')
   const canCheckinTeam = hasPermission(profile.permissions as EmployeePermissions | null, 'checkin_team')
 
   if (!isSupervisor && !canCheckinTeam) return { error: 'Not authorized' }
@@ -215,7 +215,7 @@ export async function getProjectTeamStatus(projectId: string) {
 
   if (!profile) return { error: 'Profile not found' }
 
-  const isSupervisor = hasPermission(profile.permissions as EmployeePermissions | null, 'supervisor')
+  const isSupervisor = user.role === 'admin' || hasPermission(profile.permissions as EmployeePermissions | null, 'supervisor')
   const canCheckinTeam = hasPermission(profile.permissions as EmployeePermissions | null, 'checkin_team')
 
   if (!isSupervisor && !canCheckinTeam) return { error: 'Not authorized' }
