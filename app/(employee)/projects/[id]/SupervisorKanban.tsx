@@ -7,6 +7,7 @@ import { useCompanyId } from '@/lib/company-context'
 import { PhotoPicker } from '@/components/ui/PhotoPicker'
 import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
 import { updateSupervisorTask, createSupervisorTask } from '@/app/actions/employeeTasks'
+import { TeamClockIn } from './TeamClockIn'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -533,6 +534,7 @@ export function SupervisorKanban({
   const [columns, setColumns] = useState<KanbanColumn[]>([])
   const [tasks, setTasks] = useState<SupervisorTask[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'kanban' | 'team'>('kanban')
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
   const [drawerTask, setDrawerTask] = useState<SupervisorTask | null>(null)
   const [addingToCol, setAddingToCol] = useState<string | null>(null)
@@ -597,6 +599,37 @@ export function SupervisorKanban({
 
   return (
     <div>
+      {/* Tab bar */}
+      <div className="flex border-b border-[var(--border)] px-4 mb-4">
+        <button
+          onClick={() => setActiveTab('kanban')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'kanban'
+              ? 'border-[var(--color-brand)] text-primary'
+              : 'border-transparent text-secondary hover:text-primary'
+          }`}
+        >
+          {t('supervisor.tabs.tasks')}
+        </button>
+        <button
+          onClick={() => setActiveTab('team')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'team'
+              ? 'border-[var(--color-brand)] text-primary'
+              : 'border-transparent text-secondary hover:text-primary'
+          }`}
+        >
+          {t('supervisor.tabs.teamClock')}
+        </button>
+      </div>
+
+      {/* Team clock-in tab */}
+      {activeTab === 'team' && (
+        <TeamClockIn projectId={projectId} />
+      )}
+
+      {/* Kanban tab */}
+      {activeTab === 'kanban' && <>
       {/* Kanban board */}
       {columns.length > 0 && (
         <div className="overflow-x-auto pb-4 -mx-4 px-4">
@@ -703,6 +736,7 @@ export function SupervisorKanban({
           </div>
         </div>
       )}
+      </>}
     </div>
   )
 }

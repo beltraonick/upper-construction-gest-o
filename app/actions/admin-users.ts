@@ -6,6 +6,23 @@ import { hashPassword } from '@/lib/auth/crypto'
 import { checkRoleLimit } from '@/lib/plan-limits'
 import { generateClientActivation } from './client-activation'
 
+export async function adminSetPassword(profileId: string, newPassword: string): Promise<{ error?: string }> {
+  if (!newPassword || newPassword.length < 8) return { error: 'Password must be at least 8 characters.' }
+
+  const user = getCurrentUser()
+  if (!user || user.role !== 'admin') return { error: 'Not authorized.' }
+
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('profiles')
+    .update({ password_hash: hashPassword(newPassword) })
+    .eq('id', profileId)
+    .eq('company_id', user.company_id)
+
+  if (error) return { error: error.message }
+  return {}
+}
+
 export async function createProfileWithPassword(data: {
   full_name: string
   email: string
@@ -15,6 +32,7 @@ export async function createProfileWithPassword(data: {
   hourly_rate: number
   phone: string | null
   password: string
+  permissions?: Record<string, unknown>
 }): Promise<{ error?: string; activationUrl?: string }> {
   if (!data.full_name.trim() || !data.email.trim()) {
     return { error: 'Name and email are required.' }
@@ -48,7 +66,7 @@ export async function createProfileWithPassword(data: {
       phone: data.phone || null,
       status: 'active',
       auth_status: 'pending',
-      // No password_hash — set when client activates their account.
+      permissions: {},
     }).select('id').single()
 
     if (error) return { error: error.message }
@@ -77,6 +95,7 @@ export async function createProfileWithPassword(data: {
     status: 'active',
     auth_status: 'approved',
     password_hash: hashPassword(data.password),
+    permissions: data.role === 'employee' ? (data.permissions ?? {}) : {},
   })
 
   if (error) return { error: error.message }
