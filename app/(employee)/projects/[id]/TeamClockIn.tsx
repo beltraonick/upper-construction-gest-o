@@ -42,9 +42,9 @@ function ClockOutSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-lg bg-surface rounded-t-[20px] p-5 pb-8 safe-bottom"
+        className="w-full max-w-lg bg-surface rounded-t-[20px] md:rounded-[20px] p-5 pb-8 md:pb-5 safe-bottom"
         onClick={e => e.stopPropagation()}
       >
         <div className="w-10 h-1 bg-tertiary rounded-full mx-auto mb-4" />
@@ -139,9 +139,9 @@ function ClockInSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="w-full max-w-lg bg-surface rounded-t-[20px] p-5 pb-8 safe-bottom"
+        className="w-full max-w-lg bg-surface rounded-t-[20px] md:rounded-[20px] p-5 pb-8 md:pb-5 safe-bottom"
         onClick={e => e.stopPropagation()}
       >
         <div className="w-10 h-1 bg-tertiary rounded-full mx-auto mb-4" />
