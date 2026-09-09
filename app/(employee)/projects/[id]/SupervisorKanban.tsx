@@ -6,7 +6,7 @@ import { useTranslation } from '@/lib/i18n/LocaleContext'
 import { useCompanyId } from '@/lib/company-context'
 import { PhotoPicker } from '@/components/ui/PhotoPicker'
 import { PhotoLightbox, type LightboxPhoto } from '@/components/ui/PhotoLightbox'
-import { updateSupervisorTask } from '@/app/actions/employeeTasks'
+import { updateSupervisorTask, createSupervisorTask } from '@/app/actions/employeeTasks'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -92,12 +92,13 @@ function TaskCard({ task, onClick, onDragStart }: {
 
 // ─── Kanban Column ─────────────────────────────────────────────────────────────
 
-function KanbanColumnView({ col, tasks, onTaskClick, onDragStart, onDrop }: {
+function KanbanColumnView({ col, tasks, onTaskClick, onDragStart, onDrop, onAddTask }: {
   col: KanbanColumn
   tasks: SupervisorTask[]
   onTaskClick: (task: SupervisorTask) => void
   onDragStart: (taskId: string) => void
   onDrop: (colId: string) => void
+  onAddTask: (colId: string) => void
 }) {
   const [dragOver, setDragOver] = useState(false)
 
@@ -125,6 +126,15 @@ function KanbanColumnView({ col, tasks, onTaskClick, onDragStart, onDrop }: {
           />
         ))}
       </div>
+      <button
+        onClick={() => onAddTask(col.id)}
+        className="flex items-center gap-1.5 px-3 py-2 text-xs text-tertiary hover:text-brand hover:bg-brand/5 transition-colors border-t border-[var(--border)] rounded-b-card"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+          <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+        </svg>
+        Add task
+      </button>
     </div>
   )
 }
@@ -525,6 +535,9 @@ export function SupervisorKanban({
   const [loading, setLoading] = useState(true)
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null)
   const [drawerTask, setDrawerTask] = useState<SupervisorTask | null>(null)
+  const [addingToCol, setAddingToCol] = useState<string | null>(null)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [addingBusy, setAddingBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -554,6 +567,24 @@ export function SupervisorKanban({
     setDrawerTask(null)
   }
 
+  function openAddTask(colId: string) {
+    setAddingToCol(colId)
+    setNewTaskTitle('')
+  }
+
+  async function submitAddTask() {
+    const title = newTaskTitle.trim()
+    if (!title || !addingToCol) return
+    setAddingBusy(true)
+    const result = await createSupervisorTask(projectId, addingToCol, title)
+    if (result.ok && result.task) {
+      setTasks(prev => [...prev, result.task as SupervisorTask])
+    }
+    setAddingToCol(null)
+    setNewTaskTitle('')
+    setAddingBusy(false)
+  }
+
   const uncolumnedTasks = tasks.filter(tk => !tk.column_id)
 
   if (loading) {
@@ -578,6 +609,7 @@ export function SupervisorKanban({
                 onTaskClick={setDrawerTask}
                 onDragStart={id => setDraggingTaskId(id)}
                 onDrop={colId => { if (draggingTaskId) moveTask(draggingTaskId, colId) }}
+                onAddTask={openAddTask}
               />
             ))}
           </div>
@@ -627,6 +659,49 @@ export function SupervisorKanban({
           onClose={() => setDrawerTask(null)}
           onUpdated={handleTaskUpdated}
         />
+      )}
+
+      {/* Add task modal */}
+      {addingToCol && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setAddingToCol(null)}
+        >
+          <div
+            className="bg-surface w-full max-w-lg rounded-t-card border-t border-l border-r border-[var(--border)] px-5 py-5"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-center mb-4">
+              <div className="w-10 h-1 rounded-full bg-tertiary/40" />
+            </div>
+            <p className="text-sm font-semibold text-primary mb-3">Nova tarefa</p>
+            <input
+              autoFocus
+              type="text"
+              value={newTaskTitle}
+              onChange={e => setNewTaskTitle(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') submitAddTask() }}
+              placeholder="Título da tarefa…"
+              className="w-full bg-surface-elevated text-sm text-primary placeholder:text-tertiary rounded-input px-3 py-2.5 border border-[var(--border)] focus:border-brand/50 outline-none mb-3"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAddingToCol(null)}
+                className="flex-1 h-10 rounded-button border border-[var(--border)] text-sm text-secondary hover:text-primary transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitAddTask}
+                disabled={!newTaskTitle.trim() || addingBusy}
+                className="flex-1 h-10 rounded-button bg-brand text-white text-sm font-medium hover:bg-brand/90 transition-colors disabled:opacity-50"
+              >
+                {addingBusy ? '…' : 'Adicionar'}
+              </button>
+            </div>
+            <div className="safe-bottom" />
+          </div>
+        </div>
       )}
     </div>
   )

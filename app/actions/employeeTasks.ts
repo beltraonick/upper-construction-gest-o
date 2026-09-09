@@ -98,6 +98,69 @@ export async function updateEmployeeTask(
   return { ok: true }
 }
 
+export async function createSupervisorTask(
+  projectId: string,
+  columnId: string | null,
+  title: string,
+  area?: string
+) {
+  const user = getCurrentUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const supabase = createClient()
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, full_name, permissions')
+    .eq('email', user.email)
+    .eq('company_id', user.company_id)
+    .maybeSingle()
+
+  if (!profile) return { error: 'Profile not found' }
+
+  const permissions = (profile.permissions as Record<string, boolean> | null) ?? {}
+  if (!permissions.supervisor) return { error: 'Not a supervisor' }
+
+  const { data: member } = await supabase
+    .from('project_members')
+    .select('project_id')
+    .eq('profile_id', profile.id)
+    .eq('project_id', projectId)
+    .maybeSingle()
+
+  if (!member) return { error: 'Not a project member' }
+
+  const { data: task, error: insertErr } = await supabase
+    .from('tasks')
+    .insert({
+      title: title.trim(),
+      project_id: projectId,
+      company_id: user.company_id,
+      column_id: columnId ?? null,
+      area: area?.trim() || null,
+      status: 'pending',
+      checklist: [],
+    })
+    .select('id, title, status, area, priority, due_date, notes, checklist, assigned_to, column_id, label_color')
+    .maybeSingle()
+
+  if (insertErr) return { error: insertErr.message }
+  if (!task) return { error: 'Failed to create task' }
+
+  await supabase.from('task_audit_log').insert({
+    task_id: task.id,
+    project_id: projectId,
+    company_id: user.company_id,
+    changed_by_profile_id: profile.id,
+    changed_by_name: profile.full_name,
+    task_title: task.title,
+    changes: [{ field: 'status', old_value: null, new_value: 'pending' }],
+  })
+
+  revalidatePath(`/projects/${projectId}`)
+  return { ok: true, task }
+}
+
 export async function updateSupervisorTask(
   taskId: string,
   updates: {
