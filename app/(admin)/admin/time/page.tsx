@@ -6,19 +6,26 @@ import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
+import { Input } from '@/components/ui/Input'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
 import type { Locale } from '@/lib/i18n/translate'
 
 interface TimeEntry {
   id: string
-  employee_id: string
+  employee_id: string | null
+  worker_id: string | null
   clock_in: string
   clock_out: string | null
   city: string | null
   state: string | null
+  notes: string | null
+  is_full_day: boolean | null
   approval_status: string | null
+  clocked_by_profile_id: string | null
   project: { name: string } | null
   profile: { full_name: string; email: string } | null
+  worker: { full_name: string } | null
+  clocked_by: { full_name: string } | null
 }
 
 function filterOptions(t: (key: string) => string) {
@@ -47,6 +54,12 @@ function fmtDate(iso: string, locale: Locale) {
   return new Date(iso).toLocaleDateString(localeTag(locale), { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+function toLocalDatetimeValue(iso: string) {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function getRange(filter: string): Date | null {
   const now = new Date()
   if (filter === 'today') {
@@ -71,6 +84,18 @@ export default function TimePage() {
   const [empFilter, setEmpFilter] = useState('')
   const [employees, setEmployees] = useState<{ id: string; full_name: string }[]>([])
 
+  // Edit modal
+  const [editEntry, setEditEntry] = useState<TimeEntry | null>(null)
+  const [editClockIn, setEditClockIn] = useState('')
+  const [editClockOut, setEditClockOut] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
+
+  // Delete confirm
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     const supabase = createClient()
@@ -78,7 +103,15 @@ export default function TimePage() {
 
     let query = supabase
       .from('time_entries')
-      .select('id, employee_id, clock_in, clock_out, city, state, approval_status, project:project_id(name), profile:employee_id(full_name, email)')
+      .select(`
+        id, employee_id, worker_id, clock_in, clock_out,
+        city, state, notes, is_full_day, approval_status,
+        clocked_by_profile_id,
+        project:project_id(name),
+        profile:employee_id(full_name, email),
+        worker:worker_id(full_name),
+        clocked_by:clocked_by_profile_id(full_name)
+      `)
       .eq('company_id', companyId)
       .order('clock_in', { ascending: false })
       .limit(200)
@@ -122,6 +155,54 @@ export default function TimePage() {
     setActionId(null)
   }
 
+  function openEdit(entry: TimeEntry) {
+    setEditEntry(entry)
+    setEditClockIn(toLocalDatetimeValue(entry.clock_in))
+    setEditClockOut(entry.clock_out ? toLocalDatetimeValue(entry.clock_out) : '')
+    setEditNotes(entry.notes ?? '')
+    setEditError('')
+  }
+
+  async function saveEdit() {
+    if (!editEntry) return
+    setEditSaving(true)
+    setEditError('')
+    const supabase = createClient()
+    const updates: Record<string, unknown> = {
+      clock_in: new Date(editClockIn).toISOString(),
+      notes: editNotes || null,
+    }
+    if (editClockOut) {
+      updates.clock_out = new Date(editClockOut).toISOString()
+      if (new Date(editClockOut) <= new Date(editClockIn)) {
+        setEditError('Clock-out must be after clock-in.')
+        setEditSaving(false)
+        return
+      }
+    } else {
+      updates.clock_out = null
+    }
+    const { error } = await supabase.from('time_entries').update(updates).eq('id', editEntry.id)
+    if (error) {
+      setEditError(error.message)
+      setEditSaving(false)
+      return
+    }
+    setEditEntry(null)
+    setEditSaving(false)
+    load()
+  }
+
+  async function confirmDelete() {
+    if (!deleteId) return
+    setDeleting(true)
+    const supabase = createClient()
+    await supabase.from('time_entries').delete().eq('id', deleteId)
+    setDeleteId(null)
+    setDeleting(false)
+    load()
+  }
+
   const empOptions = [
     { value: '', label: t('admin.time.allEmployees') },
     ...employees.map(e => ({ value: e.id, label: e.full_name })),
@@ -130,6 +211,9 @@ export default function TimePage() {
   const pendingCount = entries.filter(e => e.approval_status === 'pending' && e.clock_out).length
   const activeCount = entries.filter(e => !e.clock_out).length
   const totalHours = entries.reduce((sum, e) => sum + (calcHours(e.clock_in, e.clock_out) ?? 0), 0)
+
+  const personName = (e: TimeEntry) =>
+    e.profile?.full_name ?? e.worker?.full_name ?? t('admin.time.unknownEmployee')
 
   return (
     <div className="p-4 md:p-8 max-w-[1400px]">
@@ -144,18 +228,10 @@ export default function TimePage() {
       {/* Filters */}
       <div className="flex gap-3 mb-4 flex-wrap">
         <div className="w-40">
-          <Select
-            options={filterOptions(t)}
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-          />
+          <Select options={filterOptions(t)} value={filter} onChange={e => setFilter(e.target.value)} />
         </div>
         <div className="w-52">
-          <Select
-            options={empOptions}
-            value={empFilter}
-            onChange={e => setEmpFilter(e.target.value)}
-          />
+          <Select options={empOptions} value={empFilter} onChange={e => setEmpFilter(e.target.value)} />
         </div>
       </div>
 
@@ -170,13 +246,16 @@ export default function TimePage() {
               const hours = calcHours(e.clock_in, e.clock_out)
               const status = e.clock_out ? (e.approval_status ?? 'approved') : 'active'
               const isActing = actionId === e.id
+              const clockedBySomeoneElse =
+                e.clocked_by_profile_id &&
+                e.clocked_by_profile_id !== e.employee_id &&
+                e.clocked_by?.full_name
               return (
                 <div key={e.id} className="px-5 py-4 flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-primary">
-                        {e.profile?.full_name ?? t('admin.time.unknownEmployee')}
-                      </p>
+                      <p className="text-sm font-medium text-primary">{personName(e)}</p>
+                      {e.worker_id && <Badge variant="gray">Worker</Badge>}
                       {status === 'active' && <Badge variant="green">{t('common.active')}</Badge>}
                       {status === 'pending' && <Badge variant="amber">{t('common.pending')}</Badge>}
                       {status === 'rejected' && <Badge variant="gray">{t('common.rejected')}</Badge>}
@@ -184,11 +263,24 @@ export default function TimePage() {
                     <p className="text-xs text-secondary mt-0.5">
                       {fmtDate(e.clock_in, locale)} · {fmtTime(e.clock_in, locale)}
                       {e.clock_out ? ` → ${fmtTime(e.clock_out, locale)}` : t('admin.time.inProgress')}
+                      {e.is_full_day === true && ' · Full day'}
+                      {e.is_full_day === false && e.clock_out && ` · Partial`}
                     </p>
                     {(e.city || e.project?.name) && (
                       <p className="text-xs text-tertiary mt-0.5 truncate">
                         {e.project?.name ?? ''}
                         {e.city ? ` · ${e.city}${e.state ? `, ${e.state}` : ''}` : ''}
+                      </p>
+                    )}
+                    {e.notes && (
+                      <p className="text-xs text-tertiary mt-0.5 italic">"{e.notes}"</p>
+                    )}
+                    {/* Attribution footer — like photo credit */}
+                    {clockedBySomeoneElse && (
+                      <p className="text-xs text-tertiary mt-1">
+                        ↳ {e.clock_out
+                          ? `Clocked out by ${e.clocked_by!.full_name}`
+                          : `Clocked in by ${e.clocked_by!.full_name}`}
                       </p>
                     )}
                   </div>
@@ -198,7 +290,7 @@ export default function TimePage() {
                         {hours.toFixed(2)}h
                       </span>
                     )}
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 flex-wrap justify-end">
                       {!e.clock_out && (
                         <button
                           onClick={() => clockOut(e.id)}
@@ -226,6 +318,19 @@ export default function TimePage() {
                           </button>
                         </>
                       )}
+                      {/* Admin-only edit & delete */}
+                      <button
+                        onClick={() => openEdit(e)}
+                        className="text-xs px-2 py-1 rounded-button bg-surface-elevated text-secondary hover:text-primary hover:bg-[var(--border)] transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(e.id)}
+                        className="text-xs px-2 py-1 rounded-button text-tertiary hover:text-danger hover:bg-danger/10 transition-colors"
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -234,6 +339,83 @@ export default function TimePage() {
           </div>
         )}
       </Card>
+
+      {/* ── Edit Modal ── */}
+      {editEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-[var(--surface)] rounded-card w-full max-w-sm shadow-xl p-5 space-y-4">
+            <h2 className="text-base font-semibold text-primary">Edit Entry</h2>
+            <p className="text-sm text-secondary -mt-2">{personName(editEntry)}</p>
+            <div>
+              <label className="block text-xs font-medium text-secondary mb-1">Clock-in</label>
+              <input
+                type="datetime-local"
+                value={editClockIn}
+                onChange={ev => setEditClockIn(ev.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-input border border-[var(--border)] bg-[var(--surface)] text-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-secondary mb-1">Clock-out</label>
+              <input
+                type="datetime-local"
+                value={editClockOut}
+                onChange={ev => setEditClockOut(ev.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-input border border-[var(--border)] bg-[var(--surface)] text-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-secondary mb-1">Notes</label>
+              <Input
+                value={editNotes}
+                onChange={ev => setEditNotes(ev.target.value)}
+                placeholder="Optional note"
+              />
+            </div>
+            {editError && <p className="text-xs text-danger">{editError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setEditEntry(null)}
+                className="flex-1 px-4 py-2 text-sm rounded-button border border-[var(--border)] text-secondary hover:text-primary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={editSaving}
+                className="flex-1 px-4 py-2 text-sm rounded-button bg-brand text-white font-medium hover:bg-brand/90 transition-colors disabled:opacity-60"
+              >
+                {editSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirm ── */}
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-[var(--surface)] rounded-card w-full max-w-xs shadow-xl p-5 space-y-4">
+            <h2 className="text-base font-semibold text-primary">Delete entry?</h2>
+            <p className="text-sm text-secondary">This clock-in record will be permanently removed.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="flex-1 px-4 py-2 text-sm rounded-button border border-[var(--border)] text-secondary hover:text-primary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 text-sm rounded-button bg-danger text-white font-medium hover:bg-danger/90 transition-colors disabled:opacity-60"
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
