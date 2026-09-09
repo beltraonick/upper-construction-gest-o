@@ -65,7 +65,7 @@ export const common = {
       low: 'Low',
     },
     role: {
-      admin: 'Administrator',
+      admin: 'Company',
       employee: 'Employee',
       client: 'Client',
       owner: 'Owner',
@@ -138,7 +138,7 @@ export const common = {
       low: 'Baixa',
     },
     role: {
-      admin: 'Administrador',
+      admin: 'Empresa',
       employee: 'Funcionário',
       client: 'Cliente',
       owner: 'Dono',
@@ -211,7 +211,7 @@ export const common = {
       low: 'Baja',
     },
     role: {
-      admin: 'Administrador',
+      admin: 'Empresa',
       employee: 'Empleado',
       client: 'Cliente',
       owner: 'Dueño',

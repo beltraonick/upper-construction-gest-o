@@ -12,6 +12,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { PlanViewer } from '@/components/admin/PlanViewer'
 import type { PlanMarker } from '@/components/admin/PlanViewer'
 import { KanbanBoard } from './KanbanBoard'
+import { TeamClockIn } from '@/app/(employee)/projects/[id]/TeamClockIn'
 import { useCompanyId } from '@/lib/company-context'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
 import { PhotoPicker } from '@/components/ui/PhotoPicker'
@@ -76,7 +77,7 @@ interface Photo {
   created_at: string
 }
 
-type Tab = 'overview' | 'plans' | 'tasks' | 'photos'
+type Tab = 'overview' | 'plans' | 'tasks' | 'photos' | 'team'
 
 function statusBadge(s: string, t: (key: string) => string) {
   const map: Record<string, { label: string; variant: 'green' | 'amber' | 'blue' | 'gray' }> = {
@@ -527,18 +528,20 @@ export default function ProjectDetailPage() {
 
       {/* Tabs */}
       <div className="flex gap-0 border-b border-[var(--border)] mb-6 overflow-x-auto">
-        {(['overview', 'plans', 'tasks', 'photos'] as Tab[]).map(tab => (
+        {(['overview', 'plans', 'tasks', 'team', 'photos'] as Tab[]).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={[
-              'px-4 py-3 text-sm font-medium capitalize flex-shrink-0 transition-colors border-b-2 -mb-px',
+              'px-4 py-3 text-sm font-medium flex-shrink-0 transition-colors border-b-2 -mb-px',
               activeTab === tab
                 ? 'border-brand text-primary'
                 : 'border-transparent text-secondary hover:text-primary',
             ].join(' ')}
           >
-            {t(`admin.projectDetail.tab${tab.charAt(0).toUpperCase()}${tab.slice(1)}`)}
+            {tab === 'team'
+              ? t('supervisor.tabs.teamClock')
+              : t(`admin.projectDetail.tab${tab.charAt(0).toUpperCase()}${tab.slice(1)}`)}
           </button>
         ))}
       </div>
@@ -809,6 +812,11 @@ export default function ProjectDetailPage() {
           companyId={companyId}
           employees={employees}
         />
+      )}
+
+      {/* ── TEAM CLOCK-IN ── */}
+      {activeTab === 'team' && (
+        <TeamClockIn projectId={projectId} />
       )}
 
       {/* ── PHOTOS ── */}
