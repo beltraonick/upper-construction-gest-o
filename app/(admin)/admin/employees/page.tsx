@@ -251,7 +251,7 @@ export default function EmployeesPage() {
         hourly_rate: Number(form.hourly_rate),
         phone: form.phone || null,
         password: form.password,
-        permissions: form.permissions ?? {},
+        permissions: (form.permissions ?? {}) as Record<string, unknown>,
       })
       if (result.error) {
         setError(result.error)
