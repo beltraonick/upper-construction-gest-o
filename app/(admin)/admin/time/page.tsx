@@ -273,7 +273,7 @@ export default function TimePage() {
                       </p>
                     )}
                     {e.notes && (
-                      <p className="text-xs text-tertiary mt-0.5 italic">"{e.notes}"</p>
+                      <p className="text-xs text-tertiary mt-0.5 italic">&ldquo;{e.notes}&rdquo;</p>
                     )}
                     {/* Attribution footer — like photo credit */}
                     {clockedBySomeoneElse && (
