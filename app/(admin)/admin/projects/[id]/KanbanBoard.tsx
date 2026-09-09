@@ -804,7 +804,7 @@ function KanbanColumnView({
 
   return (
     <div
-      className={['flex-shrink-0 w-56 flex flex-col rounded-card border transition-colors', dragOver ? 'border-brand/50 bg-brand/5' : 'border-[var(--border)] bg-surface-elevated'].join(' ')}
+      className={['flex-1 min-w-[176px] max-w-[240px] flex flex-col rounded-card border transition-colors', dragOver ? 'border-brand/50 bg-brand/5' : 'border-[var(--border)] bg-surface-elevated'].join(' ')}
       onDragOver={e => { e.preventDefault(); setDragOver(true) }}
       onDragLeave={() => setDragOver(false)}
       onDrop={() => { setDragOver(false); onDrop(col.id) }}
@@ -1101,7 +1101,7 @@ export function KanbanBoard({
       {/* Horizontal scroll container */}
       {(columns.length > 0 || addingColumn) && (
         <div className="overflow-x-auto pb-4 -mx-1">
-          <div className="flex gap-3 px-1" style={{ minWidth: 'max-content' }}>
+          <div className="flex gap-3 px-1 w-full">
             {columns.map(col => (
               <KanbanColumnView
                 key={col.id}
@@ -1119,7 +1119,7 @@ export function KanbanBoard({
 
             {/* Add column form */}
             {addingColumn && (
-              <div className="flex-shrink-0 w-56 flex flex-col gap-2 p-3 border border-dashed border-[var(--border-strong)] rounded-card bg-surface-elevated">
+              <div className="flex-1 min-w-[176px] max-w-[240px] flex flex-col gap-2 p-3 border border-dashed border-[var(--border-strong)] rounded-card bg-surface-elevated">
                 <p className="text-xs font-semibold text-secondary">{t('admin.projectDetail.kanbanColumnName')}</p>
                 <input
                   autoFocus
