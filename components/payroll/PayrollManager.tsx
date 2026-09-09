@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCompanyId } from '@/lib/company-context'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { useTranslation } from '@/lib/i18n/LocaleContext'
 
 const STANDARD_DAY_HOURS = 8
@@ -224,10 +223,6 @@ export function PayrollManager() {
   const grandTotal   = summaries.reduce((s, r) => s + r.totalPay, 0)
   const overtimeTotal = summaries.reduce((s, r) => s + r.overtimePay, 0)
 
-  function handlePrint() {
-    window.print()
-  }
-
   function exportDetailCSV() {
     const header = ['EMPLOYEE NAME', 'WORKED?', 'DATE', 'PRICE $', 'FULL DAY?', 'TOTAL $', 'NOTES', 'JOB NAME']
     const dataRows = rows.map(r => [
@@ -245,24 +240,7 @@ export function PayrollManager() {
     downloadCSV(`Payroll_Detail_${label}.csv`, csv)
   }
 
-  function exportSummaryCSV() {
-    const header = ['EMPLOYEE NAME', 'TOTAL DAYS', 'FULL DAYS', 'PARTIAL DAYS', 'TOTAL $']
-    const dataRows = summaries.map(s => [
-      s.personName,
-      s.totalDays,
-      s.fullDays,
-      s.partialDays,
-      s.totalPay.toFixed(2),
-    ])
-    const footer = ['GRAND TOTAL', rows.length, '', '', grandTotal.toFixed(2)]
-    const csv = [header, ...dataRows, footer].map(row => row.map(escapeCSV).join(',')).join('\n')
-    const label = periodStart && periodEnd ? `${periodStart}_to_${periodEnd}` : 'payroll'
-    downloadCSV(`Payroll_Summary_${label}.csv`, csv)
-  }
-
   function printInvoice() {
-    // Build invoice HTML and open in a new window for printing
-    const companyName = 'CAA Renovations LLC'
     const periodLabel = periodStart && periodEnd ? `${fmtDate(periodStart)} to ${fmtDate(periodEnd)}` : ''
 
     const perPerson = summaries.map(s => {

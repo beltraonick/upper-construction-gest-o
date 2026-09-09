@@ -457,6 +457,14 @@ export function TaskList({
     )
   }
 
+  const filterCounts = useMemo(() => ({
+    all: tasks.length,
+    pending: tasks.filter(tk => tk.status === 'pending').length,
+    in_progress: tasks.filter(tk => tk.status === 'in_progress').length,
+    blocked: tasks.filter(tk => tk.status === 'blocked').length,
+    completed: tasks.filter(tk => tk.status === 'completed').length,
+  }), [tasks])
+
   if (tasks.length === 0) {
     return (
       <Card>
@@ -472,14 +480,6 @@ export function TaskList({
       </Card>
     )
   }
-
-  const filterCounts = useMemo(() => ({
-    all: tasks.length,
-    pending: tasks.filter(tk => tk.status === 'pending').length,
-    in_progress: tasks.filter(tk => tk.status === 'in_progress').length,
-    blocked: tasks.filter(tk => tk.status === 'blocked').length,
-    completed: tasks.filter(tk => tk.status === 'completed').length,
-  }), [tasks])
 
   return (
     <>
