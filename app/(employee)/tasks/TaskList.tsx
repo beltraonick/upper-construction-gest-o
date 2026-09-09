@@ -469,6 +469,14 @@ export function TaskList({
       .filter(g => g.tasks.length > 0)
   }, [projectGroups, statusFilter])
 
+  const filterCounts = useMemo(() => ({
+    all: tasks.length,
+    pending: tasks.filter(tk => tk.status === 'pending').length,
+    in_progress: tasks.filter(tk => tk.status === 'in_progress').length,
+    blocked: tasks.filter(tk => tk.status === 'blocked').length,
+    completed: tasks.filter(tk => tk.status === 'completed').length,
+  }), [tasks])
+
   // Task is "started" if status says so, OR if before photos already exist
   const taskStarted = liveStatus === 'in_progress' || liveStatus === 'completed' || beforePhotos.length > 0
 
@@ -500,14 +508,6 @@ export function TaskList({
       </Card>
     )
   }
-
-  const filterCounts = useMemo(() => ({
-    all: tasks.length,
-    pending: tasks.filter(tk => tk.status === 'pending').length,
-    in_progress: tasks.filter(tk => tk.status === 'in_progress').length,
-    blocked: tasks.filter(tk => tk.status === 'blocked').length,
-    completed: tasks.filter(tk => tk.status === 'completed').length,
-  }), [tasks])
 
   return (
     <>
