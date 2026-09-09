@@ -449,6 +449,8 @@ export function TaskList({
     }
   }
 
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'in_progress' | 'blocked' | 'completed'>('all')
+
   const projectGroups = useMemo(() => {
     const map = new Map<string, { name: string; tasks: Task[] }>()
     for (const task of tasks) {
@@ -459,6 +461,13 @@ export function TaskList({
     }
     return Array.from(map.values())
   }, [tasks])
+
+  const filteredGroups = useMemo(() => {
+    if (statusFilter === 'all') return projectGroups
+    return projectGroups
+      .map(g => ({ ...g, tasks: g.tasks.filter(tk => tk.status === statusFilter) }))
+      .filter(g => g.tasks.length > 0)
+  }, [projectGroups, statusFilter])
 
   // Task is "started" if status says so, OR if before photos already exist
   const taskStarted = liveStatus === 'in_progress' || liveStatus === 'completed' || beforePhotos.length > 0
@@ -492,10 +501,53 @@ export function TaskList({
     )
   }
 
+  const filterCounts = useMemo(() => ({
+    all: tasks.length,
+    pending: tasks.filter(tk => tk.status === 'pending').length,
+    in_progress: tasks.filter(tk => tk.status === 'in_progress').length,
+    blocked: tasks.filter(tk => tk.status === 'blocked').length,
+    completed: tasks.filter(tk => tk.status === 'completed').length,
+  }), [tasks])
+
   return (
     <>
+      {/* Status filter pills */}
+      {tasks.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-4 -mx-4 px-4 scrollbar-hide">
+          {([
+            { key: 'all',         label: t('employee.tasks.filterAll'),        count: filterCounts.all },
+            { key: 'pending',     label: t('employee.tasks.filterPending'),    count: filterCounts.pending },
+            { key: 'in_progress', label: t('employee.tasks.filterInProgress'), count: filterCounts.in_progress },
+            { key: 'blocked',     label: t('employee.tasks.filterBlocked'),    count: filterCounts.blocked },
+            { key: 'completed',   label: t('employee.tasks.filterCompleted'),  count: filterCounts.completed },
+          ] as const).filter(f => f.key === 'all' || f.count > 0).map(f => (
+            <button
+              key={f.key}
+              onClick={() => setStatusFilter(f.key)}
+              className={[
+                'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+                statusFilter === f.key
+                  ? 'bg-brand text-white border-brand'
+                  : 'bg-surface text-secondary border-[var(--border)] hover:border-brand/40',
+              ].join(' ')}
+            >
+              {f.label}
+              <span className={`text-[10px] ${statusFilter === f.key ? 'opacity-75' : 'text-tertiary'}`}>
+                {f.count}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {filteredGroups.length === 0 && statusFilter !== 'all' && (
+        <div className="py-10 text-center">
+          <p className="text-sm text-secondary">{t('employee.tasks.filterNoResults')}</p>
+        </div>
+      )}
+
       <div className="space-y-5">
-        {projectGroups.map((group, gi) => {
+        {filteredGroups.map((group, gi) => {
           const accent = ACCENT_PALETTE[gi % ACCENT_PALETTE.length]
           return (
             <div

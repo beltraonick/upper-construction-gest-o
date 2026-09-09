@@ -4,6 +4,7 @@
 // capabilities are built — no schema change needed.
 
 export interface EmployeePermissions {
+  supervisor?: boolean
   checkin_team?: boolean
   delete_team_photos?: boolean
   create_extras?: boolean
@@ -11,6 +12,7 @@ export interface EmployeePermissions {
 }
 
 export const PERMISSION_KEYS = [
+  'supervisor',
   'checkin_team',
   'delete_team_photos',
   'create_extras',
