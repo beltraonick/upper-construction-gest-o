@@ -221,7 +221,8 @@ export function Sidebar({ user, pendingCount = 0, auditCount = 0 }: { user: Sess
       </aside>
 
       {/* ── Mobile Top Bar (< md) ── */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[var(--border)] flex items-center justify-between px-4 h-14">
+      <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[var(--border)]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center justify-between px-4 h-14">
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />
@@ -243,6 +244,7 @@ export function Sidebar({ user, pendingCount = 0, auditCount = 0 }: { user: Sess
               </svg>
             </button>
           </LogoutForm>
+        </div>
         </div>
       </header>
 

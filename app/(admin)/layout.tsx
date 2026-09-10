@@ -48,8 +48,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="flex h-screen bg-background overflow-hidden">
             <OfflineBanner />
             <Sidebar user={user} pendingCount={pendingCount} auditCount={auditCount} />
-            {/* pt-14 = mobile topbar height; pb-20 = mobile bottom nav; md resets both */}
-            <main className="flex-1 md:ml-[240px] overflow-y-auto pt-14 md:pt-0 pb-20 md:pb-0">
+            {/* mobile top = 3.5rem + safe-area-top; bottom = 5rem + safe-area-bottom; md resets both */}
+            <main className="flex-1 md:ml-[240px] overflow-y-auto md:pt-0 pb-20 md:pb-0" style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}>
               {children}
             </main>
             <ImpersonationBanner />

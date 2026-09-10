@@ -26,7 +26,8 @@ export default async function ClientLayout({ children }: { children: React.React
     <LocaleProvider locale={user.language}>
     <div className="min-h-screen bg-background">
       {/* Top bar */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[var(--border)] flex items-center justify-between px-4 h-14 safe-top">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-surface border-b border-[var(--border)]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center justify-between px-4 h-14">
         <div className="flex items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon.png" alt="OrbitOps" className="w-7 h-7 rounded-lg object-cover" />
@@ -53,10 +54,11 @@ export default async function ClientLayout({ children }: { children: React.React
             </button>
           </LogoutForm>
         </div>
+        </div>
       </header>
 
-      <div className="pt-14">
-        <div className="sticky top-14 z-30">
+      <div style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top))' }}>
+        <div className="sticky z-30" style={{ top: 'calc(3.5rem + env(safe-area-inset-top))' }}>
           <ClientNav />
         </div>
 
