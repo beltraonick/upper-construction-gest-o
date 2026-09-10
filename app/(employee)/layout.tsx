@@ -45,7 +45,7 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
     <LocaleProvider locale={user.language}>
       <CompanyProvider companyId={user.company_id as string}>
         <PermissionsProvider permissions={permissions}>
-          <div className="min-h-screen bg-background pb-20">
+          <div className="min-h-screen bg-background pb-20 safe-top">
             <OfflineBanner />
             {children}
             <EmployeeNav />
