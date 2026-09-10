@@ -329,6 +329,9 @@ export default function EmployeesPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium text-primary truncate">{emp.full_name}</p>
                     {emp.role === 'admin' && <Badge variant="blue">{t('admin.employees.roleAdmin')}</Badge>}
+                    {emp.role === 'employee' && (emp.permissions?.supervisor || emp.permissions?.checkin_team) && (
+                      <Badge variant="amber">{t('admin.employees.supervisorBadge')}</Badge>
+                    )}
                     {emp.status === 'archived' && <Badge variant="gray">{t('admin.employees.statusArchived')}</Badge>}
                   </div>
                   <p className="text-xs text-secondary truncate">
@@ -578,19 +581,44 @@ export default function EmployeesPage() {
                   />
                   {form.role === 'employee' && (
                     <div className="col-span-2 bg-surface-elevated border border-[var(--border)] rounded-input p-3">
-                      <p className="text-xs font-semibold text-secondary mb-2">{t('admin.employees.permissionsTitle')}</p>
-                      <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className="text-xs font-semibold text-secondary">{t('admin.employees.permissionsTitle')}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isSup = form.permissions?.supervisor && form.permissions?.checkin_team
+                            setForm(f => ({
+                              ...f,
+                              permissions: { ...f.permissions, supervisor: !isSup, checkin_team: !isSup },
+                            }))
+                          }}
+                          className={`flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                            form.permissions?.supervisor && form.permissions?.checkin_team
+                              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700'
+                              : 'text-[var(--color-brand)] border-[var(--color-brand)] hover:bg-[var(--color-brand)]/10'
+                          }`}
+                        >
+                          {form.permissions?.supervisor && form.permissions?.checkin_team
+                            ? t('admin.employees.removeSupervisor')
+                            : t('admin.employees.makeSupervisor')}
+                        </button>
+                      </div>
+                      <p className="text-xs text-tertiary mb-3">{t('admin.employees.permissionsSubtitle')}</p>
+                      <div className="space-y-3">
                         {PERMISSION_KEYS.map(key => (
-                          <label key={key} className="flex items-center gap-2.5 cursor-pointer">
+                          <label key={key} className="flex items-start gap-2.5 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={form.permissions?.[key] === true}
                               onChange={e =>
                                 setForm(f => ({ ...f, permissions: { ...f.permissions, [key]: e.target.checked } }))
                               }
-                              className="w-4 h-4 rounded accent-brand flex-shrink-0"
+                              className="w-4 h-4 rounded accent-brand flex-shrink-0 mt-0.5"
                             />
-                            <span className="text-sm text-primary">{t(`admin.employees.permission_${key}`)}</span>
+                            <div>
+                              <span className="text-sm text-primary block leading-snug">{t(`admin.employees.permission_${key}`)}</span>
+                              <span className="text-xs text-tertiary">{t(`admin.employees.permissionDesc_${key}`)}</span>
+                            </div>
                           </label>
                         ))}
                       </div>
