@@ -106,6 +106,9 @@ html, body {
 /* safe-area insets for iOS notch / home indicator */
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .safe-top    { padding-top: env(safe-area-inset-top, 0px); }
+/* admin mobile main: below fixed header (3.5rem) + status bar; resets on md */
+.pt-safe-header { padding-top: calc(3.5rem + env(safe-area-inset-top, 0px)); }
+@media (min-width: 768px) { .pt-safe-header { padding-top: 0; } }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
