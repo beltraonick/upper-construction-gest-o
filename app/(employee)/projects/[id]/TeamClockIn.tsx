@@ -47,77 +47,65 @@ function ClockOutSheet({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-surface rounded-t-[20px] md:rounded-[20px] flex flex-col max-h-[90dvh] md:max-h-[80vh]"
+        className="w-full max-w-lg bg-surface rounded-t-[20px] md:rounded-[20px] p-5 safe-bottom"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header — fixed, never scrolls away */}
-        <div className="flex-shrink-0 pt-4 px-5 pb-3">
-          <div className="w-10 h-1 bg-tertiary rounded-full mx-auto mb-4 md:hidden" />
-          <h3 className="text-base font-semibold text-primary mb-1">{member.full_name}</h3>
-          {member.entry && (
-            <p className="text-xs text-secondary">
-              {t('supervisor.clockIn.clockedInAt')} {fmtTime(member.entry.clock_in)}
-            </p>
-          )}
+        <div className="w-10 h-1 bg-tertiary rounded-full mx-auto mb-4 md:hidden" />
+        <h3 className="text-base font-semibold text-primary mb-1">{member.full_name}</h3>
+        {member.entry && (
+          <p className="text-xs text-secondary mb-4">
+            {t('supervisor.clockIn.clockedInAt')} {fmtTime(member.entry.clock_in)}
+          </p>
+        )}
+
+        <div className="mb-4">
+          <p className="text-xs font-medium text-secondary mb-2">{t('supervisor.clockIn.fullDayQuestion')}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsFullDay(true)}
+              className={`flex-1 py-2.5 rounded-button text-sm font-medium border transition-colors ${
+                isFullDay
+                  ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
+                  : 'bg-surface border-[var(--border)] text-secondary'
+              }`}
+            >
+              {t('supervisor.clockIn.fullDay')}
+            </button>
+            <button
+              onClick={() => setIsFullDay(false)}
+              className={`flex-1 py-2.5 rounded-button text-sm font-medium border transition-colors ${
+                !isFullDay
+                  ? 'bg-amber-500 text-white border-amber-500'
+                  : 'bg-surface border-[var(--border)] text-secondary'
+              }`}
+            >
+              {t('supervisor.clockIn.partialDay')}
+            </button>
+          </div>
         </div>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-5 py-3 min-h-0">
-          <div className="mb-4">
-            <p className="text-xs font-medium text-secondary mb-2">{t('supervisor.clockIn.fullDayQuestion')}</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setIsFullDay(true)}
-                className={`flex-1 py-2.5 rounded-button text-sm font-medium border transition-colors ${
-                  isFullDay
-                    ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
-                    : 'bg-surface border-[var(--border)] text-secondary'
-                }`}
-              >
-                {t('supervisor.clockIn.fullDay')}
-              </button>
-              <button
-                onClick={() => setIsFullDay(false)}
-                className={`flex-1 py-2.5 rounded-button text-sm font-medium border transition-colors ${
-                  !isFullDay
-                    ? 'bg-amber-500 text-white border-amber-500'
-                    : 'bg-surface border-[var(--border)] text-secondary'
-                }`}
-              >
-                {t('supervisor.clockIn.partialDay')}
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-2">
-            <label className="text-xs font-medium text-secondary block mb-1.5">
-              {t('supervisor.clockIn.notesOptional')}
-            </label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              placeholder={t('supervisor.clockIn.notesPlaceholder')}
-              className="w-full bg-surface-elevated border border-[var(--border)] rounded-button px-3 py-2.5 text-sm text-primary placeholder:text-tertiary resize-none focus:outline-none focus:border-[var(--color-brand)]"
-            />
-          </div>
-
-          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        <div className="mb-4">
+          <label className="text-xs font-medium text-secondary block mb-1.5">
+            {t('supervisor.clockIn.notesOptional')}
+          </label>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={2}
+            placeholder={t('supervisor.clockIn.notesPlaceholder')}
+            className="w-full bg-surface-elevated border border-[var(--border)] rounded-button px-3 py-2.5 text-sm text-primary placeholder:text-tertiary resize-none focus:outline-none focus:border-[var(--color-brand)]"
+          />
         </div>
 
-        {/* Sticky action button */}
-        <div
-          className="flex-shrink-0 px-5 pt-3 border-t border-[var(--border)]"
-          style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+        {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+
+        <button
+          onClick={handleClockOut}
+          disabled={saving}
+          className="w-full py-3 bg-red-500 text-white rounded-button font-semibold text-sm disabled:opacity-50"
         >
-          <button
-            onClick={handleClockOut}
-            disabled={saving}
-            className="w-full py-3 bg-red-500 text-white rounded-button font-semibold text-sm disabled:opacity-50"
-          >
-            {saving ? t('common.saving') : t('supervisor.clockIn.clockOut')}
-          </button>
-        </div>
+          {saving ? t('common.saving') : t('supervisor.clockIn.clockOut')}
+        </button>
       </div>
     </div>
   )
@@ -159,49 +147,37 @@ function ClockInSheet({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-surface rounded-t-[20px] md:rounded-[20px] flex flex-col max-h-[90dvh] md:max-h-[80vh]"
+        className="w-full max-w-lg bg-surface rounded-t-[20px] md:rounded-[20px] p-5 safe-bottom"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header — fixed, never scrolls away */}
-        <div className="flex-shrink-0 pt-4 px-5 pb-3">
-          <div className="w-10 h-1 bg-tertiary rounded-full mx-auto mb-4 md:hidden" />
-          <h3 className="text-base font-semibold text-primary mb-1">{member.full_name}</h3>
-          <p className="text-xs text-secondary">
-            ${member.daily_rate.toFixed(2)} {t('supervisor.clockIn.perDay')}
-          </p>
+        <div className="w-10 h-1 bg-tertiary rounded-full mx-auto mb-4 md:hidden" />
+        <h3 className="text-base font-semibold text-primary mb-1">{member.full_name}</h3>
+        <p className="text-xs text-secondary mb-4">
+          ${member.daily_rate.toFixed(2)} {t('supervisor.clockIn.perDay')}
+        </p>
+
+        <div className="mb-4">
+          <label className="text-xs font-medium text-secondary block mb-1.5">
+            {t('supervisor.clockIn.notesOptional')}
+          </label>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={2}
+            placeholder={t('supervisor.clockIn.notesPlaceholder')}
+            className="w-full bg-surface-elevated border border-[var(--border)] rounded-button px-3 py-2.5 text-sm text-primary placeholder:text-tertiary resize-none focus:outline-none focus:border-[var(--color-brand)]"
+          />
         </div>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-5 py-3 min-h-0">
-          <div className="mb-2">
-            <label className="text-xs font-medium text-secondary block mb-1.5">
-              {t('supervisor.clockIn.notesOptional')}
-            </label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={2}
-              placeholder={t('supervisor.clockIn.notesPlaceholder')}
-              className="w-full bg-surface-elevated border border-[var(--border)] rounded-button px-3 py-2.5 text-sm text-primary placeholder:text-tertiary resize-none focus:outline-none focus:border-[var(--color-brand)]"
-            />
-          </div>
+        {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
-          {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-        </div>
-
-        {/* Sticky action button */}
-        <div
-          className="flex-shrink-0 px-5 pt-3 border-t border-[var(--border)]"
-          style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}
+        <button
+          onClick={handleClockIn}
+          disabled={saving}
+          className="w-full py-3 bg-green-600 text-white rounded-button font-semibold text-sm disabled:opacity-50"
         >
-          <button
-            onClick={handleClockIn}
-            disabled={saving}
-            className="w-full py-3 bg-green-600 text-white rounded-button font-semibold text-sm disabled:opacity-50"
-          >
-            {saving ? t('common.saving') : t('supervisor.clockIn.clockIn')}
-          </button>
-        </div>
+          {saving ? t('common.saving') : t('supervisor.clockIn.clockIn')}
+        </button>
       </div>
     </div>
   )
