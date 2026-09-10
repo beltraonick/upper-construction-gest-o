@@ -230,7 +230,7 @@ export default async function EmployeeHomePage() {
                     <p className="text-xs text-secondary truncate">{t.project.name}{t.area ? ` · ${t.area}` : ''}</p>
                   )}
                 </div>
-                <Badge variant={t.priority === 'urgent' ? 'gray' : t.priority === 'high' ? 'gray' : 'gray'}>
+                <Badge variant={t.priority === 'urgent' ? 'red' : t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'amber' : 'gray'}>
                   {t.priority}
                 </Badge>
               </Link>

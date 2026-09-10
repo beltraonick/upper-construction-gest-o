@@ -112,6 +112,9 @@ export const projectDetail = {
     kanbanDescriptionPlaceholder: 'Optional details…',
     kanbanSaving: 'Saving…',
     kanbanColumnExists: 'Save column',
+    photoDeleted: 'Photo deleted',
+    undoDelete: 'Undo',
+    pinCount: '{n} pin{plural}',
   },
   pt: {
     loadingProject: 'Carregando projeto…',
@@ -226,6 +229,9 @@ export const projectDetail = {
     kanbanDescriptionPlaceholder: 'Detalhes opcionais…',
     kanbanSaving: 'Salvando…',
     kanbanColumnExists: 'Salvar coluna',
+    photoDeleted: 'Foto apagada',
+    undoDelete: 'Desfazer',
+    pinCount: '{n} pin{plural}',
   },
   es: {
     loadingProject: 'Cargando proyecto…',
@@ -340,5 +346,8 @@ export const projectDetail = {
     kanbanDescriptionPlaceholder: 'Detalles opcionales…',
     kanbanSaving: 'Guardando…',
     kanbanColumnExists: 'Guardar columna',
+    photoDeleted: 'Foto eliminada',
+    undoDelete: 'Deshacer',
+    pinCount: '{n} pin{plural}',
   },
 }

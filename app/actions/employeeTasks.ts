@@ -95,6 +95,7 @@ export async function updateEmployeeTask(
   })
 
   revalidatePath(`/projects/${currentTask.project_id}`)
+  revalidatePath(`/admin/projects/${currentTask.project_id}`)
   return { ok: true }
 }
 
@@ -158,6 +159,7 @@ export async function createSupervisorTask(
   })
 
   revalidatePath(`/projects/${projectId}`)
+  revalidatePath(`/admin/projects/${projectId}`)
   return { ok: true, task }
 }
 
@@ -250,6 +252,7 @@ export async function updateSupervisorTask(
   }
 
   revalidatePath(`/projects/${currentTask.project_id}`)
+  revalidatePath(`/admin/projects/${currentTask.project_id}`)
   return { ok: true }
 }
 

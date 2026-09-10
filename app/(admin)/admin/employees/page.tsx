@@ -396,7 +396,7 @@ export default function EmployeesPage() {
                     </p>
                   </div>
                   <div className="text-right flex-shrink-0 mr-4">
-                    <p className="text-sm font-semibold text-primary">${Number(w.daily_rate).toFixed(2)}/day</p>
+                    <p className="text-sm font-semibold text-primary">${Number(w.daily_rate).toFixed(2)}{t('admin.employees.perDay')}</p>
                   </div>
                   <button
                     onClick={() => openEditWorker(w)}

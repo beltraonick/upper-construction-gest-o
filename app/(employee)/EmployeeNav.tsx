@@ -11,7 +11,9 @@ export function EmployeeNav() {
   const pathname = usePathname()
   const { t } = useTranslation()
   const permissions = usePermissions()
-  const isSupervisor = hasAnyPermission(permissions)
+  const isSupervisor = hasPermission(permissions, 'checkin_team') ||
+    hasPermission(permissions, 'create_extras') ||
+    hasPermission(permissions, 'close_payroll')
 
   const NAV = [
     {

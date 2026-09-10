@@ -91,7 +91,7 @@ function statusBadge(s: string, t: (key: string) => string) {
 }
 
 export default function ProjectDetailPage() {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const params = useParams()
   const projectId = params.id as string
   const router = useRouter()
@@ -772,7 +772,7 @@ export default function ProjectDetailPage() {
                         {/* Marker badge */}
                         {plan.markers.length > 0 && (
                           <span className="absolute top-2 right-2 bg-brand text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                            {plan.markers.length} pin{plan.markers.length !== 1 ? 's' : ''}
+                            {t('admin.projectDetail.pinCount', { n: plan.markers.length, plural: plan.markers.length !== 1 ? 's' : '' })}
                           </span>
                         )}
                       </div>
@@ -880,8 +880,8 @@ export default function ProjectDetailPage() {
                 </div>
                 {p.created_at && (
                   <p className="text-[10px] text-tertiary px-0.5">
-                    {new Date(p.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                    {' '}{new Date(p.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(p.created_at).toLocaleDateString(locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    {' '}{new Date(p.created_at).toLocaleTimeString(locale === 'pt' ? 'pt-BR' : locale === 'es' ? 'es-ES' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 )}
               </div>
@@ -891,12 +891,12 @@ export default function ProjectDetailPage() {
           {/* Undo delete toast */}
           {pendingPhotoDelete && (
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-5 py-3 rounded-card bg-surface border border-[var(--border)] shadow-xl">
-              <p className="text-sm text-secondary">Foto apagada</p>
+              <p className="text-sm text-secondary">{t('admin.projectDetail.photoDeleted')}</p>
               <button
                 onClick={undoPhotoDelete}
                 className="text-sm font-semibold text-brand hover:text-brand/80 transition-colors"
               >
-                Desfazer
+                {t('admin.projectDetail.undoDelete')}
               </button>
             </div>
           )}
